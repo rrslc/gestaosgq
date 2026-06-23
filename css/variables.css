@@ -1,0 +1,19 @@
+:root {
+  --navy: #0d1b4b;
+  --blue: #1a3a8c;
+  --blue-light: #2d5be3;
+  --accent: #00b4d8;
+  --green: #00897b;
+  --amber: #f59e0b;
+  --red: #dc2626;
+  --purple: #7c3aed;
+  --bg: #f0f4ff;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --muted: #64748b;
+  --sidebar-w: 220px;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --topbar-h: 56px;
+}

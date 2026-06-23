@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGQ — Sistema de Gestão da Qualidade</title>
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+  <!-- ═══ Sidebar ═══════════════════════════════════════════════════════════ -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-title">SGQ</div>
+      <div class="logo-sub">Dispositivos Médicos</div>
+    </div>
+
+    <nav>
+      <div class="nav-section">Visão Geral</div>
+      <a class="nav-item" data-route="dashboard">
+        <span class="nav-icon">◉</span>
+        <span class="nav-label">Dashboard</span>
+      </a>
+
+      <div class="nav-section">Não-Conformidades</div>
+      <a class="nav-item" data-route="capa">
+        <span class="nav-icon">◈</span>
+        <span class="nav-label">CAPA</span>
+      </a>
+      <a class="nav-item" data-route="rnc">
+        <span class="nav-icon">⚑</span>
+        <span class="nav-label">RNC</span>
+      </a>
+
+      <div class="nav-section">Qualidade</div>
+      <a class="nav-item" data-route="fornecedores">
+        <span class="nav-icon">⬡</span>
+        <span class="nav-label">Fornecedores</span>
+      </a>
+      <a class="nav-item" data-route="tecnovig">
+        <span class="nav-icon">⚕</span>
+        <span class="nav-label">Tecnovigilância</span>
+      </a>
+      <a class="nav-item" data-route="validacoes">
+        <span class="nav-icon">✔</span>
+        <span class="nav-label">Validações</span>
+      </a>
+      <a class="nav-item" data-route="gcm">
+        <span class="nav-icon">↻</span>
+        <span class="nav-label">Gest. de Mudanças</span>
+      </a>
+      <a class="nav-item" data-route="risco">
+        <span class="nav-icon">⚠</span>
+        <span class="nav-label">Análise de Risco</span>
+      </a>
+      <a class="nav-item" data-route="pragas">
+        <span class="nav-icon">⬢</span>
+        <span class="nav-label">Controle de Pragas</span>
+      </a>
+
+      <div class="nav-section">Planejamento</div>
+      <a class="nav-item" data-route="equipe">
+        <span class="nav-icon">⚇</span>
+        <span class="nav-label">Equipe</span>
+      </a>
+      <a class="nav-item" data-route="cronograma">
+        <span class="nav-icon">▤</span>
+        <span class="nav-label">Cronograma</span>
+      </a>
+      <a class="nav-item" data-route="calendario">
+        <span class="nav-icon">▦</span>
+        <span class="nav-label">Calendário</span>
+      </a>
+
+      <div class="nav-section">Sistema</div>
+      <a class="nav-item" data-route="configuracoes">
+        <span class="nav-icon">⚙</span>
+        <span class="nav-label">Configurações</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- ═══ Main ══════════════════════════════════════════════════════════════ -->
+  <main id="main">
+
+    <!-- Topbar -->
+    <div id="topbar">
+      <span id="topbar-title">Dashboard</span>
+      <span id="topbar-date"></span>
+      <span id="topbar-mode" title="Modo de armazenamento" style="font-size:0.75rem;color:var(--muted)"></span>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary btn-sm" id="btn-import" title="Importar backup JSON">⬆ Importar</button>
+        <button class="btn btn-secondary btn-sm" id="btn-export" title="Exportar backup JSON">⬇ Exportar</button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div id="content"></div>
+
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
