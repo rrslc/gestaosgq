@@ -10,7 +10,7 @@
 
 import { STORE_KEY } from './constants.js';
 
-const COLLECTIONS = ['equipe', 'capa', 'rnc', 'fornecedores', 'tecno', 'validacoes', 'gcm', 'risco', 'pragas', 'obrigacoes'];
+const COLLECTIONS = ['equipe', 'capa', 'rnc', 'fornecedores', 'tecno', 'validacoes', 'gcm', 'risco', 'pragas', 'obrigacoes', 'documentos'];
 
 class Database {
   /** @type {Record<string, Array>} cache em memória */
@@ -368,6 +368,16 @@ class Database {
         { id: 1, numero: 'OBR-2026-001', nome: 'Envio MAPA à Polícia Federal', orgao: 'Polícia Federal / SISCORI', periodicidade: 'Mensal', diaLimite: 10, responsavel: 'Juliana Pereira', ultimoEnvio: '2026-06-10', proximoVencimento: '2026-07-10', status: 'Em Dia', descricao: 'Mapa de controle de substâncias sujeitas a controle especial — envio até o dia 10 do mês subsequente via SISCORI (Port. SVS/MS nº 344/1998)' },
         { id: 2, numero: 'OBR-2026-002', nome: 'Relatório Semestral de Tecnovigilância (ANVISA)', orgao: 'ANVISA', periodicidade: 'Semestral', diaLimite: 31, responsavel: 'Juliana Pereira', ultimoEnvio: '2026-01-31', proximoVencimento: '2026-07-31', status: 'A Vencer', descricao: 'Relatório periódico de tecnovigilância para produtos com registro ativo — RDC 67/2009' },
         { id: 3, numero: 'OBR-2026-003', nome: 'Renovação de AFE (ANVISA)', orgao: 'ANVISA', periodicidade: 'Anual', diaLimite: 31, responsavel: 'Raissa Caldas', ultimoEnvio: '2026-01-15', proximoVencimento: '2027-01-31', status: 'Em Dia', descricao: 'Autorização de Funcionamento de Empresa — renovação anual junto à ANVISA via Solicita' },
+        { id: 4, numero: 'OBR-2026-004', nome: 'Verificação de Vigência de Documentos Externos', orgao: 'Interno (GQ)', periodicidade: 'Trimestral', diaLimite: 30, responsavel: 'Raissa Caldas', ultimoEnvio: '2026-06-17', proximoVencimento: '2026-09-30', status: 'Em Dia', descricao: 'Verificar a cada 3 meses a vigência de normas, portarias e regulamentações externas aplicáveis ao SGQ — POP-GQ-003 §7.6.1' },
+        { id: 5, numero: 'OBR-2026-005', nome: 'Verificação e Atualização do Cartão de Assinaturas', orgao: 'Interno (GQ)', periodicidade: 'Anual', diaLimite: 31, responsavel: 'Juliana Pereira', ultimoEnvio: '2026-03-17', proximoVencimento: '2027-03-31', status: 'Em Dia', descricao: 'Verificação anual das assinaturas e rubricas de todos os colaboradores cadastrados no POP-GQ-003-05 — POP-GQ-003 §7.10' },
+      ],
+      documentos: [
+        { id: 1, numero: 'MA-GQ-001',  tipo: 'MA',  area: 'GQ', revisao: '00', titulo: 'Manual da Qualidade', dataHomologacao: '2026-01-15', status: 'Vigente', elaboradores: 'Juliana Pereira', revisores: 'Raissa Caldas', aprovadores: 'Diretoria', descricao: 'Descreve o escopo do SGQ, a interação entre seus processos e os fundamentos para atendimento à RDC 665/2022 e ISO 13485:2016.' },
+        { id: 2, numero: 'POP-GQ-002', tipo: 'POP', area: 'GQ', revisao: '00', titulo: 'Elaboração, Revisão, Aprovação, Homologação e Treinamento dos Documentos do SGQ', dataHomologacao: '2026-03-16', status: 'Vigente', elaboradores: 'Juliana Ranzan Matos', revisores: 'Raissa Caldas', aprovadores: '', descricao: 'Descreve a sistemática para elaboração, revisão, treinamento e homologação dos documentos do SGQ.' },
+        { id: 3, numero: 'POP-GQ-003', tipo: 'POP', area: 'GQ', revisao: '00', titulo: 'Controle de Documentos e Dados', dataHomologacao: '2026-01-20', status: 'Vigente', elaboradores: 'Raissa Caldas', revisores: 'Juliana Pereira', aprovadores: '', descricao: 'Procedimento para controle, distribuição e obsolescência de documentos e dados do SGQ.' },
+        { id: 4, numero: 'IT-GQ-004',  tipo: 'IT',  area: 'GQ', revisao: '00', titulo: 'Formatação de Documentos', dataHomologacao: '2026-01-20', status: 'Vigente', elaboradores: 'Raissa Caldas', revisores: 'Juliana Pereira', aprovadores: '', descricao: 'Instrução de trabalho para padronização da formatação de documentos do SGQ.' },
+        { id: 5, numero: 'POP-RH-002', tipo: 'POP', area: 'RH', revisao: '00', titulo: 'Gestão de Conhecimento', dataHomologacao: '2026-02-10', status: 'Vigente', elaboradores: 'RH', revisores: 'Raissa Caldas', aprovadores: '', descricao: 'Procedimento para gestão de treinamentos e homologação de documentos.' },
+        { id: 6, numero: 'PL-GQ-005',  tipo: 'PL',  area: 'GQ', revisao: '01', titulo: 'Plano Mestre de Validação', dataHomologacao: '2026-01-10', status: 'Vigente', elaboradores: 'Raissa Caldas', revisores: 'Mariana Santos', aprovadores: 'Diretoria', descricao: 'Define escopo, critérios e cronograma das 26 qualificações e validações previstas para 2026 (QUA, QTH, QTR, VAL, EST, REV).' },
       ],
     };
   }

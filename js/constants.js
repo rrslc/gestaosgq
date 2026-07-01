@@ -14,6 +14,7 @@ export const STATUS = Object.freeze({
   RISCO: ['Aceitável', 'Redução Necessária', 'Inaceitável', 'Controlado'],
   PRAGA: ['Agendado', 'Realizado', 'Pendente Laudo', 'Concluído', 'Vencido'],
   OBR:   ['Em Dia', 'A Vencer', 'Vencido', 'Suspenso'],
+  DOC:   ['Em Elaboração', 'Em Revisão', 'Vigente', 'A Vencer', 'Vencido', 'Cancelado', 'Suspenso'],
 });
 
 export const ORIGENS_CAPA = Object.freeze([
@@ -96,7 +97,9 @@ export const ROUTES = Object.freeze({
   EQUIPE: 'equipe',
   CRONOGRAMA: 'cronograma',
   CALENDARIO: 'calendario',
+  AGENDA:        'agenda',
   OBRIGACOES:    'obrigacoes',
+  DOCUMENTOS:    'documentos',
   CONFIGURACOES: 'configuracoes',
 });
 
@@ -150,7 +153,11 @@ export const PILL_MAP = Object.freeze({
   // OBR
   'Em Dia':                   'pill-green',
   'A Vencer':                 'pill-amber',
-  'Suspenso':                 'pill-gray',
+  // DOC
+  'Em Elaboração':            'pill-blue',
+  'Em Revisão':               'pill-purple',
+  'Vigente':                  'pill-green',
+  'Cancelado':                'pill-gray',
   // IMPACTO
   'Alto':                     'pill-red',
   'Médio':                    'pill-amber',
