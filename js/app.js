@@ -18,6 +18,7 @@ import validacoes   from './modules/validacoes.js';
 import gcm          from './modules/gcm.js';
 import risco        from './modules/risco.js';
 import pragas       from './modules/pragas.js';
+import obrigacoes   from './modules/obrigacoes.js';
 import equipe       from './modules/equipe.js';
 import cronograma   from './modules/cronograma.js';
 import calendario   from './modules/calendario.js';
@@ -35,6 +36,7 @@ export const router = new Router({
   [ROUTES.GCM]:          { module: gcm,          title: 'Gestão de Mudanças',       icon: '↻' },
   [ROUTES.RISCO]:        { module: risco,        title: 'Análise de Risco',         icon: '⚠' },
   [ROUTES.PRAGAS]:       { module: pragas,       title: 'Controle de Pragas',       icon: '⬢' },
+  [ROUTES.OBRIGACOES]:   { module: obrigacoes,   title: 'Obrig. Regulatórias',      icon: '📋' },
   [ROUTES.EQUIPE]:       { module: equipe,       title: 'Equipe',                   icon: '⚇' },
   [ROUTES.CRONOGRAMA]:   { module: cronograma,   title: 'Cronograma',               icon: '▤' },
   [ROUTES.CALENDARIO]:   { module: calendario,   title: 'Calendário',               icon: '▦' },

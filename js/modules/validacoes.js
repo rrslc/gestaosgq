@@ -8,7 +8,16 @@ import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
 import { STATUS, TIPOS_VAL } from '../constants.js';
 
-const FASES = ['Planejamento', 'Protocolo', 'Execução', 'Relatório Final', 'Aprovação', 'Concluída'];
+const FASES = ['Planejamento', 'ERU/Especificação', 'Protocolo', 'Execução', 'QI', 'QO', 'QD', 'Relatório Final', 'Aprovação', 'Concluída'];
+
+const CATEGORIAS_VAL = ['Qualificação', 'Validação', 'Revisão Periódica'];
+
+function categoriaFromTipo(tipo) {
+  if (!tipo) return '—';
+  if (tipo.startsWith('Qualificação') || tipo.startsWith('Estudo')) return 'Qualificação';
+  if (tipo === 'Revisão Periódica') return 'Revisão';
+  return 'Validação';
+}
 
 const FIELDS = [
   { id: 'numero',     label: 'Número',        type: 'text',     required: true,  span: 1 },
@@ -48,16 +57,23 @@ function renderTable(items) {
           </tr>
         </thead>
         <tbody>
-          ${items.map(r => `
+          ${items.map(r => {
+            const cat = categoriaFromTipo(r.tipo);
+            const catColor = cat === 'Qualificação' ? 'var(--blue)' : cat === 'Revisão' ? 'var(--purple)' : 'var(--accent)';
+            const barColor = r.status === 'Qualificado/Validado' ? 'green' : r.status === 'Em Execução' ? 'blue' : 'gray';
+            return `
             <tr>
               <td><strong>${r.numero}</strong></td>
-              <td style="font-size:0.75rem">${r.tipo}</td>
-              <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.descricao}">${r.descricao}</td>
-              <td>${r.fase}</td>
+              <td style="font-size:0.72rem;white-space:nowrap">
+                <span style="display:inline-block;padding:1px 6px;border-radius:3px;background:${catColor}22;color:${catColor};font-weight:600;margin-bottom:2px">${cat}</span><br>
+                <span style="color:var(--muted)">${r.tipo}</span>
+              </td>
+              <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.descricao}">${r.descricao}</td>
+              <td style="font-size:0.8rem">${r.fase}</td>
               <td>${r.responsavel}</td>
               <td>${deadlineCell(r.prazo)}</td>
               <td>${statusPill(r.status)}</td>
-              <td style="min-width:90px">${progressBar(r.progresso ?? 0, r.status === 'Aprovada' ? 'green' : 'blue')}</td>
+              <td style="min-width:90px">${progressBar(r.progresso ?? 0, barColor)}</td>
               <td>
                 <div class="td-actions">
                   <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}">✏</button>
@@ -65,7 +81,7 @@ function renderTable(items) {
                 </div>
               </td>
             </tr>
-          `).join('')}
+          `;}).join('')}
         </tbody>
       </table>
     </div>
@@ -73,11 +89,13 @@ function renderTable(items) {
 }
 
 function applyFilters(container) {
-  const search = container.querySelector('[data-filter="search"]')?.value?.toLowerCase() ?? '';
-  const status = container.querySelector('[data-filter="status"]')?.value ?? '';
+  const search   = container.querySelector('[data-filter="search"]')?.value?.toLowerCase() ?? '';
+  const status   = container.querySelector('[data-filter="status"]')?.value ?? '';
+  const categoria = container.querySelector('[data-filter="categoria"]')?.value ?? '';
   let items = db.get('validacoes');
-  if (search) items = items.filter(r => r.numero.toLowerCase().includes(search) || r.descricao.toLowerCase().includes(search));
-  if (status) items = items.filter(r => r.status === status);
+  if (search)    items = items.filter(r => r.numero.toLowerCase().includes(search) || r.descricao.toLowerCase().includes(search) || (r.tipo||'').toLowerCase().includes(search));
+  if (status)    items = items.filter(r => r.status === status);
+  if (categoria) items = items.filter(r => categoriaFromTipo(r.tipo) === categoria);
   container.querySelector('#val-table-wrap').innerHTML = renderTable(items);
 }
 
@@ -89,7 +107,13 @@ export default {
         <button class="btn btn-primary" data-action="new">+ Nova Validação</button>
       </div>
       <div class="toolbar">
-        <input class="toolbar-search" type="text" placeholder="Buscar por número ou descrição…" data-filter="search">
+        <input class="toolbar-search" type="text" placeholder="Buscar por número, tipo ou descrição…" data-filter="search">
+        <select class="toolbar-select" data-filter="categoria">
+          <option value="">Todas as categorias</option>
+          <option value="Qualificação">Qualificação</option>
+          <option value="Validação">Validação</option>
+          <option value="Revisão">Revisão Periódica</option>
+        </select>
         <select class="toolbar-select" data-filter="status">
           <option value="">Todos os status</option>
           ${selectOptions(STATUS.VAL)}

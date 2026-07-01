@@ -9,10 +9,11 @@ export const STATUS = Object.freeze({
   RNC: ['Aberta', 'Em Análise', 'Em Tratamento', 'Verificação de Eficácia', 'Encerrada', 'Cancelada'],
   FORN: ['Qualificado', 'Em Qualificação', 'Suspenso', 'Desqualificado'],
   TECNO: ['Aberto', 'Em Investigação', 'Notificado ANVISA', 'Concluído', 'Cancelado'],
-  VAL: ['Planejada', 'Em Execução', 'Em Análise', 'Aprovada', 'Reprovada', 'Cancelada'],
+  VAL: ['Planejada', 'Em Execução', 'Em Revalidação', 'Qualificado/Validado', 'Não Qualificado/Não Validado', 'Reprovada', 'Descontinuado', 'Cancelada'],
   GCM: ['Aberta', 'Em Análise', 'Aprovada', 'Em Implantação', 'Concluída', 'Rejeitada'],
   RISCO: ['Aceitável', 'Redução Necessária', 'Inaceitável', 'Controlado'],
   PRAGA: ['Agendado', 'Realizado', 'Pendente Laudo', 'Concluído', 'Vencido'],
+  OBR:   ['Em Dia', 'A Vencer', 'Vencido', 'Suspenso'],
 });
 
 export const ORIGENS_CAPA = Object.freeze([
@@ -36,14 +37,28 @@ export const TIPOS_TECNO = Object.freeze([
 ]);
 
 export const TIPOS_VAL = Object.freeze([
-  'Validação de Processo',
-  'Qualificação de Equipamento (IQ)',
-  'Qualificação de Equipamento (OQ)',
-  'Qualificação de Equipamento (PQ)',
-  'Validação de Método Analítico',
+  // Qualificações de Equipamentos, Instalações e Utilidades (POP-GQ-015)
+  'Qualificação de Equipamentos de Produção',
+  'Qualificação de Equipamentos de CQ',
+  'Qualificação de Utilidades Críticas',
+  'Qualificação de Sala Limpa (ISO Classe 7)',
+  // Qualificação Térmica
+  'Qualificação Térmica – Autoclave',
+  'Qualificação Térmica – Câmara Climática',
+  'Qualificação Térmica – Refrigeradores/Câmaras Frias',
+  'Qualificação Térmica – Almoxarifado',
+  // Qualificação de Transporte
+  'Qualificação de Transporte',
+  // Validações de Processo (PL-GQ-005)
   'Validação de Limpeza',
-  'Validação de Software',
-  'Validação de Embalagem',
+  'Validação de Esterilização',
+  'Validação de Sistema de Barreira Estéril (SBE)',
+  'Validação de Processo Produtivo',
+  'Validação de Métodos de Ensaio',
+  'Validação de Sistemas Computadorizados',
+  'Estudo de Estabilidade',
+  // Revisões Periódicas
+  'Revisão Periódica',
 ]);
 
 export const CATEGORIAS_GCM = Object.freeze([
@@ -81,6 +96,7 @@ export const ROUTES = Object.freeze({
   EQUIPE: 'equipe',
   CRONOGRAMA: 'cronograma',
   CALENDARIO: 'calendario',
+  OBRIGACOES:    'obrigacoes',
   CONFIGURACOES: 'configuracoes',
 });
 
@@ -112,8 +128,11 @@ export const PILL_MAP = Object.freeze({
   // VAL
   'Planejada':                'pill-blue',
   'Em Execução':              'pill-teal',
-  'Aprovada':                 'pill-green',
+  'Em Revalidação':           'pill-amber',
+  'Qualificado/Validado':     'pill-green',
+  'Não Qualificado/Não Validado': 'pill-red',
   'Reprovada':                'pill-red',
+  'Descontinuado':            'pill-gray',
   // GCM
   'Em Implantação':           'pill-teal',
   'Rejeitada':                'pill-red',
@@ -128,6 +147,10 @@ export const PILL_MAP = Object.freeze({
   'Realizado':                'pill-teal',
   'Pendente Laudo':           'pill-amber',
   'Vencido':                  'pill-red',
+  // OBR
+  'Em Dia':                   'pill-green',
+  'A Vencer':                 'pill-amber',
+  'Suspenso':                 'pill-gray',
   // IMPACTO
   'Alto':                     'pill-red',
   'Médio':                    'pill-amber',
