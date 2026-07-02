@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @fileoverview Camada de dados — API Neon (produção) com fallback localStorage (desenvolvimento).
  *
  * Estratégia de modo dual:
@@ -10,7 +10,7 @@
 
 import { STORE_KEY } from './constants.js';
 
-const COLLECTIONS = ['equipe', 'capa', 'rnc', 'fornecedores', 'tecno', 'validacoes', 'gcm', 'risco', 'pragas', 'obrigacoes', 'documentos'];
+const COLLECTIONS = ['equipe', 'capa', 'rnc', 'fornecedores', 'tecno', 'validacoes', 'gcm', 'risco', 'pragas', 'obrigacoes', 'documentos', 'perfis', 'trilha'];
 
 class Database {
   /** @type {Record<string, Array>} cache em memória */
@@ -294,10 +294,10 @@ class Database {
     return {
       config: this.#defaultConfig(),
       equipe: [
-        { id: 1, nome: 'Raissa Caldas',     iniciais: 'RC', cargo: 'Gerente da Qualidade',      cor: '#2d5be3' },
-        { id: 2, nome: 'Fernanda Oliveira', iniciais: 'FO', cargo: 'Analista de Qualidade',     cor: '#00897b' },
-        { id: 3, nome: 'Mariana Santos',    iniciais: 'MS', cargo: 'Engenheira de Processos',   cor: '#7c3aed' },
-        { id: 4, nome: 'Juliana Pereira',   iniciais: 'JP', cargo: 'Especialista Regulatório',  cor: '#f59e0b' },
+        { id: 1, nome: 'Raissa Caldas',     iniciais: 'RC', cargo: 'Gerente da Qualidade',      cor: '#2d5be3', perfil: 'Gestor GQ',  email: 'raissa.caldas@msbbrasil.com', area: 'GQ' },
+        { id: 2, nome: 'Fernanda Oliveira', iniciais: 'FO', cargo: 'Analista de Qualidade',     cor: '#00897b', perfil: 'Elaborador',  email: 'fernanda.oliveira@msbbrasil.com', area: 'GQ' },
+        { id: 3, nome: 'Mariana Santos',    iniciais: 'MS', cargo: 'Engenheira de Processos',   cor: '#7c3aed', perfil: 'Elaborador',  email: 'mariana.santos@msbbrasil.com', area: 'MT' },
+        { id: 4, nome: 'Juliana Pereira',   iniciais: 'JP', cargo: 'Especialista Regulatório',  cor: '#f59e0b', perfil: 'Aprovador',   email: 'juliana.pereira@msbbrasil.com', area: 'AR' },
       ],
       capa: [
         { id: 1, numero: 'CAPA-2026-001', descricao: 'Desvio de estanqueidade em cateter venoso central lote LVC-0512', origem: 'RNC', responsavel: 'Mariana Santos', prazo: '2026-07-15', status: 'Em Andamento', progresso: 45, causa: 'Variação de temperatura no processo de selagem térmica', acao: 'Requalificação do processo de selagem e calibração dos equipamentos' },
@@ -379,7 +379,52 @@ class Database {
         { id: 5, numero: 'POP-RH-002', tipo: 'POP', area: 'RH', revisao: '00', titulo: 'Gestão de Conhecimento', dataHomologacao: '2026-02-10', status: 'Vigente', elaboradores: 'RH', revisores: 'Raissa Caldas', aprovadores: '', descricao: 'Procedimento para gestão de treinamentos e homologação de documentos.' },
         { id: 6, numero: 'PL-GQ-005',  tipo: 'PL',  area: 'GQ', revisao: '01', titulo: 'Plano Mestre de Validação', dataHomologacao: '2026-01-10', status: 'Vigente', elaboradores: 'Raissa Caldas', revisores: 'Mariana Santos', aprovadores: 'Diretoria', descricao: 'Define escopo, critérios e cronograma das 26 qualificações e validações previstas para 2026 (QUA, QTH, QTR, VAL, EST, REV).' },
       ],
+      perfis: (() => {
+        const ALL = { ver: true, criar: true, editar: true, gestao: true, aprovar: true };
+        const STD = { ver: true, criar: true, editar: true, gestao: false, aprovar: false };
+        const REV = { ver: true, criar: false, editar: true, gestao: false, aprovar: true };
+        const RO  = { ver: true, criar: false, editar: false, gestao: false, aprovar: false };
+        const NO  = { ver: false, criar: false, editar: false, gestao: false, aprovar: false };
+        const mods = ['dashboard','agenda','capa','rnc','fornecedores','tecnovig','validacoes','gcm','risco','pragas','obrigacoes','documentos','equipe','permissoes','configuracoes'];
+        function mp(base, ov) { return Object.fromEntries(mods.map(m => [m, (ov && ov[m]) ? ov[m] : base])); }
+        return [
+          { id: 1, nome: 'GQ Administrador',    cor: '#dc2626', descricao: 'Acesso total ao SGQ', permissoes: mp(ALL) },
+          { id: 2, nome: 'Gestor GQ',           cor: '#2563eb', descricao: 'Gerencia processos GQ, homologa documentos', permissoes: mp(ALL, { configuracoes: STD }) },
+          { id: 3, nome: 'Elaborador',          cor: '#059669', descricao: 'Elabora e edita documentos na sua área', permissoes: mp(RO,  { documentos: STD, agenda: RO }) },
+          { id: 4, nome: 'Revisor',             cor: '#7c3aed', descricao: 'Revisa documentos e emite parecer', permissoes: mp(RO,  { documentos: REV }) },
+          { id: 5, nome: 'Aprovador',           cor: '#d97706', descricao: 'Aprova documentos na etapa de aprovação', permissoes: mp(RO,  { documentos: { ver: true, criar: false, editar: false, gestao: false, aprovar: true } }) },
+          { id: 6, nome: 'Executor',            cor: '#0891b2', descricao: 'Execução — abre CAPA, RNC, solicitações', permissoes: mp(RO,  { capa: STD, rnc: STD, gcm: STD, documentos: { ver: true, criar: true, editar: false, gestao: false, aprovar: false } }) },
+          { id: 7, nome: 'Resp. por Impressão', cor: '#65a30d', descricao: 'Gerencia impressão de cópias controladas', permissoes: mp(NO, { documentos: { ver: true, criar: false, editar: true, gestao: false, aprovar: false } }) },
+          { id: 8, nome: 'Consulta',            cor: '#6b7280', descricao: 'Somente visualização, sem edição', permissoes: mp(RO, { permissoes: NO, configuracoes: NO }) },
+        ];
+      })(),
+      trilha: [],
     };
+  }
+
+  /** Registra evento na trilha de auditoria (CFR 21 Part 11 / ANVISA RDC 27/2011). */
+  addAudit(acao, modulo, registro, detalhe = '') {
+    this.add('trilha', {
+      dataHora: new Date().toISOString(),
+      usuario: this.getSessionUser() || 'Sistema',
+      acao,
+      modulo,
+      registro: String(registro),
+      detalhe,
+    });
+  }
+
+  /** Retorna o usuário da sessão atual (sessionStorage). */
+  getSessionUser() {
+    try { return sessionStorage.getItem('sgq_usuario') || ''; } catch { return ''; }
+  }
+
+  /** Define o usuário da sessão atual. */
+  setSessionUser(nome) {
+    try {
+      if (nome) sessionStorage.setItem('sgq_usuario', nome);
+      else sessionStorage.removeItem('sgq_usuario');
+    } catch { /* noop */ }
   }
 }
 

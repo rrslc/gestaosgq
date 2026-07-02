@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @fileoverview Entry point do SGQ — registra rotas, eventos globais e inicializa a aplicação.
  */
 
@@ -25,6 +25,7 @@ import equipe       from './modules/equipe.js';
 import cronograma   from './modules/cronograma.js';
 import calendario   from './modules/calendario.js';
 import configuracoes from './modules/configuracoes.js';
+import permissoes   from './modules/permissoes.js';
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ export const router = new Router({
   [ROUTES.CRONOGRAMA]:   { module: cronograma,   title: 'Cronograma',               icon: '▤' },
   [ROUTES.CALENDARIO]:   { module: calendario,   title: 'Calendário',               icon: '▦' },
   [ROUTES.CONFIGURACOES]:{ module: configuracoes,title: 'Configurações',            icon: '⚙' },
+  [ROUTES.PERMISSOES]:  { module: permissoes,   title: 'Permissões de Acesso',      icon: '🔐' },
 });
 
 // ── Sidebar navigation (event delegation) ───────────────────────────────────
@@ -142,3 +144,4 @@ db.ready.then(() => {
   const initialRoute = window.location.hash.replace('#', '') || ROUTES.DASHBOARD;
   router.navigate(initialRoute);
 });
+
