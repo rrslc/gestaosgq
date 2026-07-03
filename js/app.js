@@ -21,6 +21,7 @@ import risco        from './modules/risco.js';
 import pragas       from './modules/pragas.js';
 import obrigacoes   from './modules/obrigacoes.js';
 import documentos   from './modules/documentos.js';
+import elaboracao   from './modules/elaboracao.js';
 import equipe       from './modules/equipe.js';
 import cronograma   from './modules/cronograma.js';
 import calendario   from './modules/calendario.js';
@@ -42,6 +43,7 @@ export const router = new Router({
   [ROUTES.PRAGAS]:       { module: pragas,       title: 'Controle de Pragas',       icon: '⬢' },
   [ROUTES.OBRIGACOES]:   { module: obrigacoes,   title: 'Obrig. Regulatórias',      icon: '📋' },
   [ROUTES.DOCUMENTOS]:   { module: documentos,   title: 'Controle de Docs.',         icon: '📄' },
+  [ROUTES.ELABORACAO]:   { module: elaboracao,   title: 'Elaboração de Docs.',        icon: '✏' },
   [ROUTES.EQUIPE]:       { module: equipe,       title: 'Equipe',                   icon: '⚇' },
   [ROUTES.CRONOGRAMA]:   { module: cronograma,   title: 'Cronograma',               icon: '▤' },
   [ROUTES.CALENDARIO]:   { module: calendario,   title: 'Calendário',               icon: '▦' },

@@ -66,12 +66,6 @@ function nextCode(tipo, area) {
   return `${tipo}-${area}-${String(next).padStart(3, '0')}`;
 }
 
-function nextSolicNum() {
-  const year = new Date().getFullYear();
-  const solics = db.get('solicitacoes').filter(s => (s.numSolic || '').startsWith(`SOL-${year}`));
-  return `SOL-${year}-${String(solics.length + 1).padStart(3, '0')}`;
-}
-
 // ── Assinatura Eletrônica (CFR 21 Part 11 §11.100) ───────────────────────────
 
 function showSignatureModal(titulo, significado, onConfirm) {
@@ -487,6 +481,46 @@ function renderSolicitacoesPendentes() {
     </div>`;
 }
 
+// ── GQ: Lista Mestra ─────────────────────────────────────────────────────────
+
+function renderListaMestra() {
+  const docs = db.get('documentos').slice().sort((a, b) => (a.numero || '').localeCompare(b.numero || ''));
+  if (!docs.length) return `<div style="text-align:center;padding:30px;color:var(--muted);font-size:0.85rem">Nenhum documento cadastrado ainda.</div>`;
+  return `
+    <div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-bottom:12px;padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
+        Lista Mestra de Documentos SGQ · ${docs.length} documento(s) cadastrado(s) · Somente leitura
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Código</th><th>Título</th><th>Tipo</th><th>Área</th><th>Rev.</th><th>Status</th><th>Homologação</th><th>Validade</th></tr>
+          </thead>
+          <tbody>
+            ${docs.map(doc => {
+              const s   = computedStatus(doc);
+              const exp = expiryDate(doc);
+              return `
+                <tr>
+                  <td style="font-family:monospace;font-weight:700;font-size:0.82rem;white-space:nowrap">${doc.numero}</td>
+                  <td style="max-width:260px">
+                    <div style="font-weight:500">${doc.titulo}</div>
+                    ${doc.elaboradores ? `<div style="font-size:0.72rem;color:var(--muted)">Elab.: ${doc.elaboradores}</div>` : ''}
+                  </td>
+                  <td>${tipoBadge(doc.tipo)}</td>
+                  <td style="font-size:0.82rem">${doc.area || '—'}</td>
+                  <td style="text-align:center;font-family:monospace;font-size:0.8rem">Rev.${doc.revisao || '00'}</td>
+                  <td>${statusPill(s)}</td>
+                  <td style="font-size:0.8rem">${doc.dataHomologacao ? formatDate(doc.dataHomologacao) : '<span style="color:var(--muted)">—</span>'}</td>
+                  <td style="font-size:0.8rem">${exp ? formatDate(exp) : '<span style="color:var(--muted)">—</span>'}</td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 // ── GQ: Trilha de Auditoria ───────────────────────────────────────────────────
 
 function renderTrilha() {
@@ -510,9 +544,7 @@ function renderTrilha() {
     </div>`;
 }
 
-// ── Área Solicitar Elaboração ─────────────────────────────────────────────────
-
-function renderFormSolicitar(container) {
+function renderFormSolicitar_REMOVED(container) { // moved to elaboracao.js
   const nomes    = db.get('equipe').map(m => m.nome);
   const nomesOpts = nomes.map(n => `<option value="${n}">${n}</option>`).join('');
   const numSolic = nextSolicNum();
@@ -787,13 +819,15 @@ function switchTab(container, tab) {
   } else if (tab === 'trilha') {
     if (filterBar) filterBar.style.display = 'none';
     wrap.innerHTML = renderTrilha();
+  } else if (tab === 'mestra') {
+    if (filterBar) filterBar.style.display = 'none';
+    wrap.innerHTML = renderListaMestra();
   }
 }
 
 // ── Render principal ──────────────────────────────────────────────────────────
 
-let _areaAtual = 'controle';
-let _tabAtual  = 'lista';
+let _tabAtual = 'lista';
 
 function applyFilters(container) {
   const search = container.querySelector('[data-filter="search"]')?.value?.toLowerCase() ?? '';
@@ -821,30 +855,21 @@ function renderMain(container) {
       <div>
         <h2>Controle de Documentos</h2>
         <div style="font-size:0.78rem;color:var(--muted);margin-top:2px">
-          POP-GQ-002 · Validade: 3 anos · Fluxo: Elaboração → Revisão → Aprovação → Homologação
+          POP-GQ-002 · Gestão GQ · Validade: 3 anos · Fluxo: Elaboração → Revisão → Aprovação → Homologação
         </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         ${emWorkflow > 0 ? `<span style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:600">${emWorkflow} em fluxo</span>` : ''}
-        ${_areaAtual === 'controle' ? `<button class="btn btn-primary" data-action="new">+ Novo Documento</button>` : ''}
+        <button class="btn btn-primary" data-action="new">+ Novo Documento</button>
       </div>
     </div>
 
-    <div style="display:flex;gap:0;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px;width:fit-content;margin-bottom:14px">
-      <button data-area-btn="controle" style="padding:6px 20px;border-radius:6px;border:none;cursor:pointer;font-size:0.82rem;font-weight:600;${_areaAtual === 'controle' ? 'background:var(--blue-light);color:#fff;' : 'background:transparent;color:var(--muted);'}">
-        Gestão GQ
-      </button>
-      <button data-area-btn="solicitar" style="padding:6px 20px;border-radius:6px;border:none;cursor:pointer;font-size:0.82rem;font-weight:600;${_areaAtual === 'solicitar' ? 'background:var(--blue-light);color:#fff;' : 'background:transparent;color:var(--muted);'}">
-        Solicitar Elaboração${solicsCount > 0 ? `&nbsp;<span style="background:#dc2626;color:#fff;border-radius:10px;padding:0 6px;font-size:0.7rem">${solicsCount}</span>` : ''}
-      </button>
-    </div>
-
-    ${_areaAtual === 'controle' ? `
     <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:14px">
       <button data-tab-btn="lista"   style="${tabStyle('lista')}">Lista</button>
       <button data-tab-btn="fluxo"   style="${tabStyle('fluxo')}">Fluxo de Processo</button>
       <button data-tab-btn="solics"  style="${tabStyle('solics')}">Solicitações${solicsCount > 0 ? ` (${solicsCount})` : ''}</button>
       <button data-tab-btn="trilha"  style="${tabStyle('trilha')}">Trilha de Auditoria</button>
+      <button data-tab-btn="mestra"  style="${tabStyle('mestra')}">Lista Mestra</button>
     </div>
     <div id="filter-bar" class="toolbar" style="${_tabAtual === 'lista' ? '' : 'display:none'}">
       <input class="toolbar-search" type="text" placeholder="Buscar por código ou título…" data-filter="search">
@@ -857,37 +882,25 @@ function renderMain(container) {
         ${selectOptions(STATUS.DOC)}
       </select>
     </div>
-    ` : ''}
 
     <div class="card" style="padding:14px">
       <div id="docs-content-wrap">
-        ${_areaAtual === 'controle' ? renderTable(db.get('documentos')) : ''}
+        ${renderTable(db.get('documentos'))}
       </div>
     </div>
   `;
-
-  if (_areaAtual === 'solicitar') renderFormSolicitar(container);
 }
 
 // ── Export ────────────────────────────────────────────────────────────────────
 
 export default {
   render(container) {
-    _areaAtual = 'controle';
-    _tabAtual  = 'lista';
+    _tabAtual = 'lista';
     renderMain(container);
   },
 
   init(container) {
     container.addEventListener('click', e => {
-      const areaBtn = e.target.closest('[data-area-btn]');
-      if (areaBtn) {
-        _areaAtual = areaBtn.dataset.areaBtn;
-        _tabAtual  = 'lista';
-        renderMain(container);
-        return;
-      }
-
       const tabBtn = e.target.closest('[data-tab-btn]');
       if (tabBtn) {
         switchTab(container, tabBtn.dataset.tabBtn);
@@ -993,67 +1006,6 @@ export default {
         });
       }
 
-      // ── Solicitar: enviar ──
-      if (action === 'solic-enviar') {
-        const errEl       = container.querySelector('#solic-error');
-        const solicitante = container.querySelector('#solic-solicitante')?.value;
-        const tipoDoc     = container.querySelector('#solic-tipoDoc')?.value;
-        const areaDoc     = container.querySelector('#solic-areaDoc')?.value;
-        const titulo      = container.querySelector('#solic-titulo')?.value.trim();
-        const justif      = container.querySelector('#solic-justificativa')?.value.trim();
-        const elaborador  = container.querySelector('#solic-elab')?.value;
-
-        if (!solicitante) { errEl.textContent = 'Selecione o solicitante.';                    errEl.style.display = 'block'; return; }
-        if (!tipoDoc || !areaDoc) { errEl.textContent = container.querySelector('#solic-tipo')?.value === 'Revisão' ? 'Selecione o documento a ser revisado.' : 'Selecione o tipo e área do documento.'; errEl.style.display = 'block'; return; }
-        if (!titulo)   { errEl.textContent = '"Título proposto" é obrigatório.';               errEl.style.display = 'block'; return; }
-        if (!justif)   { errEl.textContent = '"Justificativa" é obrigatória.';                 errEl.style.display = 'block'; return; }
-        if (!elaborador) { errEl.textContent = 'Selecione o elaborador proposto.';             errEl.style.display = 'block'; return; }
-        errEl.style.display = 'none';
-
-        const docExtId     = Number(container.querySelector('#solic-docExistente')?.value || 0);
-        const docExtRef    = docExtId ? db.get('documentos').find(d => d.id === docExtId) : null;
-        const isRevisao    = container.querySelector('#solic-tipo')?.value === 'Revisão';
-        const numeroGerado = (isRevisao && docExtRef) ? docExtRef.numero : nextCode(tipoDoc, areaDoc);
-        const numSolic     = nextSolicNum();
-
-        db.add('solicitacoes', {
-          numSolic,
-          dataSolic:       container.querySelector('#solic-data')?.value,
-          tipoSolic:       container.querySelector('#solic-tipo')?.value,
-          solicitante,
-          areaSolic:       container.querySelector('#solic-area')?.value,
-          tipoDoc,
-          areaDoc,
-          tituloDoc:       titulo,
-          numeroGerado,
-          elaboradorProp:  elaborador,
-          revisoresProp:   [container.querySelector('#solic-rev1')?.value, container.querySelector('#solic-rev2')?.value, container.querySelector('#solic-rev3')?.value].filter(Boolean).join(', '),
-          aprovadoresProp: [container.querySelector('#solic-apr1')?.value, container.querySelector('#solic-apr2')?.value].filter(Boolean).join(', '),
-          justificativa:   justif,
-          docsImpactados:  container.querySelector('#solic-docsImpactados')?.value || '',
-          impactoQualidade: container.querySelector('#solic-impactoQualidade')?.value,
-          impactoProcesso:  container.querySelector('#solic-impactoProcesso')?.value,
-          impactoTreino:    container.querySelector('#solic-impactoTreino')?.value,
-          areasTreinar:    container.querySelector('#solic-areasTreinar')?.value || '',
-          qtdAnexos:       container.querySelector('#solic-qtdAnexos')?.value || '0',
-          distAnexos:      container.querySelector('#solic-distAnexos')?.value || '',
-          docExistente:    docExtRef?.numero || '',
-          status: 'Pendente',
-        });
-
-        db.addAudit('Solicitação', 'documentos', numeroGerado,
-          `Solicitação ${numSolic} enviada por ${solicitante}: ${justif.substring(0, 80)}`);
-        toast(`Solicitação ${numSolic} enviada! A GQ irá analisar.`);
-        _areaAtual = 'controle';
-        _tabAtual  = 'lista';
-        renderMain(container);
-      }
-
-      // ── Solicitar: cancelar ──
-      if (action === 'solic-cancelar') {
-        _areaAtual = 'controle';
-        renderMain(container);
-      }
     });
 
     container.addEventListener('input',  e => { if (e.target.dataset.filter) applyFilters(container); });
