@@ -35,6 +35,10 @@ const RESULTADO_AGUA  = ['Aprovado', 'Reprovado', 'Pendente', 'Não realizado'];
 const SIM_NAO         = ['Sim', 'Não', 'Pendente'];
 
 const AREAS_MICRO = ['Sala Limpa', 'Sala de Produção Inferior', 'Sala Limpa + Produção Inferior'];
+
+const AREAS_LIMPEZA = ['Sala Limpa', 'Sala de Produção Inferior', 'Áreas Adjacentes', 'Sala Limpa + Produção Inferior', 'Todas as Áreas'];
+const TIPOS_LIMPEZA = ['Limpeza de Rotina', 'Limpeza Terminal', 'Desinfecção', 'Sanitização', 'Limpeza e Desinfecção'];
+const STATUS_LIMPEZA = ['Agendado', 'Realizado', 'Pendente Registro', 'Concluído', 'Cancelado'];
 const METODOS_COLETA = ['Sedimentação (Placa Exposta)', 'Impactação (RCS / Impactador)', 'Swab de Superfície', 'Filtração de Ar', 'Combinado'];
 const RESULTADO_MICRO = ['Aprovado — dentro do limite', 'Reprovado — fora do limite', 'Pendente', 'Inconclusivo'];
 
@@ -84,6 +88,19 @@ const FIELDS_RESIDUO = [
   { id: 'quantidade',label: 'Quantidade / Peso',    type: 'text',     required: false, span: 1 },
   { id: 'mtr',       label: 'Nº MTR / Manifesto',  type: 'text',     required: false, span: 1 },
   { id: 'obs',       label: 'Observações',           type: 'textarea', required: false, span: 2 },
+];
+
+const FIELDS_LIMPEZA = [
+  { id: 'numero',         label: 'Nº do Registro',        type: 'text',     required: true,  span: 1 },
+  { id: 'area',           label: 'Área Higienizada',       type: 'select',   required: true,  span: 1, options: AREAS_LIMPEZA },
+  { id: 'responsavel',    label: 'Responsável',            type: 'text',     required: true,  span: 2 },
+  { id: 'tipo',           label: 'Tipo de Limpeza',        type: 'select',   required: true,  span: 1, options: TIPOS_LIMPEZA },
+  { id: 'status',         label: 'Status',                 type: 'select',   required: true,  span: 1, options: STATUS_LIMPEZA },
+  { id: 'dataRealizacao', label: 'Data de Realização',     type: 'date',     required: false, span: 1 },
+  { id: 'proxima',        label: 'Próxima Limpeza',        type: 'date',     required: false, span: 1 },
+  { id: 'procedimento',   label: 'Procedimento Utilizado (POP)', type: 'text', required: false, span: 1 },
+  { id: 'produto',        label: 'Produto(s) Utilizado(s)', type: 'text',    required: false, span: 1 },
+  { id: 'obs',            label: 'Observações',             type: 'textarea', required: false, span: 2 },
 ];
 
 // ── Tabelas ───────────────────────────────────────────────────────────────────
@@ -228,6 +245,36 @@ function renderTabelaMicro(items) {
     </table></div>`;
 }
 
+function renderTabelaLimpeza(items) {
+  if (!items.length) return emptyState('Nenhum registro de limpeza mensal.');
+  return `
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Nº</th><th>Área</th><th>Responsável</th><th>Tipo</th>
+        <th>Realização</th><th>Próxima</th><th>Procedimento</th><th>Status</th><th>Ações</th>
+      </tr></thead>
+      <tbody>
+        ${items.map(r => {
+          const s = statusFromDate(r, 'proxima');
+          return `<tr>
+            <td><strong>${r.numero}</strong></td>
+            <td style="font-size:0.82rem">${r.area || '—'}</td>
+            <td>${r.responsavel}</td>
+            <td style="font-size:0.82rem">${r.tipo || '—'}</td>
+            <td style="font-size:0.82rem">${formatDate(r.dataRealizacao)}</td>
+            <td>${deadlineCell(r.proxima)}</td>
+            <td style="font-size:0.78rem;color:var(--muted)">${r.procedimento || '—'}</td>
+            <td>${statusPill(s)}</td>
+            <td><div class="td-actions">
+              <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}">✏</button>
+              <button class="btn btn-danger btn-sm" data-action="delete" data-id="${r.id}">🗑</button>
+            </div></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>`;
+}
+
 // ── Área config ───────────────────────────────────────────────────────────────
 
 const AREAS = [
@@ -269,6 +316,16 @@ const AREAS = [
     statusOpts: STATUS_SERVICO,
     renderTabela: renderTabelaMicro,
     filtro: (r, q) => ((r.numero||'') + (r.empresa||'') + (r.areaMicro||'')).toLowerCase().includes(q),
+    statusFn: r => statusFromDate(r, 'proxima'),
+  },
+  {
+    key: 'limpezaMensal',
+    label: 'Limpeza Mensal',
+    col: 'limpezaMensal',
+    fields: FIELDS_LIMPEZA,
+    statusOpts: STATUS_LIMPEZA,
+    renderTabela: renderTabelaLimpeza,
+    filtro: (r, q) => ((r.numero||'') + (r.area||'') + (r.responsavel||'')).toLowerCase().includes(q),
     statusFn: r => statusFromDate(r, 'proxima'),
   },
 ];
