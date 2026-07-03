@@ -1,6 +1,5 @@
 ﻿/**
  * @fileoverview Permissões de Acesso — gestão de perfis, matriz de permissões e trilha de auditoria.
- * Baseado em: Lista de Permissões SE Suite (GQ Administrador/Apoio/Executores/Consulta).
  * Conformidade: CFR 21 Part 11 · ANVISA RDC 27/2011 · ISO 13485 §4.2.5.
  */
 
@@ -160,7 +159,7 @@ function renderUsuarios() {
       </table>
     </div>
     <div style="margin-top:12px;padding:10px 14px;background:#eff6ff;border-radius:6px;font-size:0.78rem;color:#1e40af">
-      <strong>Nota:</strong> A alteração de perfil é registrada na trilha de auditoria. Perfis baseados na estrutura SE Suite (Lista de Permissões BF.0546/BF.0571).
+      <strong>Nota:</strong> A alteração de perfil é registrada na trilha de auditoria conforme CFR 21 Part 11 §11.10(e).
     </div>
   `;
 }
@@ -328,7 +327,7 @@ export default {
         </div>
       </div>
       <div style="font-size:0.78rem;color:var(--muted);margin:-6px 0 12px">
-        Perfis baseados em SE Suite · CFR 21 Part 11 · ANVISA RDC 27/2011 · ISO 13485 §4.2.5
+        CFR 21 Part 11 · ANVISA RDC 27/2011 · ISO 13485 §4.2.5
       </div>
 
       <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:14px">

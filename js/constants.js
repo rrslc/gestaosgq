@@ -119,7 +119,7 @@ export const PILL_MAP = Object.freeze({
   'default':                      'pill-gray',
 });
 
-/** Perfis de acesso baseados na estrutura SE Suite (Lista de Permissões). */
+/** Perfis de acesso do SGQ. */
 export const PERFIS = Object.freeze([
   'GQ Administrador',
   'Gestor GQ',
@@ -150,7 +150,7 @@ export const MODULOS_PERM = Object.freeze([
   { key: 'configuracoes', label: 'Configurações' },
 ]);
 
-/** Tipos de operação (baseado em SE Suite). */
+/** Tipos de operação disponíveis na matriz de permissões. */
 export const ACOES_PERM = Object.freeze([
   { key: 'ver',      label: 'Consulta' },
   { key: 'criar',    label: 'Cadastro' },
@@ -159,7 +159,7 @@ export const ACOES_PERM = Object.freeze([
   { key: 'aprovar',  label: 'Aprovação' },
 ]);
 
-/** Etapas do fluxo de documentos (POP-GQ-002 + SE Suite). */
+/** Etapas do fluxo de documentos conforme POP-GQ-002. */
 export const ETAPAS_DOC = Object.freeze([
   { key: 'Em Elaboração',  label: 'Elaboração',  cor: '#2563eb', prox: 'Em Revisão',     ator: 'Elaborador (máx. 1)' },
   { key: 'Em Revisão',     label: 'Revisão',      cor: '#7c3aed', prox: 'Em Aprovação',   ator: 'Revisores (máx. 3)' },
