@@ -481,46 +481,6 @@ function renderSolicitacoesPendentes() {
     </div>`;
 }
 
-// ── GQ: Lista Mestra ─────────────────────────────────────────────────────────
-
-function renderListaMestra() {
-  const docs = db.get('documentos').slice().sort((a, b) => (a.numero || '').localeCompare(b.numero || ''));
-  if (!docs.length) return `<div style="text-align:center;padding:30px;color:var(--muted);font-size:0.85rem">Nenhum documento cadastrado ainda.</div>`;
-  return `
-    <div>
-      <div style="font-size:0.78rem;color:var(--muted);margin-bottom:12px;padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
-        Lista Mestra de Documentos SGQ · ${docs.length} documento(s) cadastrado(s) · Somente leitura
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Código</th><th>Título</th><th>Tipo</th><th>Área</th><th>Rev.</th><th>Status</th><th>Homologação</th><th>Validade</th></tr>
-          </thead>
-          <tbody>
-            ${docs.map(doc => {
-              const s   = computedStatus(doc);
-              const exp = expiryDate(doc);
-              return `
-                <tr>
-                  <td style="font-family:monospace;font-weight:700;font-size:0.82rem;white-space:nowrap">${doc.numero}</td>
-                  <td style="max-width:260px">
-                    <div style="font-weight:500">${doc.titulo}</div>
-                    ${doc.elaboradores ? `<div style="font-size:0.72rem;color:var(--muted)">Elab.: ${doc.elaboradores}</div>` : ''}
-                  </td>
-                  <td>${tipoBadge(doc.tipo)}</td>
-                  <td style="font-size:0.82rem">${doc.area || '—'}</td>
-                  <td style="text-align:center;font-family:monospace;font-size:0.8rem">Rev.${doc.revisao || '00'}</td>
-                  <td>${statusPill(s)}</td>
-                  <td style="font-size:0.8rem">${doc.dataHomologacao ? formatDate(doc.dataHomologacao) : '<span style="color:var(--muted)">—</span>'}</td>
-                  <td style="font-size:0.8rem">${exp ? formatDate(exp) : '<span style="color:var(--muted)">—</span>'}</td>
-                </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>`;
-}
-
 // ── GQ: Trilha de Auditoria ───────────────────────────────────────────────────
 
 function renderTrilha() {
@@ -819,9 +779,6 @@ function switchTab(container, tab) {
   } else if (tab === 'trilha') {
     if (filterBar) filterBar.style.display = 'none';
     wrap.innerHTML = renderTrilha();
-  } else if (tab === 'mestra') {
-    if (filterBar) filterBar.style.display = 'none';
-    wrap.innerHTML = renderListaMestra();
   }
 }
 
@@ -869,7 +826,6 @@ function renderMain(container) {
       <button data-tab-btn="fluxo"   style="${tabStyle('fluxo')}">Fluxo de Processo</button>
       <button data-tab-btn="solics"  style="${tabStyle('solics')}">Solicitações${solicsCount > 0 ? ` (${solicsCount})` : ''}</button>
       <button data-tab-btn="trilha"  style="${tabStyle('trilha')}">Trilha de Auditoria</button>
-      <button data-tab-btn="mestra"  style="${tabStyle('mestra')}">Lista Mestra</button>
     </div>
     <div id="filter-bar" class="toolbar" style="${_tabAtual === 'lista' ? '' : 'display:none'}">
       <input class="toolbar-search" type="text" placeholder="Buscar por código ou título…" data-filter="search">

@@ -27,6 +27,66 @@ function tipoBadge(tipo) {
   return `<span style="display:inline-block;padding:1px 8px;border-radius:3px;background:${m.color}1a;color:${m.color};font-size:0.72rem;font-weight:700">${m.label}</span>`;
 }
 
+const SEM_VALIDADE = ['PR', 'RE'];
+
+function computedStatus(doc) {
+  const manualStates = ['Em Elaboração','Em Revisão','Em Aprovação','Em Homologação','Cancelado','Suspenso'];
+  if (manualStates.includes(doc.status)) return doc.status;
+  if (SEM_VALIDADE.includes(doc.tipo)) return 'Vigente';
+  if (!doc.dataHomologacao) return doc.status || 'Em Elaboração';
+  const expiry = new Date(doc.dataHomologacao);
+  expiry.setFullYear(expiry.getFullYear() + 3);
+  const diff = (expiry - new Date()) / 86400000;
+  if (diff < 0) return 'Vencido';
+  if (diff <= 90) return 'A Vencer';
+  return 'Vigente';
+}
+
+function expiryDate(doc) {
+  if (SEM_VALIDADE.includes(doc.tipo) || !doc.dataHomologacao) return null;
+  const d = new Date(doc.dataHomologacao);
+  d.setFullYear(d.getFullYear() + 3);
+  return d.toISOString().substring(0, 10);
+}
+
+function renderListaMestra() {
+  const docs = db.get('documentos').slice().sort((a, b) => (a.numero || '').localeCompare(b.numero || ''));
+  if (!docs.length) return `<div style="text-align:center;padding:30px;color:var(--muted);font-size:0.85rem">Nenhum documento cadastrado ainda.</div>`;
+  return `
+    <div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-bottom:12px;padding:8px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
+        Lista Mestra de Documentos SGQ · ${docs.length} documento(s) cadastrado(s) · Somente leitura
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Código</th><th>Título</th><th>Tipo</th><th>Área</th><th>Rev.</th><th>Status</th><th>Homologação</th><th>Validade</th></tr>
+          </thead>
+          <tbody>
+            ${docs.map(doc => {
+              const s   = computedStatus(doc);
+              const exp = expiryDate(doc);
+              return `
+                <tr>
+                  <td style="font-family:monospace;font-weight:700;font-size:0.82rem;white-space:nowrap">${doc.numero}</td>
+                  <td style="max-width:260px">
+                    <div style="font-weight:500">${doc.titulo}</div>
+                    ${doc.elaboradores ? `<div style="font-size:0.72rem;color:var(--muted)">Elab.: ${doc.elaboradores}</div>` : ''}
+                  </td>
+                  <td>${tipoBadge(doc.tipo)}</td>
+                  <td style="font-size:0.82rem">${doc.area || '—'}</td>
+                  <td style="text-align:center;font-family:monospace;font-size:0.8rem">Rev.${doc.revisao || '00'}</td>
+                  <td>${statusPill(s)}</td>
+                  <td style="font-size:0.8rem">${doc.dataHomologacao ? formatDate(doc.dataHomologacao) : '<span style="color:var(--muted)">—</span>'}</td>
+                  <td style="font-size:0.8rem">${exp ? formatDate(exp) : '<span style="color:var(--muted)">—</span>'}</td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 function nextCode(tipo, area) {
   if (!tipo || !area) return '';
   const docs = db.get('documentos');
@@ -443,6 +503,7 @@ function renderMain(container) {
       <button data-area-btn="andamento" style="${areaStyle('andamento')}">
         Em Andamento${emAndamento > 0 ? `&nbsp;<span style="background:${_areaAtual === 'andamento' ? 'rgba(255,255,255,0.3)' : '#9ca3af'};color:#fff;border-radius:10px;padding:0 6px;font-size:0.7rem">${emAndamento}</span>` : ''}
       </button>
+      <button data-area-btn="mestra" style="${areaStyle('mestra')}">Lista Mestra</button>
     </div>
 
     ${_areaAtual === 'andamento' ? `
@@ -458,13 +519,14 @@ function renderMain(container) {
     <div class="card" style="padding:14px">
       <div id="elab-content-wrap">
         ${_areaAtual === 'andamento' ? '<div id="elab-andamento-wrap"></div>' : ''}
+        ${_areaAtual === 'mestra' ? renderListaMestra() : ''}
       </div>
     </div>
   `;
 
   if (_areaAtual === 'solicitar') {
     renderFormSolicitar(container);
-  } else {
+  } else if (_areaAtual === 'andamento') {
     renderEmAndamento(container);
   }
 }
