@@ -64,7 +64,7 @@ function renderCards() {
             <div>
               <div class="team-name">${m.nome}</div>
               <div class="team-cargo">${m.cargo}</div>
-              ${m.perfil ? <span style="display:inline-block;margin-top:2px;padding:1px 6px;border-radius:3px;background:#eff6ff;color:#1e40af;font-size:0.68rem;font-weight:600">${m.perfil}</span> : ''}
+              ${m.perfil ? `<span style="display:inline-block;margin-top:2px;padding:1px 6px;border-radius:3px;background:#eff6ff;color:#1e40af;font-size:0.68rem;font-weight:600">${m.perfil}</span>` : ''}
             </div>
           </div>
           <div style="margin-bottom:8px">
