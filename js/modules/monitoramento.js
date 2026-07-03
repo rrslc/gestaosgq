@@ -1,5 +1,5 @@
 /**
- * @fileoverview Monitoramento da Fábrica — Pragas, Reservatório e Resíduos.
+ * @fileoverview Monitoramento da Fábrica — Pragas, Reservatório, Resíduos e Microbiológico.
  */
 
 import { db } from '../db.js';
@@ -33,6 +33,10 @@ const STATUS_SERVICO  = ['Agendado', 'Realizado', 'Pendente Laudo', 'Concluído'
 const STATUS_RESIDUO  = ['Agendado', 'Coletado', 'Pendente MTR', 'Concluído', 'Cancelado'];
 const RESULTADO_AGUA  = ['Aprovado', 'Reprovado', 'Pendente', 'Não realizado'];
 const SIM_NAO         = ['Sim', 'Não', 'Pendente'];
+
+const AREAS_MICRO = ['Sala Limpa', 'Sala de Produção Inferior', 'Sala Limpa + Produção Inferior'];
+const METODOS_COLETA = ['Sedimentação (Placa Exposta)', 'Impactação (RCS / Impactador)', 'Swab de Superfície', 'Filtração de Ar', 'Combinado'];
+const RESULTADO_MICRO = ['Aprovado — dentro do limite', 'Reprovado — fora do limite', 'Pendente', 'Inconclusivo'];
 
 // ── Status computado por data ─────────────────────────────────────────────────
 
@@ -171,6 +175,59 @@ function renderTabelaResiduos(items) {
     </table></div>`;
 }
 
+const FIELDS_MICRO = [
+  { id: 'numero',         label: 'Nº do Relatório / Serviço', type: 'text',     required: true,  span: 1 },
+  { id: 'empresa',        label: 'Empresa Prestadora',        type: 'text',     required: true,  span: 1 },
+  { id: 'areaMicro',      label: 'Área Monitorada',           type: 'select',   required: true,  span: 1, options: AREAS_MICRO },
+  { id: 'status',         label: 'Status',                    type: 'select',   required: true,  span: 1, options: STATUS_SERVICO },
+  { id: 'dataColeta',     label: 'Data da Coleta',            type: 'date',     required: false, span: 1 },
+  { id: 'proxima',        label: 'Próxima Coleta (mensal)',   type: 'date',     required: false, span: 1 },
+  { id: 'metodoColeta',   label: 'Método de Coleta',          type: 'select',   required: false, span: 1, options: METODOS_COLETA },
+  { id: 'resultado',      label: 'Resultado da Análise',      type: 'select',   required: false, span: 1, options: RESULTADO_MICRO },
+  { id: 'limiteAceitavel',label: 'Limite Aceitável (ex: ≤ 100 UFC/m³)', type: 'text', required: false, span: 1 },
+  { id: 'valorEncontrado',label: 'Valor Encontrado',          type: 'text',     required: false, span: 1 },
+  { id: 'laudo',          label: 'Laudo disponível',          type: 'select',   required: false, span: 1, options: SIM_NAO },
+  { id: 'obs',            label: 'Observações / Ações Corretivas', type: 'textarea', required: false, span: 2 },
+];
+
+function renderTabelaMicro(items) {
+  if (!items.length) return emptyState('Nenhum registro de monitoramento microbiológico.');
+  return `
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Nº</th><th>Empresa</th><th>Área</th><th>Método</th>
+        <th>Coleta</th><th>Próxima</th><th>Resultado</th><th>Valor / Limite</th><th>Laudo</th><th>Status</th><th>Ações</th>
+      </tr></thead>
+      <tbody>
+        ${items.map(r => {
+          const s = statusFromDate(r, 'proxima');
+          const aprovado = r.resultado?.startsWith('Aprovado');
+          const reprovado = r.resultado?.startsWith('Reprovado');
+          const corRes = aprovado ? '#059669' : reprovado ? '#dc2626' : '#d97706';
+          return `<tr>
+            <td><strong>${r.numero}</strong></td>
+            <td style="font-size:0.82rem">${r.empresa}</td>
+            <td style="font-size:0.82rem">${r.areaMicro || '—'}</td>
+            <td style="font-size:0.78rem;color:var(--muted)">${r.metodoColeta || '—'}</td>
+            <td style="font-size:0.82rem">${formatDate(r.dataColeta)}</td>
+            <td>${deadlineCell(r.proxima)}</td>
+            <td style="font-size:0.78rem;font-weight:600;color:${corRes};max-width:140px">${r.resultado || '—'}</td>
+            <td style="font-size:0.78rem">
+              ${r.valorEncontrado ? `<div>${r.valorEncontrado}</div>` : ''}
+              ${r.limiteAceitavel ? `<div style="color:var(--muted)">Lim: ${r.limiteAceitavel}</div>` : '—'}
+            </td>
+            <td style="font-size:0.8rem;text-align:center">${r.laudo || '—'}</td>
+            <td>${statusPill(s)}</td>
+            <td><div class="td-actions">
+              <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}">✏</button>
+              <button class="btn btn-danger btn-sm" data-action="delete" data-id="${r.id}">🗑</button>
+            </div></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>`;
+}
+
 // ── Área config ───────────────────────────────────────────────────────────────
 
 const AREAS = [
@@ -203,6 +260,16 @@ const AREAS = [
     renderTabela: renderTabelaResiduos,
     filtro: (r, q) => ((r.tipo||'') + (r.empresa||'') + (r.mtr||'')).toLowerCase().includes(q),
     statusFn: r => r.status,
+  },
+  {
+    key: 'microbiologico',
+    label: 'Monit. Microbiológico',
+    col: 'microbiologico',
+    fields: FIELDS_MICRO,
+    statusOpts: STATUS_SERVICO,
+    renderTabela: renderTabelaMicro,
+    filtro: (r, q) => ((r.numero||'') + (r.empresa||'') + (r.areaMicro||'')).toLowerCase().includes(q),
+    statusFn: r => statusFromDate(r, 'proxima'),
   },
 ];
 
