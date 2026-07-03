@@ -705,10 +705,11 @@ function renderFormSolicitar_REMOVED(container) { // moved to elaboracao.js
     const areaSel  = container.querySelector('#solic-areaDoc');
     const tituloEl = container.querySelector('#solic-titulo');
     const codigoEl = container.querySelector('#solic-codigo-preview');
+    const proxRev = String(parseInt(doc.revisao || '00', 10) + 1).padStart(2, '0');
     if (tipoSel)  tipoSel.value  = doc.tipo;
     if (areaSel)  areaSel.value  = doc.area;
     if (tituloEl && !tituloEl.value) tituloEl.value = doc.titulo;
-    if (codigoEl) codigoEl.value = doc.numero;
+    if (codigoEl) codigoEl.value = `${doc.numero} · Rev.${proxRev}`;
   });
 }
 
