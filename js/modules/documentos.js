@@ -462,7 +462,9 @@ function renderSolicitacoesPendentes() {
               </td>
               <td>
                 <div style="font-size:0.82rem;font-weight:500">${s.tituloDoc || '—'}</div>
-                ${s.tipoDoc && s.areaDoc ? `<div style="font-size:0.72rem;color:var(--blue-light);font-family:monospace">${s.numeroGerado}</div>` : ''}
+                ${s.docExistente
+                  ? `<div style="font-size:0.72rem;color:var(--muted)">Revisão de: <span style="font-family:monospace;color:var(--blue-light)">${s.docExistente}</span></div>`
+                  : (s.tipoDoc && s.areaDoc ? `<div style="font-size:0.72rem;color:var(--blue-light);font-family:monospace">${s.numeroGerado}</div>` : '')}
                 <div style="font-size:0.72rem;color:var(--muted);max-width:200px;margin-top:2px">${(s.justificativa || '').substring(0, 80)}${(s.justificativa || '').length > 80 ? '…' : ''}</div>
               </td>
               <td style="font-size:0.78rem">
@@ -563,6 +565,14 @@ function renderFormSolicitar(container) {
           Documento
         </div>
         <div class="form-grid">
+          <div class="form-group span-2" id="solic-doc-revisao-wrap" style="display:none">
+            <label>Documento a ser revisado <span style="color:var(--red)">*</span></label>
+            <select id="solic-docExistente">
+              <option value="">Selecione o documento...</option>
+              ${db.get('documentos').map(d => `<option value="${d.id}">${d.numero} — ${d.titulo.length > 65 ? d.titulo.substring(0, 65) + '…' : d.titulo}</option>`).join('')}
+            </select>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">Tipo, área e título serão preenchidos automaticamente ao selecionar o documento.</div>
+          </div>
           <div class="form-group">
             <label>Tipo do documento <span style="color:var(--red)">*</span></label>
             <select id="solic-tipoDoc">
@@ -680,6 +690,34 @@ function renderFormSolicitar(container) {
   };
   container.querySelector('#solic-tipoDoc')?.addEventListener('change', updatePreview);
   container.querySelector('#solic-areaDoc')?.addEventListener('change', updatePreview);
+
+  const tipoSolicSel = container.querySelector('#solic-tipo');
+  const docRevWrap   = container.querySelector('#solic-doc-revisao-wrap');
+  const docExtSel    = container.querySelector('#solic-docExistente');
+
+  tipoSolicSel?.addEventListener('change', () => {
+    const isRev = tipoSolicSel.value === 'Revisão';
+    if (docRevWrap) docRevWrap.style.display = isRev ? '' : 'none';
+    if (!isRev && docExtSel) {
+      docExtSel.value = '';
+      updatePreview();
+    }
+  });
+
+  docExtSel?.addEventListener('change', () => {
+    const docId = Number(docExtSel.value);
+    if (!docId) return;
+    const doc = db.get('documentos').find(d => d.id === docId);
+    if (!doc) return;
+    const tipoSel  = container.querySelector('#solic-tipoDoc');
+    const areaSel  = container.querySelector('#solic-areaDoc');
+    const tituloEl = container.querySelector('#solic-titulo');
+    const codigoEl = container.querySelector('#solic-codigo-preview');
+    if (tipoSel)  tipoSel.value  = doc.tipo;
+    if (areaSel)  areaSel.value  = doc.area;
+    if (tituloEl && !tituloEl.value) tituloEl.value = doc.titulo;
+    if (codigoEl) codigoEl.value = doc.numero;
+  });
 }
 
 // ── Avançar etapa (com assinatura eletrônica) ────────────────────────────────
@@ -906,6 +944,24 @@ export default {
       if (action === 'solic-aprovar') {
         const solic = db.getById('solicitacoes', numId);
         if (!solic) return;
+
+        if (solic.tipoSolic === 'Revisão' && solic.docExistente) {
+          const existente = db.get('documentos').find(d => d.numero === solic.docExistente);
+          if (existente) {
+            db.update('documentos', existente.id, {
+              status:       'Em Revisão',
+              elaboradores: solic.elaboradorProp || existente.elaboradores,
+              revisores:    solic.revisoresProp  || existente.revisores,
+              aprovadores:  solic.aprovadoresProp || existente.aprovadores,
+            });
+            db.update('solicitacoes', numId, { status: 'Aprovada' });
+            db.addAudit('Revisão', 'documentos', existente.numero, `Revisão iniciada a partir da solicitação ${solic.numSolic} de ${solic.solicitante}`);
+            toast(`${existente.numero} → Revisão iniciada!`);
+            switchTab(container, 'solics');
+            return;
+          }
+        }
+
         const docData = {
           numero:        solic.numeroGerado || nextCode(solic.tipoDoc, solic.areaDoc),
           tipo:          solic.tipoDoc,
@@ -948,13 +1004,16 @@ export default {
         const elaborador  = container.querySelector('#solic-elab')?.value;
 
         if (!solicitante) { errEl.textContent = 'Selecione o solicitante.';                    errEl.style.display = 'block'; return; }
-        if (!tipoDoc || !areaDoc) { errEl.textContent = 'Selecione o tipo e área do documento.'; errEl.style.display = 'block'; return; }
+        if (!tipoDoc || !areaDoc) { errEl.textContent = container.querySelector('#solic-tipo')?.value === 'Revisão' ? 'Selecione o documento a ser revisado.' : 'Selecione o tipo e área do documento.'; errEl.style.display = 'block'; return; }
         if (!titulo)   { errEl.textContent = '"Título proposto" é obrigatório.';               errEl.style.display = 'block'; return; }
         if (!justif)   { errEl.textContent = '"Justificativa" é obrigatória.';                 errEl.style.display = 'block'; return; }
         if (!elaborador) { errEl.textContent = 'Selecione o elaborador proposto.';             errEl.style.display = 'block'; return; }
         errEl.style.display = 'none';
 
-        const numeroGerado = nextCode(tipoDoc, areaDoc);
+        const docExtId     = Number(container.querySelector('#solic-docExistente')?.value || 0);
+        const docExtRef    = docExtId ? db.get('documentos').find(d => d.id === docExtId) : null;
+        const isRevisao    = container.querySelector('#solic-tipo')?.value === 'Revisão';
+        const numeroGerado = (isRevisao && docExtRef) ? docExtRef.numero : nextCode(tipoDoc, areaDoc);
         const numSolic     = nextSolicNum();
 
         db.add('solicitacoes', {
@@ -978,6 +1037,7 @@ export default {
           areasTreinar:    container.querySelector('#solic-areasTreinar')?.value || '',
           qtdAnexos:       container.querySelector('#solic-qtdAnexos')?.value || '0',
           distAnexos:      container.querySelector('#solic-distAnexos')?.value || '',
+          docExistente:    docExtRef?.numero || '',
           status: 'Pendente',
         });
 
