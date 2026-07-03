@@ -917,15 +917,17 @@ export default {
         if (solic.tipoSolic === 'Revisão' && solic.docExistente) {
           const existente = db.get('documentos').find(d => d.numero === solic.docExistente);
           if (existente) {
+            const novaRevisao = String(parseInt(existente.revisao || '00', 10) + 1).padStart(2, '0');
             db.update('documentos', existente.id, {
               status:       'Em Revisão',
+              revisao:      novaRevisao,
               elaboradores: solic.elaboradorProp || existente.elaboradores,
               revisores:    solic.revisoresProp  || existente.revisores,
               aprovadores:  solic.aprovadoresProp || existente.aprovadores,
             });
             db.update('solicitacoes', numId, { status: 'Aprovada' });
-            db.addAudit('Revisão', 'documentos', existente.numero, `Revisão iniciada a partir da solicitação ${solic.numSolic} de ${solic.solicitante}`);
-            toast(`${existente.numero} → Revisão iniciada!`);
+            db.addAudit('Revisão', 'documentos', existente.numero, `Revisão iniciada (Rev.${novaRevisao}) a partir da solicitação ${solic.numSolic} de ${solic.solicitante}`);
+            toast(`${existente.numero} → Revisão iniciada! Rev.${novaRevisao}`);
             switchTab(container, 'solics');
             return;
           }
