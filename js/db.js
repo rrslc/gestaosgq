@@ -10,7 +10,7 @@
 
 import { STORE_KEY } from './constants.js';
 
-const COLLECTIONS = ['equipe', 'capa', 'rnc', 'fornecedores', 'tecno', 'validacoes', 'gcm', 'risco', 'pragas', 'obrigacoes', 'documentos', 'perfis', 'trilha'];
+const COLLECTIONS = ['equipe', 'capa', 'rnc', 'fornecedores', 'tecno', 'validacoes', 'gcm', 'risco', 'pragas', 'obrigacoes', 'documentos', 'solicitacoes', 'perfis', 'trilha'];
 
 class Database {
   /** @type {Record<string, Array>} cache em memória */
@@ -398,6 +398,7 @@ class Database {
           { id: 8, nome: 'Consulta',            cor: '#6b7280', descricao: 'Somente visualização, sem edição', permissoes: mp(RO, { permissoes: NO, configuracoes: NO }) },
         ];
       })(),
+      solicitacoes: [],
       trilha: [],
     };
   }

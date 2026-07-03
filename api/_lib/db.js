@@ -14,7 +14,7 @@ const sql = neon(process.env.DATABASE_URL);
 /** Collections permitidas (whitelist contra SQL injection). */
 const ALLOWED_COLLECTIONS = new Set([
   'equipe', 'capa', 'rnc', 'fornecedores',
-  'tecno', 'validacoes', 'gcm', 'risco', 'pragas', 'obrigacoes', 'documentos', 'perfis', 'trilha',
+  'tecno', 'validacoes', 'gcm', 'risco', 'pragas', 'obrigacoes', 'documentos', 'solicitacoes', 'perfis', 'trilha',
 ]);
 
 /**
