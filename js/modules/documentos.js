@@ -469,6 +469,7 @@ function renderSolicitacoesPendentes() {
                 <div>Elab.: ${s.elaboradorProp || '—'}</div>
                 ${s.revisoresProp ? `<div style="color:var(--muted)">Rev.: ${s.revisoresProp}</div>` : ''}
                 ${s.aprovadoresProp ? `<div style="color:var(--muted)">Apr.: ${s.aprovadoresProp}</div>` : ''}
+                ${s.qtdAnexos && s.qtdAnexos !== '0' ? `<div style="color:var(--muted);margin-top:3px">📎 ${s.qtdAnexos} anexo(s)${s.distAnexos ? ` → ${s.distAnexos}` : ''}</div>` : ''}
               </td>
               <td>${statusPill(s.status)}</td>
               <td>
@@ -609,6 +610,15 @@ function renderFormSolicitar(container) {
           <div class="form-group">
             <label>Áreas a serem treinadas</label>
             <input type="text" id="solic-areasTreinar" placeholder="Ex: RH, CQ, MT">
+          </div>
+          <div class="form-group">
+            <label>Quantidade de anexos (cópias controladas)</label>
+            <input type="number" id="solic-qtdAnexos" min="0" max="99" placeholder="0"
+              style="max-width:120px">
+          </div>
+          <div class="form-group">
+            <label>Áreas para distribuição dos anexos</label>
+            <input type="text" id="solic-distAnexos" placeholder="Ex: Produção, CQ, RH">
           </div>
         </div>
       </div>
@@ -966,6 +976,8 @@ export default {
           impactoProcesso:  container.querySelector('#solic-impactoProcesso')?.value,
           impactoTreino:    container.querySelector('#solic-impactoTreino')?.value,
           areasTreinar:    container.querySelector('#solic-areasTreinar')?.value || '',
+          qtdAnexos:       container.querySelector('#solic-qtdAnexos')?.value || '0',
+          distAnexos:      container.querySelector('#solic-distAnexos')?.value || '',
           status: 'Pendente',
         });
 
