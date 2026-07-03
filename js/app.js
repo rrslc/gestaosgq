@@ -18,7 +18,6 @@ import tecnovig     from './modules/tecnovig.js';
 import validacoes   from './modules/validacoes.js';
 import gcm          from './modules/gcm.js';
 import risco        from './modules/risco.js';
-import pragas          from './modules/pragas.js';
 import monitoramento   from './modules/monitoramento.js';
 import obrigacoes   from './modules/obrigacoes.js';
 import documentos   from './modules/documentos.js';
@@ -41,7 +40,6 @@ export const router = new Router({
   [ROUTES.VALIDACOES]:   { module: validacoes,   title: 'Validações',               icon: '✔' },
   [ROUTES.GCM]:          { module: gcm,          title: 'Gestão de Mudanças',       icon: '↻' },
   [ROUTES.RISCO]:        { module: risco,        title: 'Análise de Risco',         icon: '⚠' },
-  [ROUTES.PRAGAS]:        { module: pragas,        title: 'Controle de Pragas',       icon: '⬢' },
   [ROUTES.MONITORAMENTO]: { module: monitoramento, title: 'Monitoramento da Fábrica', icon: '🏭' },
   [ROUTES.OBRIGACOES]:   { module: obrigacoes,   title: 'Obrig. Regulatórias',      icon: '📋' },
   [ROUTES.DOCUMENTOS]:   { module: documentos,   title: 'Controle de Docs.',         icon: '📄' },
