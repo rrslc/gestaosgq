@@ -248,7 +248,7 @@ function renderMinhasSolicitacoes() {
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Nº</th><th>Data</th><th>Tipo</th><th>Documento</th><th>Solicitante</th><th>Status GQ</th></tr>
+            <tr><th>Nº</th><th>Data</th><th>Tipo</th><th>Documento</th><th>Solicitante</th><th>Status GQ</th><th></th></tr>
           </thead>
           <tbody>
             ${solics.map(s => `
@@ -264,6 +264,12 @@ function renderMinhasSolicitacoes() {
                 </td>
                 <td style="font-size:0.78rem">${s.solicitante}<div style="color:var(--muted)">${s.areaSolic}</div></td>
                 <td>${statusPill(s.status)}</td>
+                <td>
+                  <button class="btn btn-sm btn-secondary" data-action="solic-pdf" data-num-solic="${s.numSolic}"
+                    title="Gerar PDF desta solicitação" style="font-size:0.72rem;padding:2px 8px">
+                    📄 PDF
+                  </button>
+                </td>
               </tr>`).join('')}
           </tbody>
         </table>
@@ -476,6 +482,149 @@ function renderFormSolicitar(container) {
   });
 }
 
+// ── Geração de PDF ────────────────────────────────────────────────────────────
+
+function gerarPDFSolicitacao(s) {
+  const dataGeracao = new Date().toLocaleString('pt-BR');
+  const dataSolicFmt = s.dataSolic
+    ? new Date(s.dataSolic + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+  const impactoColor = v => v === 'Sim' ? '#dc2626' : '#059669';
+
+  const secao = (titulo, conteudo) => `
+    <div class="section">
+      <div class="section-title">${titulo}</div>
+      ${conteudo}
+    </div>`;
+
+  const campo = (label, valor, full) => `
+    <div class="field${full ? ' full' : ''}">
+      <label>${label}</label>
+      <value>${valor || '—'}</value>
+    </div>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Solicitação ${s.numSolic}</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box }
+    body { font-family:Arial,sans-serif; font-size:11pt; color:#1a1a1a; padding:16mm }
+    .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1d4ed8; padding-bottom:12px; margin-bottom:18px }
+    .logo h1 { font-size:15pt; color:#1d4ed8; font-weight:700 }
+    .logo p { font-size:9pt; color:#6b7280; margin-top:2px }
+    .doc-id { text-align:right }
+    .doc-id .num { font-size:14pt; font-weight:700; color:#1d4ed8; font-family:monospace }
+    .doc-id .sub { font-size:8.5pt; color:#6b7280 }
+    h2 { font-size:12pt; font-weight:700; color:#1e3a8a; margin-bottom:16px; text-align:center }
+    .section { margin-bottom:14px }
+    .section-title { font-size:9.5pt; font-weight:700; color:#1d4ed8; padding:4px 8px; background:#eff6ff; border-left:3px solid #1d4ed8; margin-bottom:8px }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:5px 20px }
+    .field { margin-bottom:3px }
+    .field.full { grid-column:1/-1 }
+    label { font-size:8pt; color:#6b7280; display:block; margin-bottom:1px }
+    value { font-size:10pt; font-weight:500; display:block }
+    .badge { display:inline-block; padding:1px 8px; border-radius:3px; font-size:8.5pt; font-weight:700; background:#dbeafe; color:#1e40af }
+    .impacts { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px }
+    .impact-item { border:1px solid #e5e7eb; border-radius:4px; padding:6px 8px }
+    .impact-item label { font-size:8pt; color:#6b7280 }
+    .sig-area { display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:28px; border-top:1px solid #d1d5db; padding-top:14px }
+    .sig-box { border-top:1px solid #1a1a1a; padding-top:4px; margin-top:28px }
+    .sig-box label { font-size:8pt; color:#6b7280 }
+    .footer { margin-top:20px; border-top:1px solid #e5e7eb; padding-top:7px; font-size:7.5pt; color:#9ca3af; display:flex; justify-content:space-between }
+    @page { margin:12mm }
+    @media print { body { padding:0 } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <h1>SGQ — Sistema de Gestão da Qualidade</h1>
+      <p>MSB Brasil Dispositivos Médicos</p>
+    </div>
+    <div class="doc-id">
+      <div class="num">${s.numSolic}</div>
+      <div class="sub">Solicitação de Elaboração de Documento</div>
+    </div>
+  </div>
+
+  <h2>Formulário de Solicitação de Documento SGQ</h2>
+
+  ${secao('Identificação da Solicitação', `
+    <div class="grid">
+      ${campo('Nº da Solicitação', `<span style="font-family:monospace;font-weight:700;color:#1d4ed8">${s.numSolic}</span>`)}
+      ${campo('Data', dataSolicFmt)}
+      ${campo('Tipo', `<span class="badge">${s.tipoSolic}</span>`)}
+      ${campo('Status GQ', s.status)}
+      ${campo('Solicitante', s.solicitante)}
+      ${campo('Área Solicitante', s.areaSolic)}
+    </div>`)}
+
+  ${secao('Identificação do Documento', `
+    <div class="grid">
+      ${s.docExistente ? campo('Documento a ser revisado', `<span style="font-family:monospace;font-weight:700">${s.docExistente}</span>`) : ''}
+      ${campo('Código Gerado / Proposto', `<span style="font-family:monospace;font-weight:700;color:#1d4ed8">${s.numeroGerado || '—'}</span>`)}
+      ${campo('Tipo', s.tipoDoc)}
+      ${campo('Área Emitente', s.areaDoc)}
+      ${campo('Título Proposto', s.tituloDoc, true)}
+      ${campo('Justificativa / Descrição da Alteração', s.justificativa, true)}
+      ${s.docsImpactados ? campo('Documentos / Procedimentos Impactados', s.docsImpactados, true) : ''}
+    </div>`)}
+
+  ${secao('Análise de Impacto', `
+    <div class="impacts">
+      <div class="impact-item">
+        <label>Qualidade do Produto</label>
+        <div style="font-size:9.5pt;font-weight:600;color:${impactoColor(s.impactoQualidade)}">${s.impactoQualidade || 'Não'}</div>
+      </div>
+      <div class="impact-item">
+        <label>Processos / Procedimentos</label>
+        <div style="font-size:9.5pt;font-weight:600;color:${impactoColor(s.impactoProcesso)}">${s.impactoProcesso || 'Não'}</div>
+      </div>
+      <div class="impact-item">
+        <label>Treinamentos</label>
+        <div style="font-size:9.5pt;font-weight:600;color:${impactoColor(s.impactoTreino)}">${s.impactoTreino || 'Não'}</div>
+      </div>
+    </div>
+    ${s.areasTreinar ? `<div class="field" style="margin-top:8px">${campo('Áreas a serem treinadas', s.areasTreinar)}</div>` : ''}`)}
+
+  ${secao('Equipe Proposta para Elaboração', `
+    <div class="grid">
+      ${campo('Elaborador', s.elaboradorProp)}
+      ${campo('Revisores', s.revisoresProp || '—')}
+      ${campo('Aprovadores', s.aprovadoresProp || '—')}
+    </div>`)}
+
+  ${(s.qtdAnexos && s.qtdAnexos !== '0') || s.distAnexos ? secao('Cópias Controladas / Anexos', `
+    <div class="grid">
+      ${campo('Quantidade de cópias controladas', s.qtdAnexos || '0')}
+      ${campo('Áreas de distribuição', s.distAnexos)}
+    </div>`) : ''}
+
+  <div class="sig-area">
+    <div>
+      <div class="sig-box"><label>Assinatura do Solicitante — ${s.solicitante}</label></div>
+    </div>
+    <div>
+      <div class="sig-box"><label>Recebido pela GQ — Data e Assinatura</label></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Gerado pelo SGQ em ${dataGeracao}</span>
+    <span>${s.numSolic} · POP-GQ-002 · Somente para uso interno</span>
+  </div>
+
+  <script>window.print();<\/script>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=920,height=720');
+  if (!win) { toast('Permita pop-ups para gerar o PDF.', 'error'); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
 // ── Render principal ──────────────────────────────────────────────────────────
 
 let _areaAtual = 'solicitar';
@@ -550,8 +699,15 @@ export default {
 
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
-      const { action, id } = btn.dataset;
+      const { action, id, numSolic: btnNumSolic } = btn.dataset;
       const numId = id !== undefined ? Number(id) : null;
+
+      // ── PDF da solicitação ──
+      if (action === 'solic-pdf') {
+        const solic = db.get('solicitacoes').find(s => s.numSolic === btnNumSolic);
+        if (solic) gerarPDFSolicitacao(solic);
+        return;
+      }
 
       // ── Avançar etapa ──
       if (action === 'elab-avancar') {
