@@ -62,8 +62,9 @@ export const ROUTES = Object.freeze({
   CALENDARIO:   'calendario',
   AGENDA:       'agenda',
   OBRIGACOES:   'obrigacoes',
-  DOCUMENTOS:   'documentos',
-  ELABORACAO:   'elaboracao',
+  DOCUMENTOS:     'documentos',
+  ELABORACAO:     'elaboracao',
+  MONITORAMENTO:  'monitoramento',
   PERMISSOES:   'permissoes',
   CONFIGURACOES:'configuracoes',
 });
