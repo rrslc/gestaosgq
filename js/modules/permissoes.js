@@ -1,6 +1,6 @@
 ﻿/**
  * @fileoverview Permissões de Acesso — gestão de perfis, matriz de permissões e trilha de auditoria.
- * Conformidade: CFR 21 Part 11 · ANVISA RDC 27/2011 · ISO 13485 §4.2.5.
+ * Conformidade: CFR 21 Part 11 · ANVISA RDC 665/2022 · ISO 13485:2016 §4.1.6.
  */
 
 import { db } from '../db.js';
@@ -33,8 +33,9 @@ const CFR_ITEMS = [
   { ref: '§11.10(h)', req: 'Verificação de completude de entrada de dados', status: 'Atendido', nota: 'Campos obrigatórios validados em todos os formulários' },
   { ref: '§11.100',   req: 'Assinatura eletrônica única por indivíduo', status: 'Atendido', nota: 'Modal de assinatura com identificação, data/hora e significado registrados na trilha' },
   { ref: '§11.200',   req: 'Componentes de assinatura: nome + data + significado', status: 'Atendido', nota: 'Implementado no modal de assinatura para Aprovação e Homologação' },
-  { ref: 'ANVISA RDC 27/2011', req: 'Controle de acesso por usuário e perfil', status: 'Parcial', nota: 'Perfis definidos — sessão por seleção de usuário (autenticação completa: roadmap)' },
-  { ref: 'ISO 13485 §4.2.5', req: 'Controle de documentos com status e revisão rastreáveis', status: 'Atendido', nota: 'Status, revisão, elaboradores, revisores, aprovadores, homologador registrados' },
+  { ref: 'ANVISA RDC 665/2022', req: 'Sistema computadorizado controlado: acesso restrito, integridade de dados e trilha de auditoria', status: 'Parcial', nota: 'Trilha ativa, perfis definidos — autenticação formal e plano de validação (VAL-2026-010) pendentes' },
+  { ref: 'ISO 13485:2016 §4.1.6', req: 'Validação do software utilizado no SGQ antes do uso e após alterações', status: 'Pendente', nota: 'Plano de validação do sistema computadorizado (VAL-2026-010) a ser elaborado e executado' },
+  { ref: 'ISO 13485:2016 §4.2.5', req: 'Controle de documentos com status e revisão rastreáveis', status: 'Atendido', nota: 'Status, revisão, elaboradores, revisores, aprovadores, homologador registrados' },
 ];
 
 const COR_STATUS = { 'Atendido': '#059669', 'Parcial': '#d97706', 'Pendente': '#dc2626' };
@@ -240,7 +241,7 @@ function renderCFR() {
     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:0.82rem;color:#1e3a5f">
       <strong>Conformidade Atual:</strong> ${atendidos}/${total} requisitos totalmente atendidos (${Math.round(100*atendidos/total)}%).
       ${parciais > 0 ? `${parciais} em implementação — autenticação completa e validação formal do sistema (VAL-2026-010) pendentes.` : ''}
-      <br><strong>Referências:</strong> CFR 21 Part 11 · ANVISA RDC 27/2011 · ISO 13485:2016 §4.2.5 · POP-GQ-002/003
+      <br><strong>Referências:</strong> CFR 21 Part 11 · ANVISA RDC 665/2022 · ISO 13485:2016 §4.1.6 e §4.2.5 · POP-GQ-002/003
     </div>
 
     <div class="table-wrap">
@@ -327,7 +328,7 @@ export default {
         </div>
       </div>
       <div style="font-size:0.78rem;color:var(--muted);margin:-6px 0 12px">
-        CFR 21 Part 11 · ANVISA RDC 27/2011 · ISO 13485 §4.2.5
+        CFR 21 Part 11 · ANVISA RDC 665/2022 · ISO 13485:2016 §4.1.6
       </div>
 
       <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:14px">

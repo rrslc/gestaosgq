@@ -81,7 +81,7 @@ function showSignatureModal(titulo, significado, onConfirm) {
       </div>
       <div class="modal-body">
         <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:0.82rem">
-          <strong>CFR 21 Part 11 / ANVISA RDC 27/2011</strong><br>
+          <strong>CFR 21 Part 11 · ANVISA RDC 665/2022 · ISO 13485:2016 §4.1.6</strong><br>
           Esta assinatura eletrônica é legalmente vinculante e será registrada na trilha de auditoria com data, hora e identificação do signatário.
         </div>
         <div style="font-size:0.82rem;color:#374151;margin-bottom:14px"><strong>Ação:</strong> ${titulo}</div>

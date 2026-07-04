@@ -407,7 +407,7 @@ class Database {
     };
   }
 
-  /** Registra evento na trilha de auditoria (CFR 21 Part 11 / ANVISA RDC 27/2011). */
+  /** Registra evento na trilha de auditoria (CFR 21 Part 11 · ANVISA RDC 665/2022 · ISO 13485:2016 §4.1.6). */
   addAudit(acao, modulo, registro, detalhe = '') {
     this.add('trilha', {
       dataHora: new Date().toISOString(),
