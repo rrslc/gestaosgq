@@ -12,6 +12,7 @@ import { PERFIS, MODULOS_PERM, ACOES_PERM } from '../constants.js';
 const COR_PERFIL = {
   'GQ Administrador':    '#dc2626',
   'Gestor GQ':           '#2563eb',
+  'Garantia da Qualidade': '#c2410c',
   'Elaborador':          '#059669',
   'Revisor':             '#7c3aed',
   'Aprovador':           '#d97706',

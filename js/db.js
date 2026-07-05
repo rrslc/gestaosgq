@@ -390,6 +390,7 @@ class Database {
         return [
           { id: 1, nome: 'GQ Administrador',    cor: '#dc2626', descricao: 'Acesso total ao SGQ', permissoes: mp(ALL) },
           { id: 2, nome: 'Gestor GQ',           cor: '#2563eb', descricao: 'Gerencia processos GQ, homologa documentos', permissoes: mp(ALL, { configuracoes: STD }) },
+          { id: 9, nome: 'Garantia da Qualidade', cor: '#c2410c', descricao: 'Executa e gerencia atividades de qualidade em todos os módulos operacionais', permissoes: mp(STD, { capa: ALL, rnc: ALL, tecnovig: ALL, validacoes: ALL, obrigacoes: ALL, gcm: ALL, risco: ALL, fornecedores: ALL, documentos: REV, permissoes: RO, configuracoes: NO }) },
           { id: 3, nome: 'Elaborador',          cor: '#059669', descricao: 'Elabora e edita documentos na sua área', permissoes: mp(RO,  { documentos: STD, agenda: RO }) },
           { id: 4, nome: 'Revisor',             cor: '#7c3aed', descricao: 'Revisa documentos e emite parecer', permissoes: mp(RO,  { documentos: REV }) },
           { id: 5, nome: 'Aprovador',           cor: '#d97706', descricao: 'Aprova documentos na etapa de aprovação', permissoes: mp(RO,  { documentos: { ver: true, criar: false, editar: false, gestao: false, aprovar: true } }) },

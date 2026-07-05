@@ -125,6 +125,7 @@ export const PILL_MAP = Object.freeze({
 export const PERFIS = Object.freeze([
   'GQ Administrador',
   'Gestor GQ',
+  'Garantia da Qualidade',
   'Elaborador',
   'Revisor',
   'Aprovador',
