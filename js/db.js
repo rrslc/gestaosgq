@@ -10,7 +10,7 @@
 
 import { STORE_KEY } from './constants.js';
 
-const COLLECTIONS = ['equipe', 'capa', 'rnc', 'fornecedores', 'tecno', 'validacoes', 'gcm', 'risco', 'pragas', 'obrigacoes', 'documentos', 'solicitacoes', 'perfis', 'trilha', 'reservatorio', 'residuos', 'microbiologico', 'limpezaMensal', 'gembaWalk'];
+const COLLECTIONS = ['equipe', 'capa', 'rnc', 'fornecedores', 'tecno', 'validacoes', 'gcm', 'risco', 'pragas', 'obrigacoes', 'documentos', 'solicitacoes', 'perfis', 'trilha', 'reservatorio', 'residuos', 'microbiologico', 'limpezaMensal', 'gembaWalk', 'orcamentosAnuais'];
 
 class Database {
   /** @type {Record<string, Array>} cache em memória */
@@ -406,6 +406,7 @@ class Database {
       microbiologico: [],
       limpezaMensal: [],
       gembaWalk: [],
+      orcamentosAnuais: [],
     };
   }
 

@@ -2,6 +2,8 @@
  * @fileoverview Roteador baseado em hash para SPA de módulo único.
  */
 
+import { closeAllModals } from './modal.js';
+
 class Router {
   /** @type {Object} */
   #routes;
@@ -49,6 +51,9 @@ class Router {
     if (this.#titleEl) {
       this.#titleEl.textContent = route.title;
     }
+
+    // Fechar todos os modais antes de trocar de rota
+    closeAllModals();
 
     // Render and init module
     this.#container.innerHTML = '';

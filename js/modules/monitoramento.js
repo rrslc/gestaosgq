@@ -45,6 +45,9 @@ const STATUS_GEMBA = ['Programado', 'Realizado', 'Pendente Relatório', 'Cancela
 const METODOS_COLETA = ['Sedimentação (Placa Exposta)', 'Impactação (RCS / Impactador)', 'Swab de Superfície', 'Filtração de Ar', 'Combinado'];
 const RESULTADO_MICRO = ['Aprovado — dentro do limite', 'Reprovado — fora do limite', 'Pendente', 'Inconclusivo'];
 
+const SERVICOS_ORCAMENTO = ['Controle de Pragas', 'Limpeza de Reservatório', 'Gerenciamento de Resíduos'];
+const STATUS_ORCAMENTO   = ['Solicitado', 'Recebido', 'Aprovado', 'Descartado'];
+
 // ── Equipe — opções dinâmicas ────────────────────────────────────────────────
 
 function withEquipe(fields) {
@@ -162,6 +165,11 @@ const FIELDS_LIMPEZA_EXEC = [
 // ── Botões de fase (Planejamento → Execução) ──────────────────────────────────
 
 function phaseBtns(r, area) {
+  if (!area.fieldsExec) {
+    return `
+      <button class="btn btn-secondary btn-sm" data-action="plan" data-id="${r.id}" title="Editar">✏</button>
+      <button class="btn btn-danger btn-sm" data-action="delete" data-id="${r.id}">🗑</button>`;
+  }
   const executado = area.isExecuted(r);
   return `
     <button class="btn btn-secondary btn-sm" data-action="plan" data-id="${r.id}" title="Editar planejamento">✏</button>
@@ -358,6 +366,20 @@ function renderTabelaLimpeza(items, area) {
     </table></div>`;
 }
 
+// Orçamentos Anuais (sem fase de execução — status gerenciado diretamente)
+const FIELDS_ORCAMENTO = [
+  { id: 'ano',        label: 'Ano de Referência',          type: 'number',   required: true,  span: 1, min: 2020, max: 2099 },
+  { id: 'servico',    label: 'Serviço',                    type: 'select',   required: true,  span: 1, options: SERVICOS_ORCAMENTO },
+  { id: 'empresa',    label: 'Empresa Fornecedora',        type: 'text',     required: true,  span: 2 },
+  { id: 'contato',    label: 'Contato / Responsável',      type: 'text',     required: false, span: 1 },
+  { id: 'telefone',   label: 'Telefone / E-mail',          type: 'text',     required: false, span: 1 },
+  { id: 'valor',      label: 'Valor Cotado (R$)',          type: 'text',     required: false, span: 1 },
+  { id: 'validade',   label: 'Validade do Orçamento',      type: 'date',     required: false, span: 1 },
+  { id: 'responsavel',label: 'Responsável Interno (MSB)', type: 'select',   required: false, span: 2, options: '__equipe__' },
+  { id: 'status',     label: 'Status',                     type: 'select',   required: true,  span: 1, options: STATUS_ORCAMENTO },
+  { id: 'obs',        label: 'Observações',                type: 'textarea', required: false, span: 2 },
+];
+
 // Momento 1 — Planejamento
 const FIELDS_GEMBA_PLAN = [
   { id: 'numero',       label: 'Nº do Registro',         type: 'text',     required: true,  span: 1 },
@@ -399,6 +421,63 @@ function renderTabelaGemba(items, area) {
           </tr>`).join('')}
       </tbody>
     </table></div>`;
+}
+
+function renderTabelaOrcamentos(items, area) {
+  const isDecember = new Date().getMonth() === 11;
+  const grupos = SERVICOS_ORCAMENTO.map(servico => ({
+    servico,
+    lista: items.filter(r => r.servico === servico),
+  }));
+  const totalOk = grupos.every(g => g.lista.length >= 3);
+
+  let html = '';
+
+  if (isDecember && !totalOk) {
+    html += `<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:7px;padding:10px 14px;margin-bottom:14px;font-size:0.84rem;color:#92400e">
+      <strong>📅 Atividade de Dezembro:</strong> Registre ao menos 3 orçamentos para cada serviço antes do encerramento do ano.
+    </div>`;
+  }
+  if (totalOk && items.length > 0) {
+    html += `<div style="background:#d1fae5;border:1px solid #059669;border-radius:7px;padding:10px 14px;margin-bottom:14px;font-size:0.84rem;color:#065f46">
+      ✅ Todos os serviços possuem 3 ou mais orçamentos registrados.
+    </div>`;
+  }
+
+  grupos.forEach(g => {
+    const n = g.lista.length;
+    const cor = n >= 3 ? '#059669' : n >= 1 ? '#d97706' : '#9ca3af';
+    html += `
+      <div style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-weight:700;font-size:0.88rem">${g.servico}</span>
+          <span style="background:${cor};color:#fff;border-radius:12px;padding:1px 10px;font-size:0.72rem;font-weight:700">${n}/3</span>
+          ${n < 3 ? `<span style="font-size:0.75rem;color:${cor}">— faltam ${3 - n} orçamento(s)</span>` : ''}
+        </div>
+        ${n === 0
+          ? `<div style="color:var(--muted);font-size:0.82rem;padding:8px 12px;background:var(--bg);border-radius:5px;border:1px dashed var(--border)">Nenhum orçamento registrado.</div>`
+          : `<div class="table-wrap"><table>
+              <thead><tr>
+                <th>Empresa</th><th>Contato</th><th>Telefone / E-mail</th><th>Valor (R$)</th><th>Validade</th><th>Responsável</th><th>Status</th><th>Ações</th>
+              </tr></thead>
+              <tbody>
+                ${g.lista.map(r => `<tr>
+                  <td style="font-weight:600">${r.empresa}</td>
+                  <td style="font-size:0.82rem">${r.contato || '—'}</td>
+                  <td style="font-size:0.82rem">${r.telefone || '—'}</td>
+                  <td style="font-size:0.82rem;font-weight:600">${r.valor || '—'}</td>
+                  <td style="font-size:0.82rem">${r.validade ? formatDate(r.validade) : '—'}</td>
+                  <td style="font-size:0.82rem">${r.responsavel || '—'}</td>
+                  <td>${statusPill(r.status || 'Solicitado')}</td>
+                  <td><div class="td-actions">${phaseBtns(r, area)}</div></td>
+                </tr>`).join('')}
+              </tbody>
+            </table></div>`
+        }
+      </div>`;
+  });
+
+  return html || emptyState('Nenhum orçamento registrado. Use "+ Novo Orçamento" para iniciar.');
 }
 
 // ── Área config ───────────────────────────────────────────────────────────────
@@ -495,6 +574,24 @@ const AREAS = [
     btnLabel: '+ Planejar Visita',
     execDefaults: r => ({ areaRealizada: r.area }),
   },
+  {
+    key: 'orcamentosAnuais',
+    label: 'Orçamentos Anuais',
+    col: 'orcamentosAnuais',
+    fields: FIELDS_ORCAMENTO,
+    fieldsExec: null,
+    statusOpts: STATUS_ORCAMENTO,
+    statusInit: 'Solicitado',
+    statusExec: null,
+    isExecuted: null,
+    renderTabela: renderTabelaOrcamentos,
+    filtro: (r, q) => ((r.empresa||'') + (r.servico||'') + (r.contato||'')).toLowerCase().includes(q),
+    statusFn: r => r.status || 'Solicitado',
+    btnLabel: '+ Novo Orçamento',
+    newTitle: 'Novo Orçamento',
+    planTitle: r => `Editar Orçamento — ${r.empresa || '#' + r.id}`,
+    newDefaults: () => ({ ano: new Date().getFullYear(), status: 'Solicitado' }),
+  },
 ];
 
 let _areaAtual = 'pragas';
@@ -504,13 +601,18 @@ function getArea() { return AREAS.find(a => a.key === _areaAtual); }
 // ── Renderização da tabela com filtros ────────────────────────────────────────
 
 function renderContent(container) {
-  const area   = getArea();
-  const search = (container.querySelector('[data-filter="search"]')?.value || '').toLowerCase();
+  const area    = getArea();
+  const search  = (container.querySelector('[data-filter="search"]')?.value || '').toLowerCase();
   const statusF = container.querySelector('[data-filter="status"]')?.value || '';
 
   let items = db.get(area.col);
   if (search)  items = items.filter(r => area.filtro(r, search));
   if (statusF) items = items.filter(r => area.statusFn(r) === statusF);
+
+  if (area.key === 'orcamentosAnuais') {
+    const anoF = container.querySelector('[data-filter="ano"]')?.value || String(new Date().getFullYear());
+    items = items.filter(r => String(r.ano) === anoF);
+  }
 
   container.querySelector('#mon-table-wrap').innerHTML = area.renderTabela(items, area);
 }
@@ -525,6 +627,10 @@ function renderMain(container) {
       : 'background:transparent;color:var(--muted);');
 
   const area = getArea();
+  const anoAtual = new Date().getFullYear();
+  const anosDisponiveis = area.key === 'orcamentosAnuais'
+    ? [...new Set([anoAtual, ...db.get('orcamentosAnuais').map(r => Number(r.ano)).filter(Boolean)])].sort((a, b) => b - a)
+    : [];
 
   container.innerHTML = `
     <div class="page-header">
@@ -537,11 +643,13 @@ function renderMain(container) {
       <button class="btn btn-primary" data-action="new">${area.btnLabel || '+ Novo Registro'}</button>
     </div>
 
-    <div style="display:flex;gap:0;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px;width:fit-content;margin-bottom:14px">
+    <div style="display:flex;flex-wrap:wrap;gap:0;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px;width:fit-content;margin-bottom:14px">
       ${AREAS.map(a => {
         const n = db.get(a.col).length;
+        const isOrc = a.key === 'orcamentosAnuais';
+        const label = isOrc ? '📋 Orçamentos Anuais' : a.label;
         return `<button data-area-btn="${a.key}" style="${areaStyle(a.key)}">
-          ${a.label}${n > 0
+          ${label}${n > 0
             ? `&nbsp;<span style="background:${_areaAtual === a.key ? 'rgba(255,255,255,0.3)' : '#9ca3af'};color:#fff;border-radius:10px;padding:0 6px;font-size:0.7rem">${n}</span>`
             : ''}
         </button>`;
@@ -550,6 +658,10 @@ function renderMain(container) {
 
     <div class="toolbar">
       <input class="toolbar-search" type="text" placeholder="Buscar…" data-filter="search">
+      ${area.key === 'orcamentosAnuais' ? `
+        <select class="toolbar-select" data-filter="ano">
+          ${anosDisponiveis.map(a => `<option value="${a}"${a === anoAtual ? ' selected' : ''}>${a}</option>`).join('')}
+        </select>` : ''}
       <select class="toolbar-select" data-filter="status">
         <option value="">Todos os status</option>
         ${area.statusOpts.map(s => `<option value="${s}">${s}</option>`).join('')}
@@ -588,29 +700,34 @@ export default {
       const area  = getArea();
 
       if (action === 'new') {
+        const defaults = area.newDefaults ? area.newDefaults() : { status: area.statusInit || 'Agendado' };
         openModal({
-          title: `Planejamento — ${area.label}`,
+          title: area.newTitle || `Planejamento — ${area.label}`,
           fields: withEquipe(area.fields),
-          data: { status: area.statusInit || 'Agendado' },
+          data: defaults,
           onSave: data => {
-            db.add(area.col, { ...data, status: area.statusInit || 'Agendado' });
+            const record = area.fieldsExec
+              ? { ...data, status: area.statusInit || 'Agendado' }
+              : data;
+            db.add(area.col, record);
             toast('Registro criado!');
             renderContent(container);
           },
         });
       }
 
-      // Editar planejamento
+      // Editar registro / planejamento
       if (action === 'plan') {
         const record = db.getById(area.col, numId);
         if (!record) return;
+        const title = area.planTitle ? area.planTitle(record) : `Editar Planejamento — ${record.numero || '#' + numId}`;
         openModal({
-          title: `Editar Planejamento — ${record.numero || '#' + numId}`,
+          title,
           fields: withEquipe(area.fields),
           data: record,
           onSave: data => {
             db.update(area.col, numId, data);
-            toast('Planejamento atualizado!');
+            toast('Registro atualizado!');
             renderContent(container);
           },
         });

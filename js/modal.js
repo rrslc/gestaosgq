@@ -161,6 +161,12 @@ export function closeModal() {
   o.innerHTML = '';
 }
 
+/** Remove todos os overlays de modal do DOM (inclui modais de outros módulos). */
+export function closeAllModals() {
+  document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
+  overlay = null;
+}
+
 /**
  * Exibe um diálogo de confirmação sem usar window.confirm.
  * @param {string} message
