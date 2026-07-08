@@ -39,6 +39,9 @@ const AREAS_MICRO = ['Sala Limpa', 'Sala de Produção Inferior', 'Sala Limpa + 
 const AREAS_LIMPEZA = ['Sala Limpa', 'Sala de Produção Inferior', 'Áreas Adjacentes', 'Sala Limpa + Produção Inferior', 'Todas as Áreas'];
 const TIPOS_LIMPEZA = ['Limpeza de Rotina', 'Limpeza Terminal', 'Desinfecção', 'Sanitização', 'Limpeza e Desinfecção'];
 const STATUS_LIMPEZA = ['Agendado', 'Realizado', 'Pendente Registro', 'Concluído', 'Cancelado'];
+
+const AREAS_GEMBA = ['Sala Limpa', 'Sala de Produção Inferior', 'Almoxarifado e Recebimento', 'Expedição', 'Laboratório de CQ', 'Escritório / GQ', 'Todas as Áreas'];
+const STATUS_GEMBA = ['Programado', 'Realizado', 'Pendente Relatório', 'Cancelado'];
 const METODOS_COLETA = ['Sedimentação (Placa Exposta)', 'Impactação (RCS / Impactador)', 'Swab de Superfície', 'Filtração de Ar', 'Combinado'];
 const RESULTADO_MICRO = ['Aprovado — dentro do limite', 'Reprovado — fora do limite', 'Pendente', 'Inconclusivo'];
 
@@ -275,6 +278,47 @@ function renderTabelaLimpeza(items) {
     </table></div>`;
 }
 
+const FIELDS_GEMBA = [
+  { id: 'numero',         label: 'Nº do Registro',         type: 'text',     required: true,  span: 1 },
+  { id: 'area',           label: 'Área a Visitar',          type: 'select',   required: true,  span: 1, options: AREAS_GEMBA },
+  { id: 'responsavel',    label: 'Responsável pela Visita', type: 'text',     required: true,  span: 2 },
+  { id: 'status',         label: 'Status',                  type: 'select',   required: true,  span: 1, options: STATUS_GEMBA },
+  { id: 'dataPrograma',   label: 'Data Programada',         type: 'date',     required: false, span: 1 },
+  { id: 'dataRealizacao', label: 'Data de Realização',      type: 'date',     required: false, span: 1 },
+  { id: 'proxima',        label: 'Próxima Visita',          type: 'date',     required: false, span: 1 },
+  { id: 'objetivo',       label: 'Objetivo da Visita',      type: 'textarea', required: false, span: 2 },
+  { id: 'obs',            label: 'Achados / Observações',   type: 'textarea', required: false, span: 2 },
+];
+
+function renderTabelaGemba(items) {
+  if (!items.length) return emptyState('Nenhuma visita Gemba Walk registrada.');
+  return `
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Nº</th><th>Área</th><th>Responsável</th>
+        <th>Programado</th><th>Realizado</th><th>Próxima</th><th>Status</th><th>Ações</th>
+      </tr></thead>
+      <tbody>
+        ${items.map(r => {
+          const s = statusFromDate(r, 'proxima');
+          return `<tr>
+            <td><strong>${r.numero}</strong></td>
+            <td style="font-size:0.82rem">${r.area || '—'}</td>
+            <td>${r.responsavel}</td>
+            <td style="font-size:0.82rem">${formatDate(r.dataPrograma)}</td>
+            <td style="font-size:0.82rem">${formatDate(r.dataRealizacao)}</td>
+            <td>${deadlineCell(r.proxima)}</td>
+            <td>${statusPill(r.status || s)}</td>
+            <td><div class="td-actions">
+              <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}">✏</button>
+              <button class="btn btn-danger btn-sm" data-action="delete" data-id="${r.id}">🗑</button>
+            </div></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>`;
+}
+
 // ── Área config ───────────────────────────────────────────────────────────────
 
 const AREAS = [
@@ -327,6 +371,16 @@ const AREAS = [
     renderTabela: renderTabelaLimpeza,
     filtro: (r, q) => ((r.numero||'') + (r.area||'') + (r.responsavel||'')).toLowerCase().includes(q),
     statusFn: r => statusFromDate(r, 'proxima'),
+  },
+  {
+    key: 'gembaWalk',
+    label: 'Gemba Walk',
+    col: 'gembaWalk',
+    fields: FIELDS_GEMBA,
+    statusOpts: STATUS_GEMBA,
+    renderTabela: renderTabelaGemba,
+    filtro: (r, q) => ((r.numero||'') + (r.area||'') + (r.responsavel||'')).toLowerCase().includes(q),
+    statusFn: r => r.status || statusFromDate(r, 'proxima'),
   },
 ];
 
