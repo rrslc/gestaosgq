@@ -33,10 +33,18 @@ function collectFormData(fields) {
   const data = {};
   const errors = [];
   for (const f of fields) {
-    const el = document.getElementById('field-' + f.id);
-    const val = el?.value?.trim() ?? '';
-    if (f.required && !val) errors.push(`"${f.label}" é obrigatório`);
-    data[f.id] = val;
+    if (f.type === 'checkboxgroup') {
+      const checked = Array.from(
+        document.querySelectorAll(`input[name="field-${f.id}"]:checked`)
+      ).map(cb => cb.value);
+      if (f.required && !checked.length) errors.push(`"${f.label}" é obrigatório`);
+      data[f.id] = checked;
+    } else {
+      const el = document.getElementById('field-' + f.id);
+      const val = el?.value?.trim() ?? '';
+      if (f.required && !val) errors.push(`"${f.label}" é obrigatório`);
+      data[f.id] = val;
+    }
   }
   if (errors.length) throw new Error(errors.join('\n'));
   return data;
@@ -60,6 +68,18 @@ function buildField(field, data) {
         ${selectOptions(field.options ?? [], val)}
       </select>`;
       break;
+    case 'checkboxgroup': {
+      const selected = Array.isArray(val) ? val
+        : (val ? String(val).split(',').map(s => s.trim()).filter(Boolean) : []);
+      input = `<div class="checkbox-group" id="field-${field.id}" role="group" aria-label="${field.label}">
+        ${(field.options ?? []).map(opt => `
+          <label class="checkbox-item">
+            <input type="checkbox" name="field-${field.id}" value="${opt}" ${selected.includes(opt) ? 'checked' : ''}>
+            <span>${opt}</span>
+          </label>`).join('')}
+      </div>`;
+      break;
+    }
     case 'textarea':
       input = `<textarea id="field-${field.id}" rows="3" ${field.required ? 'required' : ''}>${val}</textarea>`;
       break;

@@ -29,7 +29,7 @@ const FIELDS = [
   { id: 'cargo',    label: 'Cargo',                type: 'select', required: true,  span: 1, options: CARGOS },
   { id: 'area',     label: 'Área / Setor',         type: 'text',   required: false, span: 1 },
   { id: 'email',    label: 'E-mail corporativo',   type: 'text',   required: false, span: 1 },
-  { id: 'perfil',   label: 'Perfil de acesso',     type: 'select', required: false, span: 1, options: PERFIS_ACESSO },
+  { id: 'perfil',   label: 'Perfis de acesso',     type: 'checkboxgroup', required: false, span: 2, options: PERFIS_ACESSO },
   { id: 'cor',      label: 'Cor do Avatar (hex)',   type: 'text',   required: false, span: 2 },
 ];
 
@@ -64,7 +64,11 @@ function renderCards() {
             <div>
               <div class="team-name">${m.nome}</div>
               <div class="team-cargo">${m.cargo}</div>
-              ${m.perfil ? `<span style="display:inline-block;margin-top:2px;padding:1px 6px;border-radius:3px;background:#eff6ff;color:#1e40af;font-size:0.68rem;font-weight:600">${m.perfil}</span>` : ''}
+              <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">
+                ${(Array.isArray(m.perfil) ? m.perfil : (m.perfil ? [m.perfil] : []))
+                  .map(p => `<span style="padding:1px 6px;border-radius:3px;background:#eff6ff;color:#1e40af;font-size:0.68rem;font-weight:600">${p}</span>`)
+                  .join('')}
+              </div>
             </div>
           </div>
           <div style="margin-bottom:8px">
