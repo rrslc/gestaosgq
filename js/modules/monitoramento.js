@@ -595,6 +595,9 @@ const AREAS = [
 ];
 
 let _areaAtual = 'pragas';
+let _standalone = false;
+
+export function setTargetArea(key) { _areaAtual = key; _standalone = true; }
 
 function getArea() { return AREAS.find(a => a.key === _areaAtual); }
 
@@ -620,6 +623,9 @@ function renderContent(container) {
 // ── Render principal ──────────────────────────────────────────────────────────
 
 function renderMain(container) {
+  const standalone = _standalone;
+  _standalone = false;
+
   const areaStyle = k =>
     `padding:6px 18px;border-radius:6px;border:none;cursor:pointer;font-size:0.82rem;font-weight:600;` +
     (_areaAtual === k
@@ -635,15 +641,15 @@ function renderMain(container) {
   container.innerHTML = `
     <div class="page-header">
       <div>
-        <h2>Monitoramento da Fábrica</h2>
-        <div style="font-size:0.78rem;color:var(--muted);margin-top:2px">
+        <h2>${standalone ? area.label : 'Monitoramento da Fábrica'}</h2>
+        ${!standalone ? `<div style="font-size:0.78rem;color:var(--muted);margin-top:2px">
           Controle de pragas · Limpeza de reservatório · Gerenciamento de resíduos
-        </div>
+        </div>` : ''}
       </div>
       <button class="btn btn-primary" data-action="new">${area.btnLabel || '+ Novo Registro'}</button>
     </div>
 
-    <div style="display:flex;flex-wrap:wrap;gap:0;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px;width:fit-content;margin-bottom:14px">
+    ${!standalone ? `<div style="display:flex;flex-wrap:wrap;gap:0;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px;width:fit-content;margin-bottom:14px">
       ${AREAS.map(a => {
         const n = db.get(a.col).length;
         const isOrc = a.key === 'orcamentosAnuais';
@@ -654,7 +660,7 @@ function renderMain(container) {
             : ''}
         </button>`;
       }).join('')}
-    </div>
+    </div>` : ''}
 
     <div class="toolbar">
       <input class="toolbar-search" type="text" placeholder="Buscar…" data-filter="search">
@@ -680,7 +686,6 @@ function renderMain(container) {
 
 export default {
   render(container) {
-    _areaAtual = 'pragas';
     renderMain(container);
   },
 

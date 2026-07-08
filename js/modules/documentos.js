@@ -799,6 +799,30 @@ function applyFilters(container) {
   if (wrap) wrap.innerHTML = renderTable(items);
 }
 
+function renderKpis() {
+  const docs = db.get('documentos');
+  const statuses = docs.map(computedStatus);
+  const vigentes   = statuses.filter(s => s === 'Vigente').length;
+  const emFluxo    = statuses.filter(s => ['Em Elaboração','Em Revisão','Em Aprovação','Em Homologação'].includes(s)).length;
+  const aVencer    = statuses.filter(s => s === 'A Vencer').length;
+  const vencidos   = statuses.filter(s => s === 'Vencido').length;
+
+  const kpi = (label, value, color, sub) => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;flex:1;min-width:0">
+      <div style="font-size:0.72rem;font-weight:600;color:var(--muted);letter-spacing:.07em;margin-bottom:6px;text-transform:uppercase">${label}</div>
+      <div style="font-size:1.75rem;font-weight:600;color:${color};line-height:1">${value}</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:5px">${sub}</div>
+    </div>`;
+
+  return `
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      ${kpi('Vigentes',        vigentes, '#16a34a', 'publicados e válidos')}
+      ${kpi('Em Fluxo',        emFluxo,  '#2d5be3', 'elaboração → homologação')}
+      ${kpi('A Vencer',        aVencer,  '#d97706', 'vence em ≤ 90 dias')}
+      ${kpi('Vencidos',        vencidos, '#dc2626', 'expirados — revisar')}
+    </div>`;
+}
+
 function renderMain(container) {
   const emWorkflow  = db.get('documentos').filter(d => ETAPAS_DOC.some(e => e.key === d.status)).length;
   const solicsCount = db.get('solicitacoes').filter(s => s.status === 'Pendente' || s.status === 'Em Análise').length;
@@ -821,6 +845,8 @@ function renderMain(container) {
         <button class="btn btn-primary" data-action="new">+ Novo Documento</button>
       </div>
     </div>
+
+    ${renderKpis()}
 
     <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:14px">
       <button data-tab-btn="lista"   style="${tabStyle('lista')}">Lista</button>

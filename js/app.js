@@ -18,7 +18,15 @@ import tecnovig     from './modules/tecnovig.js';
 import validacoes   from './modules/validacoes.js';
 import gcm          from './modules/gcm.js';
 import risco        from './modules/risco.js';
-import monitoramento   from './modules/monitoramento.js';
+import monitoramento, { setTargetArea } from './modules/monitoramento.js';
+
+function monitorArea(key) {
+  return {
+    render: (c) => { setTargetArea(key); monitoramento.render(c); },
+    init:   (c) => monitoramento.init(c),
+  };
+}
+import docsAdmin    from './modules/docsAdmin.js';
 import obrigacoes   from './modules/obrigacoes.js';
 import documentos   from './modules/documentos.js';
 import elaboracao   from './modules/elaboracao.js';
@@ -40,7 +48,14 @@ export const router = new Router({
   [ROUTES.VALIDACOES]:   { module: validacoes,   title: 'Validações',               icon: '✔' },
   [ROUTES.GCM]:          { module: gcm,          title: 'Gestão de Mudanças',       icon: '↻' },
   [ROUTES.RISCO]:        { module: risco,        title: 'Análise de Risco',         icon: '⚠' },
-  [ROUTES.MONITORAMENTO]: { module: monitoramento, title: 'Monitoramento da Fábrica', icon: '🏭' },
+  pragas:           { module: monitorArea('pragas'),           title: 'Controle de Pragas',      icon: '🐛' },
+  reservatorio:     { module: monitorArea('reservatorio'),     title: 'Limpeza de Reservatório', icon: '💧' },
+  residuos:         { module: monitorArea('residuos'),         title: 'Gerenc. de Resíduos',     icon: '♻' },
+  microbiologico:   { module: monitorArea('microbiologico'),   title: 'Monit. Microbiológico',   icon: '🔬' },
+  limpezaMensal:    { module: monitorArea('limpezaMensal'),    title: 'Limpeza Mensal',          icon: '🧹' },
+  gembaWalk:        { module: monitorArea('gembaWalk'),        title: 'Gemba Walk',              icon: '👣' },
+  orcamentosAnuais: { module: monitorArea('orcamentosAnuais'), title: 'Orçamentos Anuais',       icon: '📋' },
+  docsAdmin:             { module: docsAdmin,    title: 'Docs. Administrativos',    icon: '🗂' },
   [ROUTES.OBRIGACOES]:   { module: obrigacoes,   title: 'Obrig. Regulatórias',      icon: '📋' },
   [ROUTES.DOCUMENTOS]:   { module: documentos,   title: 'Controle de Docs.',         icon: '📄' },
   [ROUTES.ELABORACAO]:   { module: elaboracao,   title: 'Elaboração de Docs.',        icon: '✏' },
