@@ -9,14 +9,18 @@ import { today, formatDate } from './utils.js';
 import { ROUTES } from './constants.js';
 
 // Modules
-import dashboard    from './modules/dashboard.js';
-import agenda       from './modules/agenda.js';
-import capa         from './modules/capa.js';
-import rnc          from './modules/rnc.js';
+import dashboard      from './modules/dashboard.js';
+import agenda         from './modules/agenda.js';
+import capaGerencial  from './modules/capaGerencial.js';
+import capaAbertura   from './modules/capaAbertura.js';
 import fornecedores from './modules/fornecedores.js';
 import tecnovig     from './modules/tecnovig.js';
 import validacoes   from './modules/validacoes.js';
 import gcm          from './modules/gcm.js';
+import gcmGerencial from './modules/gcmGerencial.js';
+import gcmAbertura  from './modules/gcmAbertura.js';
+import rncGerencial from './modules/rncGerencial.js';
+import rncAbertura  from './modules/rncAbertura.js';
 import risco        from './modules/risco.js';
 import monitoramento, { setTargetArea } from './modules/monitoramento.js';
 
@@ -39,14 +43,20 @@ import permissoes   from './modules/permissoes.js';
 // ── Router ───────────────────────────────────────────────────────────────────
 
 export const router = new Router({
-  [ROUTES.DASHBOARD]:    { module: dashboard,    title: 'Dashboard',                icon: '◉' },
-  [ROUTES.AGENDA]:       { module: agenda,       title: 'Agenda GQ',                icon: '📅' },
-  [ROUTES.CAPA]:         { module: capa,         title: 'CAPA',                     icon: '◈' },
-  [ROUTES.RNC]:          { module: rnc,          title: 'RNC',                      icon: '⚑' },
+  [ROUTES.DASHBOARD]:      { module: dashboard,     title: 'Dashboard',            icon: '◉' },
+  [ROUTES.AGENDA]:         { module: agenda,       title: 'Agenda GQ',             icon: '📅' },
+  [ROUTES.CAPA_GERENCIAL]: { module: capaGerencial, title: 'CAPA — Gerencial',     icon: '📊' },
+  [ROUTES.CAPA_ABERTURA]:  { module: capaAbertura,  title: 'CAPA — Abertura',      icon: '📋' },
+  capa: { module: { render() {}, init() { router.navigate(ROUTES.CAPA_GERENCIAL); } }, title: 'CAPA', icon: '◈' },
+  [ROUTES.RNC]:            { module: { render() {}, init() { router.navigate(ROUTES.RNC_GERENCIAL); } }, title: 'RNC', icon: '⚑' },
+  [ROUTES.RNC_GERENCIAL]:  { module: rncGerencial,  title: 'RNC — Gerencial',        icon: '📊' },
+  [ROUTES.RNC_ABERTURA]:   { module: rncAbertura,   title: 'RNC — Abertura',         icon: '⚑' },
   [ROUTES.FORNECEDORES]: { module: fornecedores, title: 'Fornecedores',             icon: '⬡' },
   [ROUTES.TECNOVIG]:     { module: tecnovig,     title: 'Tecnovigilância',          icon: '⚕' },
   [ROUTES.VALIDACOES]:   { module: validacoes,   title: 'Validações',               icon: '✔' },
-  [ROUTES.GCM]:          { module: gcm,          title: 'Gestão de Mudanças',       icon: '↻' },
+  [ROUTES.GCM]:          { module: { render() {}, init() { router.navigate(ROUTES.GCM_GERENCIAL); } }, title: 'GCM', icon: '↻' },
+  [ROUTES.GCM_GERENCIAL]:{ module: gcmGerencial,  title: 'GCM — Gerencial',          icon: '📊' },
+  [ROUTES.GCM_ABERTURA]: { module: gcmAbertura,   title: 'GCM — Abertura',           icon: '↻' },
   [ROUTES.RISCO]:        { module: risco,        title: 'Análise de Risco',         icon: '⚠' },
   pragas:           { module: monitorArea('pragas'),           title: 'Controle de Pragas',      icon: '🐛' },
   reservatorio:     { module: monitorArea('reservatorio'),     title: 'Limpeza de Reservatório', icon: '💧' },
@@ -127,10 +137,10 @@ document.getElementById('btn-import')?.addEventListener('click', () => {
 // ── Update sidebar badges ────────────────────────────────────────────────────
 
 function updateAllBadges() {
-  const capaOpen = db.get('capa').filter(r => r.status === 'Aberta' || r.status === 'Em Andamento').length;
+  const capaOpen = db.get('capa').filter(r => !['Encerrada', 'Não Procedente'].includes(r.status)).length;
   const rncOpen  = db.get('rnc').filter(r => r.status !== 'Encerrada' && r.status !== 'Cancelada').length;
-  router.updateBadge(ROUTES.CAPA, capaOpen);
-  router.updateBadge(ROUTES.RNC, rncOpen);
+  router.updateBadge(ROUTES.CAPA_GERENCIAL, capaOpen);
+  router.updateBadge(ROUTES.RNC_GERENCIAL, rncOpen);
 }
 
 // ── Sync error handler ───────────────────────────────────────────────────────

@@ -48,6 +48,18 @@ const RESULTADO_MICRO = ['Aprovado — dentro do limite', 'Reprovado — fora do
 const SERVICOS_ORCAMENTO = ['Controle de Pragas', 'Limpeza de Reservatório', 'Gerenciamento de Resíduos'];
 const STATUS_ORCAMENTO   = ['Solicitado', 'Recebido', 'Aprovado', 'Descartado'];
 
+// ── Geração automática de número ─────────────────────────────────────────────
+
+function generateNumero(area) {
+  if (!area.prefix) return '';
+  const year = new Date().getFullYear();
+  const pat  = `${area.prefix}.`;
+  const seq  = db.get(area.col)
+    .filter(r => r.numero?.startsWith(pat) && r.numero?.endsWith(`/${year}`))
+    .length + 1;
+  return `${area.prefix}.${String(seq).padStart(3, '0')}/${year}`;
+}
+
 // ── Equipe — opções dinâmicas ────────────────────────────────────────────────
 
 function withEquipe(fields) {
@@ -75,7 +87,7 @@ function statusFromDate(item, campoProxima) {
 
 // Pragas
 const FIELDS_PRAGA_PLAN = [
-  { id: 'numero',       label: 'Nº do Serviço',             type: 'text',     required: true,  span: 1 },
+  { id: 'numero',       label: 'Nº do Serviço',             type: 'text',     required: true,  span: 1, readonly: true },
   { id: 'responsavel',  label: 'Responsável Interno (MSB)', type: 'select',   required: true,  span: 1, options: '__equipe__' },
   { id: 'area',         label: 'Área(s) Atendida(s)',        type: 'text',     required: true,  span: 1 },
   { id: 'empresa',      label: 'Empresa Prestadora',         type: 'text',     required: true,  span: 1 },
@@ -94,7 +106,7 @@ const FIELDS_PRAGA_EXEC = [
 
 // Reservatório
 const FIELDS_RESERVATORIO_PLAN = [
-  { id: 'numero',       label: 'Nº do Serviço',              type: 'text',     required: true,  span: 1 },
+  { id: 'numero',       label: 'Nº do Serviço',              type: 'text',     required: true,  span: 1, readonly: true },
   { id: 'responsavel',  label: 'Responsável Interno (MSB)',   type: 'select',   required: true,  span: 1, options: '__equipe__' },
   { id: 'empresa',      label: 'Empresa Prestadora',          type: 'text',     required: false, span: 1 },
   { id: 'volume',       label: 'Volume do Reservatório',      type: 'text',     required: false, span: 1 },
@@ -127,7 +139,7 @@ const FIELDS_RESIDUO_EXEC = [
 
 // Microbiológico
 const FIELDS_MICRO_PLAN = [
-  { id: 'numero',         label: 'Nº do Serviço',             type: 'text',     required: true,  span: 1 },
+  { id: 'numero',         label: 'Nº do Serviço',             type: 'text',     required: true,  span: 1, readonly: true },
   { id: 'responsavel',    label: 'Responsável Interno (MSB)', type: 'select',   required: true,  span: 1, options: '__equipe__' },
   { id: 'empresa',        label: 'Empresa Prestadora',        type: 'text',     required: true,  span: 1 },
   { id: 'areaMicro',      label: 'Área Monitorada',           type: 'select',   required: true,  span: 1, options: AREAS_MICRO },
@@ -147,7 +159,7 @@ const FIELDS_MICRO_EXEC = [
 
 // Limpeza Mensal
 const FIELDS_LIMPEZA_PLAN = [
-  { id: 'numero',       label: 'Nº do Registro',             type: 'text',     required: true,  span: 1 },
+  { id: 'numero',       label: 'Nº do Registro',             type: 'text',     required: true,  span: 1, readonly: true },
   { id: 'area',         label: 'Área Programada',             type: 'select',   required: true,  span: 1, options: AREAS_LIMPEZA },
   { id: 'responsavel',  label: 'Responsável',                 type: 'select',   required: true,  span: 2, options: '__equipe__' },
   { id: 'tipo',         label: 'Tipo de Limpeza',             type: 'select',   required: true,  span: 1, options: TIPOS_LIMPEZA },
@@ -382,7 +394,7 @@ const FIELDS_ORCAMENTO = [
 
 // Momento 1 — Planejamento
 const FIELDS_GEMBA_PLAN = [
-  { id: 'numero',       label: 'Nº do Registro',         type: 'text',     required: true,  span: 1 },
+  { id: 'numero',       label: 'Nº do Registro',         type: 'text',     required: true,  span: 1, readonly: true },
   { id: 'area',         label: 'Área a Visitar',          type: 'select',   required: true,  span: 1, options: AREAS_GEMBA },
   { id: 'responsavel',  label: 'Responsável pela Visita', type: 'select',   required: true,  span: 2, options: '__equipe__' },
   { id: 'dataPrograma', label: 'Data Programada',         type: 'date',     required: true,  span: 1 },
@@ -487,6 +499,7 @@ const AREAS = [
     key: 'pragas',
     label: 'Controle de Pragas',
     col: 'pragas',
+    prefix: 'PRA',
     fields: FIELDS_PRAGA_PLAN,
     fieldsExec: FIELDS_PRAGA_EXEC,
     statusOpts: STATUS_SERVICO,
@@ -502,6 +515,7 @@ const AREAS = [
     key: 'reservatorio',
     label: 'Limpeza de Reservatório',
     col: 'reservatorio',
+    prefix: 'RES',
     fields: FIELDS_RESERVATORIO_PLAN,
     fieldsExec: FIELDS_RESERVATORIO_EXEC,
     statusOpts: STATUS_SERVICO,
@@ -532,6 +546,7 @@ const AREAS = [
     key: 'microbiologico',
     label: 'Monit. Microbiológico',
     col: 'microbiologico',
+    prefix: 'MIC',
     fields: FIELDS_MICRO_PLAN,
     fieldsExec: FIELDS_MICRO_EXEC,
     statusOpts: STATUS_SERVICO,
@@ -547,6 +562,7 @@ const AREAS = [
     key: 'limpezaMensal',
     label: 'Limpeza Mensal',
     col: 'limpezaMensal',
+    prefix: 'LIM',
     fields: FIELDS_LIMPEZA_PLAN,
     fieldsExec: FIELDS_LIMPEZA_EXEC,
     statusOpts: STATUS_LIMPEZA,
@@ -562,6 +578,7 @@ const AREAS = [
     key: 'gembaWalk',
     label: 'Gemba Walk',
     col: 'gembaWalk',
+    prefix: 'GEM',
     fields: FIELDS_GEMBA_PLAN,
     fieldsExec: FIELDS_GEMBA_EXEC,
     statusOpts: STATUS_GEMBA,
@@ -706,6 +723,7 @@ export default {
 
       if (action === 'new') {
         const defaults = area.newDefaults ? area.newDefaults() : { status: area.statusInit || 'Agendado' };
+        if (area.prefix) defaults.numero = generateNumero(area);
         openModal({
           title: area.newTitle || `Planejamento — ${area.label}`,
           fields: withEquipe(area.fields),

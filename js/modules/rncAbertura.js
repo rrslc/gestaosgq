@@ -1,5 +1,5 @@
 /**
- * @fileoverview Módulo RNC — Registros de Não-Conformidade.
+ * @fileoverview RNC — Abertura: fluxo de abertura e processamento de não-conformidades.
  */
 
 import { db } from '../db.js';
@@ -10,8 +10,16 @@ import { STATUS, CLASSIFICACOES_RNC, ORIGENS_RNC } from '../constants.js';
 
 const AREAS = ['GQ', 'Produção', 'P&D', 'Regulatório', 'Logística', 'Compras', 'RH', 'TI', 'Fábrica', 'Outros'];
 
+const PIPELINE = [
+  { key: 'Aberta',                   label: 'Aberta',      color: 'var(--red)'    },
+  { key: 'Em Análise',              label: 'Em Análise',  color: 'var(--purple)' },
+  { key: 'Em Tratamento',           label: 'Tratamento',  color: 'var(--blue)'   },
+  { key: 'Verificação de Eficácia', label: 'Verificação', color: 'var(--amber)'  },
+  { key: 'Encerrada',               label: 'Encerrada',   color: 'var(--green)'  },
+];
+
 const NEXT_STATUS = {
-  'Aberta':                  'Em Análise',
+  'Aberta':                   'Em Análise',
   'Em Análise':              'Em Tratamento',
   'Em Tratamento':           'Verificação de Eficácia',
   'Verificação de Eficácia': 'Encerrada',
@@ -34,62 +42,40 @@ function buildFields(forNew = false) {
   const nomes = db.get('equipe').map(m => m.nome);
   const resp  = nomes.length ? nomes : ['—'];
   const base  = [
-    { id: 'numero',           label: 'Número',                    type: 'text',     required: true,  span: 1, readonly: true },
-    { id: 'dataAbertura',     label: 'Data de Abertura',          type: 'date',     required: true,  span: 1 },
-    { id: 'prazoFinalizacao', label: 'Prazo de Finalização',      type: 'date',     required: false, span: 1 },
-    { id: 'area',             label: 'Área',                      type: 'select',   required: true,  span: 1, options: AREAS },
-    { id: 'origem',           label: 'Origem',                    type: 'select',   required: true,  span: 1, options: ORIGENS_RNC },
-    { id: 'classificacao',    label: 'Classificação',             type: 'select',   required: true,  span: 1, options: CLASSIFICACOES_RNC },
-    { id: 'responsavel',      label: 'Responsável',               type: 'select',   required: true,  span: 1, options: resp },
-    { id: 'produto',          label: 'Produto',                   type: 'text',     required: true,  span: 2 },
-    { id: 'descricao',        label: 'Descrição',                 type: 'textarea', required: true,  span: 2 },
-    { id: 'necessitaCapa',    label: 'Necessita abrir CAPA?',     type: 'select',   required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] },
-    { id: 'status',           label: 'Status',                    type: 'select',   required: true,  span: 1, options: STATUS.RNC },
+    { id: 'numero',           label: 'Número',                type: 'text',     required: true,  span: 1, readonly: true },
+    { id: 'dataAbertura',     label: 'Data de Abertura',      type: 'date',     required: true,  span: 1 },
+    { id: 'prazoFinalizacao', label: 'Prazo de Finalização',  type: 'date',     required: false, span: 1 },
+    { id: 'area',             label: 'Área',                  type: 'select',   required: true,  span: 1, options: AREAS },
+    { id: 'origem',           label: 'Origem',                type: 'select',   required: true,  span: 1, options: ORIGENS_RNC },
+    { id: 'classificacao',    label: 'Classificação',         type: 'select',   required: true,  span: 1, options: CLASSIFICACOES_RNC },
+    { id: 'responsavel',      label: 'Responsável',           type: 'select',   required: true,  span: 1, options: resp },
+    { id: 'produto',          label: 'Produto',               type: 'text',     required: true,  span: 2 },
+    { id: 'descricao',        label: 'Descrição',             type: 'textarea', required: true,  span: 2 },
+    { id: 'necessitaCapa',    label: 'Necessita abrir CAPA?', type: 'select',   required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] },
+    { id: 'status',           label: 'Status',                type: 'select',   required: true,  span: 1, options: STATUS.RNC },
   ];
   if (forNew) return base;
   return [
     ...base,
-    { id: 'foiEficaz',      label: 'Foi Eficaz?',           type: 'select', required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] },
-    { id: 'dataFechamento', label: 'Data de Fechamento',    type: 'date',   required: false, span: 1 },
-    { id: 'observacoes',    label: 'Observações',           type: 'textarea', required: false, span: 2 },
+    { id: 'foiEficaz',      label: 'Foi Eficaz?',        type: 'select',   required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] },
+    { id: 'dataFechamento', label: 'Data de Fechamento', type: 'date',     required: false, span: 1 },
+    { id: 'observacoes',    label: 'Observações',        type: 'textarea', required: false, span: 2 },
   ];
 }
 
-function renderKpis(items) {
-  const hoje     = new Date(); hoje.setHours(0, 0, 0, 0);
-  const abertos  = items.filter(r => !['Encerrada', 'Cancelada'].includes(r.status));
-  const emAtraso = abertos.filter(r => r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje).length;
-  const encerr   = items.filter(r => r.status === 'Encerrada').length;
-  const noPrazo  = items.filter(r => r.encerradoStatus === 'Finalizado no prazo').length;
-  const comCapa  = items.filter(r => r.necessitaCapa === 'Sim').length;
+function renderPipelineBar(items) {
+  const counts = {};
+  PIPELINE.forEach(p => { counts[p.key] = 0; });
+  items.forEach(r => { if (counts[r.status] !== undefined) counts[r.status]++; });
 
   return `
-    <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px">
-      <div class="kpi-card">
-        <div class="kpi-label">Total</div>
-        <div class="kpi-value">${items.length}</div>
-        <div class="kpi-sub">registradas</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Em Aberto</div>
-        <div class="kpi-value ${abertos.length > 0 ? 'kpi-amber' : 'kpi-green'}">${abertos.length}</div>
-        <div class="kpi-sub">em andamento</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Em Atraso</div>
-        <div class="kpi-value ${emAtraso > 0 ? 'kpi-red' : 'kpi-green'}">${emAtraso}</div>
-        <div class="kpi-sub">prazo vencido</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Encerradas</div>
-        <div class="kpi-value kpi-green">${encerr}</div>
-        <div class="kpi-sub">${noPrazo} no prazo</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Geram CAPA</div>
-        <div class="kpi-value ${comCapa > 0 ? 'kpi-amber' : 'kpi-green'}">${comCapa}</div>
-        <div class="kpi-sub">necessitam CAPA</div>
-      </div>
+    <div style="display:flex;gap:0;margin-bottom:20px;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
+      ${PIPELINE.map((p, i) => `
+        <div style="flex:1;padding:12px 8px;text-align:center;background:var(--surface);${i > 0 ? 'border-left:1px solid var(--border)' : ''}">
+          <div style="font-size:1.4rem;font-weight:700;color:${p.color}">${counts[p.key]}</div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:2px;line-height:1.3">${p.label}</div>
+        </div>
+      `).join('')}
     </div>
   `;
 }
@@ -115,24 +101,28 @@ function renderTable(items) {
         <thead><tr>
           <th>Número</th><th>Produto</th><th>Descrição</th><th>Origem</th>
           <th>Classificação</th><th>Responsável</th><th>Abertura</th>
-          <th>T. Aberto</th><th>Status</th><th>Ações</th>
+          <th>T. Aberto</th><th>Status</th><th>Eficácia</th><th>Ações</th>
         </tr></thead>
         <tbody>
           ${items.map(r => {
-            const nextSt   = NEXT_STATUS[r.status];
-            const capaBtn  = r.necessitaCapa === 'Sim' && !r.capaAberta
+            const nextSt  = NEXT_STATUS[r.status];
+            const capaBtn = r.necessitaCapa === 'Sim' && !r.capaAberta
               ? `<button class="btn btn-secondary btn-sm" data-action="abrir-capa" data-id="${r.id}" title="Abrir CAPA">📋</button>`
               : '';
+            const eficacia = r.foiEficaz
+              ? statusPill(r.foiEficaz === 'Sim' ? 'Eficaz' : r.foiEficaz === 'Não' ? 'Ineficaz' : 'Em Avaliação')
+              : '—';
             return `<tr>
               <td><strong>${r.numero}</strong></td>
               <td>${r.produto || '—'}</td>
-              <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.descricao}">${r.descricao}</td>
+              <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.descricao}">${r.descricao}</td>
               <td>${r.origem || '—'}</td>
               <td>${statusPill(r.classificacao)}</td>
               <td>${r.responsavel}</td>
               <td>${formatDate(r.dataAbertura)}</td>
               <td style="text-align:center">${diasAberto(r)}</td>
               <td>${statusPill(r.encerradoStatus || r.status)}</td>
+              <td>${eficacia}</td>
               <td>
                 <div class="td-actions">
                   ${nextSt ? `<button class="btn btn-secondary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nextSt}" title="Avançar para ${nextSt}">▶</button>` : ''}
@@ -149,13 +139,12 @@ function renderTable(items) {
   `;
 }
 
-function applyFilters(container) {
+function refresh(container) {
   const search = container.querySelector('[data-filter="search"]')?.value?.toLowerCase() ?? '';
   const status = container.querySelector('[data-filter="status"]')?.value ?? '';
   const origem = container.querySelector('[data-filter="origem"]')?.value ?? '';
   const area   = container.querySelector('[data-filter="area"]')?.value ?? '';
-  const allRnc = db.get('rnc');
-  let items = allRnc;
+  let items = db.get('rnc');
   if (search) items = items.filter(r =>
     (r.numero || '').toLowerCase().includes(search) ||
     (r.descricao || '').toLowerCase().includes(search) ||
@@ -164,7 +153,7 @@ function applyFilters(container) {
   if (status) items = items.filter(r => r.status === status);
   if (origem) items = items.filter(r => r.origem === origem);
   if (area)   items = items.filter(r => r.area === area);
-  container.querySelector('#rnc-kpis').innerHTML = renderKpis(allRnc);
+  container.querySelector('#rnc-pipeline').innerHTML = renderPipelineBar(db.get('rnc'));
   container.querySelector('#rnc-table-wrap').innerHTML = renderTable(items);
 }
 
@@ -173,10 +162,10 @@ export default {
     const allRnc = db.get('rnc');
     container.innerHTML = `
       <div class="page-header">
-        <h2>RNC — Registros de Não-Conformidade</h2>
+        <h2>RNC — Abertura</h2>
         <button class="btn btn-primary" data-action="new">+ Nova RNC</button>
       </div>
-      <div id="rnc-kpis">${renderKpis(allRnc)}</div>
+      <div id="rnc-pipeline">${renderPipelineBar(allRnc)}</div>
       <div class="toolbar">
         <input class="toolbar-search" type="text" placeholder="Buscar por número, produto ou descrição…" data-filter="search">
         <select class="toolbar-select" data-filter="status">
@@ -213,7 +202,7 @@ export default {
           onSave: data => {
             db.add('rnc', data);
             toast('RNC criada com sucesso!');
-            applyFilters(container);
+            refresh(container);
           },
         });
       }
@@ -228,7 +217,7 @@ export default {
           onSave: data => {
             db.update('rnc', numId, data);
             toast('RNC atualizada!');
-            applyFilters(container);
+            refresh(container);
           },
         });
       }
@@ -248,7 +237,7 @@ export default {
           }
           db.update('rnc', numId, updates);
           toast(`RNC avançada para "${next}".`);
-          applyFilters(container);
+          refresh(container);
         });
       }
 
@@ -273,12 +262,12 @@ export default {
           if (!ok) return;
           db.remove('rnc', numId);
           toast('RNC excluída.', 'warning');
-          applyFilters(container);
+          refresh(container);
         });
       }
     });
 
-    container.addEventListener('input',  e => { if (e.target.dataset.filter) applyFilters(container); });
-    container.addEventListener('change', e => { if (e.target.dataset.filter) applyFilters(container); });
+    container.addEventListener('input',  e => { if (e.target.dataset.filter) refresh(container); });
+    container.addEventListener('change', e => { if (e.target.dataset.filter) refresh(container); });
   },
 };

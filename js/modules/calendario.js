@@ -28,7 +28,10 @@ function getEventsByDate() {
     map[iso].push({ label, tipo });
   };
 
-  db.get('capa').forEach(r => add(r.prazo, r.numero + ' CAPA', 'CAPA'));
+  db.get('capa').forEach(r => {
+    add(r.dataAbertura, r.numero + ' CAPA', 'CAPA');
+    if (r.dataInicioVerificacao) add(r.dataInicioVerificacao, r.numero + ' Verif.', 'CAPA');
+  });
   db.get('rnc').forEach(r => add(r.dataAbertura, r.numero + ' RNC', 'RNC'));
   db.get('validacoes').forEach(r => add(r.prazo, r.numero + ' VAL', 'VAL'));
   db.get('tecno').forEach(r => add(r.prazoAnvisa, r.numero + ' TECNO', 'TECNO'));

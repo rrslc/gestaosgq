@@ -18,11 +18,13 @@ async function getRouter() {
 }
 
 function buildKpis() {
-  const capaAberta = db.get('capa').filter(r => r.status === 'Aberta' || r.status === 'Em Andamento');
+  const CAPA_CLOSED = ['Encerrada', 'Não Procedente'];
+  const capaAberta = db.get('capa').filter(r => !CAPA_CLOSED.includes(r.status));
   const now = new Date(); now.setHours(0,0,0,0);
   const capaUrgente = capaAberta.filter(r => {
-    if (!r.prazo) return false;
-    const d = new Date(r.prazo + 'T00:00:00');
+    const iso = r.prazo || r.dataAbertura;
+    if (!iso) return false;
+    const d = new Date(iso + 'T00:00:00');
     return Math.round((d - now) / 86400000) <= 7;
   }).length;
 
@@ -40,8 +42,8 @@ function buildKpis() {
 
 function renderUpcomingCAPAs() {
   const items = db.get('capa')
-    .filter(r => r.status !== 'Concluída' && r.status !== 'Cancelada' && r.prazo)
-    .sort((a, b) => a.prazo.localeCompare(b.prazo))
+    .filter(r => !['Encerrada', 'Não Procedente', 'Concluída', 'Cancelada'].includes(r.status) && r.dataAbertura)
+    .sort((a, b) => a.dataAbertura.localeCompare(b.dataAbertura))
     .slice(0, 5);
 
   if (!items.length) return emptyState('Nenhuma CAPA pendente.');
@@ -50,7 +52,7 @@ function renderUpcomingCAPAs() {
     <div class="upcoming-item">
       <span class="upcoming-num">${r.numero}</span>
       <span class="upcoming-desc" title="${r.descricao}">${r.descricao}</span>
-      ${deadlineCell(r.prazo)}
+      ${statusPill(r.status)}
     </div>
   `).join('');
 }
@@ -85,7 +87,7 @@ function renderNext30Days() {
     });
   };
 
-  addItems('capa', r => `${r.numero} — ${r.descricao}`, r => r.prazo, 'CAPA');
+  addItems('capa', r => `${r.numero} — ${r.descricao}`, r => r.dataInicioVerificacao, 'CAPA');
   addItems('validacoes', r => `${r.numero} — ${r.descricao}`, r => r.prazo, 'VAL');
   addItems('tecno', r => `${r.numero} — ${r.descricao}`, r => r.prazoAnvisa, 'TECNO');
   addItems('pragas', r => `${r.numero} — ${r.area}`, r => r.proximaVisita, 'PRAGA');
@@ -103,12 +105,61 @@ function renderNext30Days() {
   `).join('');
 }
 
+function renderPanorama() {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const CAPA_CLOSED = ['Encerrada', 'Não Procedente'];
+  const RNC_CLOSED  = ['Encerrada', 'Cancelada'];
+  const GCM_CLOSED  = ['Concluída', 'Rejeitada', 'Cancelada'];
+
+  const capas = db.get('capa');
+  const rncs  = db.get('rnc');
+  const gcms  = db.get('gcm');
+
+  const capaOpen    = capas.filter(r => !CAPA_CLOSED.includes(r.status));
+  const capaAtraso  = capaOpen.filter(r => r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje).length;
+  const rncOpen     = rncs.filter(r => !RNC_CLOSED.includes(r.status));
+  const rncAtraso   = rncOpen.filter(r => r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje).length;
+  const gcmOpen     = gcms.filter(r => !GCM_CLOSED.includes(r.status));
+
+  const row = (label, open, atraso, color) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="width:4px;height:36px;border-radius:2px;background:${color};flex-shrink:0"></div>
+      <div style="flex:1;font-weight:600;font-size:0.85rem">${label}</div>
+      <div style="text-align:center;min-width:48px">
+        <div style="font-size:1.2rem;font-weight:700;color:${open.length > 0 ? 'var(--amber)' : 'var(--green)'}">${open.length}</div>
+        <div style="font-size:0.68rem;color:var(--muted)">em aberto</div>
+      </div>
+      <div style="text-align:center;min-width:48px">
+        <div style="font-size:1.2rem;font-weight:700;color:${atraso > 0 ? 'var(--red)' : 'var(--green)'}">${atraso}</div>
+        <div style="font-size:0.68rem;color:var(--muted)">em atraso</div>
+      </div>
+    </div>
+  `;
+
+  return `
+    ${row('CAPA', capaOpen, capaAtraso, 'var(--red)')}
+    ${row('RNC', rncOpen, rncAtraso, 'var(--purple)')}
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0">
+      <div style="width:4px;height:36px;border-radius:2px;background:var(--blue);flex-shrink:0"></div>
+      <div style="flex:1;font-weight:600;font-size:0.85rem">Controle de Mudanças</div>
+      <div style="text-align:center;min-width:48px">
+        <div style="font-size:1.2rem;font-weight:700;color:${gcmOpen.length > 0 ? 'var(--amber)' : 'var(--green)'}">${gcmOpen.length}</div>
+        <div style="font-size:0.68rem;color:var(--muted)">em aberto</div>
+      </div>
+      <div style="text-align:center;min-width:48px">
+        <div style="font-size:1.2rem;font-weight:700;color:var(--muted)">—</div>
+        <div style="font-size:0.68rem;color:var(--muted)">em atraso</div>
+      </div>
+    </div>
+  `;
+}
+
 function renderWorkload() {
   const equipe = db.get('equipe');
   if (!equipe.length) return emptyState('Nenhuma colaboradora cadastrada.');
 
   const openItems = [
-    ...db.get('capa').filter(r => r.status !== 'Concluída' && r.status !== 'Cancelada'),
+    ...db.get('capa').filter(r => !['Encerrada', 'Não Procedente', 'Concluída', 'Cancelada'].includes(r.status)),
     ...db.get('rnc').filter(r => r.status !== 'Encerrada' && r.status !== 'Cancelada'),
     ...db.get('validacoes').filter(r => r.status !== 'Aprovada' && r.status !== 'Reprovada' && r.status !== 'Cancelada'),
     ...db.get('tecno').filter(r => r.status !== 'Concluído' && r.status !== 'Cancelado'),
@@ -117,7 +168,8 @@ function renderWorkload() {
   const counts = {};
   equipe.forEach(m => { counts[m.nome] = 0; });
   openItems.forEach(item => {
-    if (item.responsavel && counts[item.responsavel] !== undefined) counts[item.responsavel]++;
+    const resp = item.responsavelAbertura || item.responsavel;
+    if (resp && counts[resp] !== undefined) counts[resp]++;
   });
 
   const max = Math.max(...Object.values(counts), 1);
@@ -186,6 +238,10 @@ export default {
           <div class="card-header"><h3>Workload por Colaboradora</h3></div>
           <div class="card-body">${renderWorkload()}</div>
         </div>
+        <div class="card">
+          <div class="card-header"><h3>Panorama NC / CAPA / CM</h3></div>
+          <div class="card-body">${renderPanorama()}</div>
+        </div>
       </div>
     `;
   },
@@ -193,9 +249,9 @@ export default {
   async init(_container) {
     // Update sidebar badges via router
     const r = await getRouter();
-    const capaOpen = db.get('capa').filter(r => r.status === 'Aberta' || r.status === 'Em Andamento').length;
+    const capaOpen = db.get('capa').filter(r => !['Encerrada', 'Não Procedente'].includes(r.status)).length;
     const rncOpen  = db.get('rnc').filter(r => r.status !== 'Encerrada' && r.status !== 'Cancelada').length;
-    r.updateBadge('capa', capaOpen);
+    r.updateBadge('capaGerencial', capaOpen);
     r.updateBadge('rnc', rncOpen);
   },
 };

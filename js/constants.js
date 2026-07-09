@@ -5,7 +5,7 @@
 export const STORE_KEY = 'sgq_data_v1';
 
 export const STATUS = Object.freeze({
-  CAPA: ['Aberta', 'Em Andamento', 'Aguardando Verificação', 'Concluída', 'Cancelada'],
+  CAPA: ['Aberta', 'Em Investigação', 'Em Plano de Ação', 'Em Verificação de Eficácia', 'Encerrada', 'Não Procedente'],
   RNC: ['Aberta', 'Em Análise', 'Em Tratamento', 'Verificação de Eficácia', 'Encerrada', 'Cancelada'],
   FORN: ['Qualificado', 'Em Qualificação', 'Suspenso', 'Desqualificado'],
   TECNO: ['Aberto', 'Em Investigação', 'Notificado ANVISA', 'Concluído', 'Cancelado'],
@@ -18,9 +18,15 @@ export const STATUS = Object.freeze({
 });
 
 export const ORIGENS_CAPA = Object.freeze([
-  'Auditoria Interna', 'Auditoria Externa', 'RNC', 'Reclamação de Cliente',
-  'Análise Crítica', 'Monitoramento de Processo', 'Vigilância Pós-Mercado',
-  'Análise de Risco', 'Iniciativa Interna',
+  'Produto', 'Auditorias', 'Reclamação', 'Processo', 'RNC/CAPA', 'Outros',
+]);
+
+export const ORIGENS_RNC = Object.freeze([
+  'Produto', 'Auditorias', 'Reclamação', 'Processo', 'Outros',
+]);
+
+export const ETAPAS_ACAO = Object.freeze([
+  'Ação Imediata', 'Ação', 'Verificação de Eficácia', 'Planejamento',
 ]);
 
 export const TIPOS_TECNO = Object.freeze([
@@ -48,13 +54,18 @@ export const CLASSIFICACOES_RNC = Object.freeze(['Crítica', 'Maior', 'Menor', '
 export const IMPACTOS = Object.freeze(['Alto', 'Médio', 'Baixo']);
 
 export const ROUTES = Object.freeze({
-  DASHBOARD:    'dashboard',
-  CAPA:         'capa',
-  RNC:          'rnc',
+  DASHBOARD:      'dashboard',
+  CAPA_GERENCIAL: 'capaGerencial',
+  CAPA_ABERTURA:  'capaAbertura',
+  RNC:            'rnc',
   FORNECEDORES: 'fornecedores',
   TECNOVIG:     'tecnovig',
   VALIDACOES:   'validacoes',
   GCM:          'gcm',
+  GCM_GERENCIAL:'gcmGerencial',
+  GCM_ABERTURA: 'gcmAbertura',
+  RNC_GERENCIAL:'rncGerencial',
+  RNC_ABERTURA: 'rncAbertura',
   RISCO:        'risco',
   PRAGAS:       'pragas',
   EQUIPE:       'equipe',
@@ -72,6 +83,11 @@ export const ROUTES = Object.freeze({
 export const PILL_MAP = Object.freeze({
   'Aberta':                       'pill-red',
   'Em Andamento':                 'pill-blue',
+  'Em Investigação':              'pill-purple',
+  'Em Plano de Ação':             'pill-blue',
+  'Em Verificação de Eficácia':   'pill-amber',
+  'Encerrada':                    'pill-green',
+  'Não Procedente':               'pill-gray',
   'Aguardando Verificação':       'pill-amber',
   'Concluída':                    'pill-green',
   'Cancelada':                    'pill-gray',
@@ -112,6 +128,12 @@ export const PILL_MAP = Object.freeze({
   'Em Homologação':               'pill-teal',
   'Vigente':                      'pill-green',
   'Cancelado':                    'pill-gray',
+  'Finalizado no prazo':          'pill-green',
+  'Finalizado em atraso':         'pill-amber',
+  'Em atraso':                    'pill-red',
+  'Ação Imediata':                'pill-red',
+  'Verificação de Eficácia':      'pill-amber',
+  'Planejamento':                 'pill-gray',
   'Alto':                         'pill-red',
   'Médio':                        'pill-amber',
   'Baixo':                        'pill-green',
@@ -138,7 +160,7 @@ export const PERFIS = Object.freeze([
 export const MODULOS_PERM = Object.freeze([
   { key: 'dashboard',     label: 'Dashboard' },
   { key: 'agenda',        label: 'Agenda GQ' },
-  { key: 'capa',          label: 'CAPA / Não Conformidade' },
+  { key: 'capa',          label: 'CAPA' },
   { key: 'rnc',           label: 'RNC' },
   { key: 'fornecedores',  label: 'Fornecedores' },
   { key: 'tecnovig',      label: 'Tecnovigilância' },

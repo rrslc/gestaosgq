@@ -91,7 +91,8 @@ function buildField(field, data) {
       break;
     default:
       input = `<input type="${field.type || 'text'}" id="field-${field.id}" value="${val}"
-        ${field.required ? 'required' : ''}>`;
+        ${field.required ? 'required' : ''}
+        ${field.readonly ? 'readonly style="background:var(--bg);color:var(--muted);cursor:default"' : ''}>`;
   }
 
   return `

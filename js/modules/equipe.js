@@ -35,7 +35,7 @@ const FIELDS = [
 
 function getOpenItems(nome) {
   const items = [];
-  db.get('capa').filter(r => r.responsavel === nome && r.status !== 'Concluída' && r.status !== 'Cancelada')
+  db.get('capa').filter(r => (r.responsavelAbertura === nome || r.responsavel === nome) && !['Encerrada', 'Não Procedente', 'Concluída', 'Cancelada'].includes(r.status))
     .forEach(r => items.push({ label: r.numero + ' — ' + r.descricao, tipo: 'CAPA' }));
   db.get('rnc').filter(r => r.responsavel === nome && r.status !== 'Encerrada' && r.status !== 'Cancelada')
     .forEach(r => items.push({ label: r.numero + ' — ' + r.descricao, tipo: 'RNC' }));

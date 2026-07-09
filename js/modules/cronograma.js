@@ -8,8 +8,9 @@ import { formatDate, emptyState, statusPill } from '../utils.js';
 function getGanttItems() {
   const items = [];
 
-  db.get('capa').filter(r => r.prazo).forEach(r => {
-    items.push({ label: r.numero, desc: r.descricao, resp: r.responsavel, date: r.prazo, tipo: 'CAPA', status: r.status });
+  db.get('capa').filter(r => r.dataInicioVerificacao || r.prazo).forEach(r => {
+    const date = r.dataInicioVerificacao || r.prazo;
+    items.push({ label: r.numero, desc: r.descricao, resp: r.responsavelAbertura || r.responsavel, date, tipo: 'CAPA', status: r.status });
   });
   db.get('validacoes').filter(r => r.prazo).forEach(r => {
     items.push({ label: r.numero, desc: r.descricao, resp: r.responsavel, date: r.prazo, tipo: 'VAL', status: r.status });

@@ -84,13 +84,13 @@ function getAtividades(filtro) {
 
   // CAPA (abertas)
   db.get('capa')
-    .filter(c => !['Concluída', 'Cancelada'].includes(c.status))
-    .filter(c => !filtro || c.responsavel === filtro)
+    .filter(c => !['Encerrada', 'Não Procedente', 'Concluída', 'Cancelada'].includes(c.status))
+    .filter(c => !filtro || c.responsavelAbertura === filtro || c.responsavel === filtro)
     .forEach(c => items.push({
       fonte: 'CAPA', codigo: c.numero,
       descricao: c.descricao,
-      prazo: c.prazo || null, status: c.status,
-      responsavel: c.responsavel, route: ROUTES.CAPA,
+      prazo: c.dataInicioVerificacao || null, status: c.status,
+      responsavel: c.responsavelAbertura || c.responsavel, route: ROUTES.CAPA_ABERTURA,
     }));
 
   // Obrigações Regulatórias (ativas)

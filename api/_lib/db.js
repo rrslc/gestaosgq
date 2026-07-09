@@ -15,7 +15,7 @@ const sql = neon(process.env.DATABASE_URL);
 const ALLOWED_COLLECTIONS = new Set([
   'equipe', 'capa', 'rnc', 'fornecedores',
   'tecno', 'validacoes', 'gcm', 'risco', 'pragas', 'obrigacoes', 'documentos', 'solicitacoes', 'perfis', 'trilha',
-  'reservatorio', 'residuos', 'microbiologico', 'limpezaMensal', 'gembaWalk', 'orcamentosAnuais', 'docsAdmin',
+  'reservatorio', 'residuos', 'microbiologico', 'limpezaMensal', 'gembaWalk', 'orcamentosAnuais', 'docsAdmin', 'capaAcoes', 'gcmAcoes', 'rncAcoes',
 ]);
 
 /**
