@@ -140,7 +140,7 @@ function openLoginModal() {
     onSave(data) {
       const user = equipe.find(m => m.nome === data.nome && m.senha === data.senha);
       if (!user) throw new Error('Senha incorreta. Verifique e tente novamente.');
-      setSession({ id: user.id, nome: user.nome, iniciais: user.iniciais, area: user.area, perfil: user.perfil, cor: user.cor });
+      setSession({ id: user.id, nome: user.nome, iniciais: user.iniciais, area: user.area, perfil: user.perfil, licenca: user.licenca, cor: user.cor });
       updateTopbarSession();
       router.navigate(router.current || ROUTES.DASHBOARD);
       toast(`Bem-vinda, ${user.nome.split(' ')[0]}!`);

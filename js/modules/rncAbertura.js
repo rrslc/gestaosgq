@@ -9,6 +9,7 @@ import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
 import { STATUS, TIPOS_NC, FERRAMENTAS_INVEST, DISPOSICOES_NC } from '../constants.js';
 import { getSession } from '../session.js';
+import { can, A } from '../permissions.js';
 
 const AREAS     = ['GQ', 'Produção', 'P&D', 'Regulatório', 'Logística', 'Compras', 'RH', 'TI', 'Fábrica', 'Outros'];
 const RISK_LVL  = ['Baixa', 'Média', 'Alta'];
@@ -51,16 +52,18 @@ const STAGE_OWNER = {
 
 // ── Permission logic ─────────────────────────────────────────────────────────
 
+/**
+ * Verifica se o usuário pode agir (editar/avançar) em um registro RNC.
+ *
+ * Adm / GQ Apoio + Manager → pode avançar qualquer etapa.
+ * Executor + Manager        → pode apenas editar RNCs na etapa Aberta.
+ * Licença View              → nunca pode agir.
+ */
 function canAct(record, user = getSession()) {
-  if (!user) return false;
-  const s = record?.status;
-  if (s === 'Aberta')                   return !record.area || record.area === user.area || user.area === 'GQ';
-  if (s === 'Em Avaliação')             return user.area === 'GQ';
-  if (s === 'Em Investigação')          return user.area === 'GQ' || user.nome === record.liderInvestigacao;
-  if (s === 'Em Plano de Ação')         return user.area === 'GQ' || user.area === 'MC';
-  if (s === 'Verificação de Eficácia')  return user.area === 'GQ';
-  if (s === 'Encerrada')                return user.area === 'GQ';
-  return false;
+  if (!user || !can(user, 'rnc', A.EDIT)) return false;
+  if (user.perfil === 'Adm' || user.perfil === 'GQ Apoio') return true;
+  // Executor: só pode interagir com RNCs ainda abertas (etapa de origem)
+  return record?.status === 'Aberta';
 }
 
 function ownerLabel(record) {
@@ -129,7 +132,6 @@ function renderMinhaFila() {
   const user = getSession();
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 
-  // Sem perfil → mostra todas as ativas; com perfil → filtra pela área
   const pending = user
     ? db.get('rnc').filter(r => !CLOSED.includes(r.status) && canAct(r, user))
     : db.get('rnc').filter(r => !CLOSED.includes(r.status));
@@ -139,7 +141,7 @@ function renderMinhaFila() {
       ? `<div style="text-align:center;padding:48px 24px">
           <div style="font-size:2.5rem;margin-bottom:12px">✅</div>
           <div style="font-size:0.95rem;font-weight:600;margin-bottom:6px">Fila em dia!</div>
-          <div style="font-size:0.82rem;color:var(--muted)">Nenhuma RNC aguarda ação de ${user.area}</div>
+          <div style="font-size:0.82rem;color:var(--muted)">Nenhuma RNC aguarda ação de ${user.nome.split(' ')[0]}</div>
         </div>`
       : emptyState('Nenhuma RNC em andamento.');
   }

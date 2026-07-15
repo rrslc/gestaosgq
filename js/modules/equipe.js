@@ -6,6 +6,7 @@ import { db } from '../db.js';
 import { progressBar, emptyState, statusPill } from '../utils.js';
 import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
+import { PERFIS, LICENCAS } from '../permissions.js';
 
 const CARGOS = [
   'Gerente da Qualidade',
@@ -19,9 +20,18 @@ const CARGOS = [
 
 const CORES = ['#2d5be3', '#00897b', '#7c3aed', '#f59e0b', '#dc2626', '#00b4d8', '#0d1b4b'];
 
-const PERFIS_ACESSO = [
-  'GQ Administrador', 'Gestor GQ', 'Elaborador', 'Revisor', 'Aprovador', 'Executor', 'Resp. por Impressão', 'Consulta',
-];
+// Mapa de migração do modelo antigo de perfis para o novo
+const PERFIL_LEGADO = {
+  'GQ Administrador': { perfil: 'Adm',      licenca: 'Manager' },
+  'Gestor GQ':        { perfil: 'Adm',      licenca: 'Manager' },
+  'Garantia da Qualidade': { perfil: 'GQ Apoio', licenca: 'Manager' },
+  'Elaborador':       { perfil: 'GQ Apoio', licenca: 'Manager' },
+  'Revisor':          { perfil: 'Executor',  licenca: 'Manager' },
+  'Aprovador':        { perfil: 'Executor',  licenca: 'Manager' },
+  'Executor':         { perfil: 'Executor',  licenca: 'Manager' },
+  'Resp. por Impressão': { perfil: 'Executor', licenca: 'View' },
+  'Consulta':         { perfil: 'Executor',  licenca: 'View'    },
+};
 
 const FIELDS = [
   { id: 'nome',     label: 'Nome Completo',       type: 'text',   required: true,  span: 2 },
@@ -29,10 +39,21 @@ const FIELDS = [
   { id: 'cargo',    label: 'Cargo',                type: 'select', required: true,  span: 1, options: CARGOS },
   { id: 'area',     label: 'Área / Setor',         type: 'text',   required: false, span: 1 },
   { id: 'email',    label: 'E-mail corporativo',   type: 'text',   required: false, span: 1 },
-  { id: 'perfil',   label: 'Perfis de acesso',     type: 'checkboxgroup', required: false, span: 2, options: PERFIS_ACESSO },
-  { id: 'cor',      label: 'Cor do Avatar (hex)',   type: 'text',   required: false, span: 2 },
-  { id: 'senha',    label: 'Senha de Acesso',       type: 'text',   required: false, span: 2 },
+  { id: 'perfil',   label: 'Perfil de acesso',     type: 'select', required: true,  span: 1, options: PERFIS },
+  { id: 'licenca',  label: 'Licença',              type: 'select', required: true,  span: 1, options: LICENCAS },
+  { id: 'cor',      label: 'Cor do Avatar (hex)',  type: 'text',   required: false, span: 2 },
+  { id: 'senha',    label: 'Senha de Acesso',      type: 'text',   required: false, span: 2 },
 ];
+
+// Migra membros com perfil no formato legado (array de strings antigas)
+function migrateLegacyPerfil() {
+  db.get('equipe').forEach(m => {
+    if (!Array.isArray(m.perfil) && m.perfil && PERFIS.includes(m.perfil)) return; // já migrado
+    const legadoKey = Array.isArray(m.perfil) ? m.perfil[0] : m.perfil;
+    const mapped = PERFIL_LEGADO[legadoKey] || { perfil: 'Executor', licenca: 'View' };
+    db.update('equipe', m.id, { perfil: mapped.perfil, licenca: mapped.licenca });
+  });
+}
 
 function getOpenItems(nome) {
   const items = [];
@@ -66,9 +87,8 @@ function renderCards() {
               <div class="team-name">${m.nome}</div>
               <div class="team-cargo">${m.cargo}</div>
               <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">
-                ${(Array.isArray(m.perfil) ? m.perfil : (m.perfil ? [m.perfil] : []))
-                  .map(p => `<span style="padding:1px 6px;border-radius:3px;background:#eff6ff;color:#1e40af;font-size:0.68rem;font-weight:600">${p}</span>`)
-                  .join('')}
+                ${m.perfil ? `<span style="padding:1px 6px;border-radius:3px;background:#eff6ff;color:#1e40af;font-size:0.68rem;font-weight:600">${m.perfil}</span>` : ''}
+                ${m.licenca ? `<span style="padding:1px 6px;border-radius:3px;background:${m.licenca === 'Manager' ? '#f0fdf4' : '#f8fafc'};color:${m.licenca === 'Manager' ? '#166534' : '#64748b'};font-size:0.68rem;font-weight:600">${m.licenca}</span>` : ''}
               </div>
             </div>
           </div>
@@ -99,6 +119,7 @@ function renderCards() {
 
 export default {
   render(container) {
+    migrateLegacyPerfil();
     container.innerHTML = `
       <div class="page-header">
         <h2>Equipe da Qualidade</h2>
@@ -111,6 +132,7 @@ export default {
   },
 
   init(container) {
+
     container.addEventListener('click', e => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
