@@ -58,7 +58,7 @@ export const router = new Router({
   capa: { module: { render() {}, init() { router.navigate(ROUTES.CAPA_GERENCIAL); } }, title: 'CAPA', icon: '◈' },
   [ROUTES.RNC]:            { module: { render() {}, init() { router.navigate(ROUTES.RNC_GERENCIAL); } }, title: 'RNC', icon: '⚑' },
   [ROUTES.RNC_GERENCIAL]:  { module: rncGerencial,  title: 'RNC — Gerencial',        icon: '📊' },
-  [ROUTES.RNC_ABERTURA]:   { module: rncAbertura,   title: 'RNC — Abertura',         icon: '⚑' },
+  [ROUTES.RNC_ABERTURA]:   { module: rncAbertura,   title: 'RNC — Fluxo de Trabalho',         icon: '⚑' },
   [ROUTES.FORNECEDORES]: { module: fornecedores, title: 'Fornecedores',             icon: '⬡' },
   [ROUTES.TECNOVIG]:     { module: tecnovig,     title: 'Tecnovigilância',          icon: '⚕' },
   [ROUTES.VALIDACOES]:   { module: validacoes,   title: 'Validações',               icon: '✔' },
