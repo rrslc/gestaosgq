@@ -7,18 +7,12 @@ import { db } from '../db.js';
 import { statusPill, formatDate } from '../utils.js';
 import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
-import { PERFIS, MODULOS_PERM, ACOES_PERM } from '../constants.js';
+import { PERFIS, LICENCAS } from '../permissions.js';
 
 const COR_PERFIL = {
-  'GQ Administrador':    '#dc2626',
-  'Gestor GQ':           '#2563eb',
-  'Garantia da Qualidade': '#c2410c',
-  'Elaborador':          '#059669',
-  'Revisor':             '#7c3aed',
-  'Aprovador':           '#d97706',
-  'Executor':            '#0891b2',
-  'Resp. por Impressão': '#65a30d',
-  'Consulta':            '#6b7280',
+  'Adm':      '#dc2626',
+  'GQ Apoio': '#2563eb',
+  'Executor': '#0891b2',
 };
 
 // ── CFR Part 11 Checklist ───────────────────────────────────────────────────
@@ -27,10 +21,10 @@ const CFR_ITEMS = [
   { ref: '§11.10(a)', req: 'Validação do sistema computadorizado', status: 'Pendente',    nota: 'Plano de validação deve ser elaborado conforme VAL-2026-010' },
   { ref: '§11.10(b)', req: 'Capacidade de gerar cópias legíveis e completas', status: 'Atendido', nota: 'Exportação JSON + impressão via browser' },
   { ref: '§11.10(c)', req: 'Proteção e arquivamento de registros', status: 'Parcial',    nota: 'Backup Neon PostgreSQL + export JSON manual' },
-  { ref: '§11.10(d)', req: 'Limitação de acesso a usuários autorizados', status: 'Parcial',    nota: 'Matriz de perfis implementada — autenticação em desenvolvimento' },
+  { ref: '§11.10(d)', req: 'Limitação de acesso a usuários autorizados', status: 'Atendido', nota: 'Login com senha por usuário, sessão de 8h, matriz Adm/GQ Apoio/Executor × Manager/View implementada' },
   { ref: '§11.10(e)', req: 'Trilha de auditoria com data/hora e usuário', status: 'Atendido', nota: 'Módulo Trilha de Auditoria ativo em Documentos e Permissões' },
   { ref: '§11.10(f)', req: 'Verificação sequencial de etapas do fluxo', status: 'Atendido', nota: 'Kanban de documentos impõe sequência Elaboração → Revisão → Aprovação → Homologação' },
-  { ref: '§11.10(g)', req: 'Verificação de autoridade por perfil', status: 'Parcial',    nota: 'Perfis definidos — enforcement no login em desenvolvimento' },
+  { ref: '§11.10(g)', req: 'Verificação de autoridade por perfil', status: 'Atendido', nota: 'can(session, modulo, acao) aplicado em todos os módulos de workflow; perfil carregado na sessão' },
   { ref: '§11.10(h)', req: 'Verificação de completude de entrada de dados', status: 'Atendido', nota: 'Campos obrigatórios validados em todos os formulários' },
   { ref: '§11.100',   req: 'Assinatura eletrônica única por indivíduo', status: 'Atendido', nota: 'Modal de assinatura com identificação, data/hora e significado registrados na trilha' },
   { ref: '§11.200',   req: 'Componentes de assinatura: nome + data + significado', status: 'Atendido', nota: 'Implementado no modal de assinatura para Aprovação e Homologação' },
@@ -45,82 +39,89 @@ const COR_STATUS = { 'Atendido': '#059669', 'Parcial': '#d97706', 'Pendente': '#
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 
-function renderPerfis() {
-  const perfis = db.get('perfis');
-  if (!perfis.length) return '<p style="color:var(--muted);padding:20px">Nenhum perfil configurado.</p>';
+const MATRIZ_ACESSO = [
+  { grupo: 'Visão Geral',        modulos: ['Dashboard', 'Agenda GQ'],
+    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Leitura', execView: 'Leitura' },
+  { grupo: 'Não-Conformidades',  modulos: ['RNC — Gerencial', 'RNC — Fluxo'],
+    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Abrir/Editar', execView: 'Leitura' },
+  { grupo: 'CAPA',               modulos: ['CAPA — Gerencial', 'CAPA — Abertura'],
+    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Abrir/Editar', execView: 'Leitura' },
+  { grupo: 'Reclamações / Tecnovig', modulos: ['Reclamações', 'Tecnovigilância'],
+    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Abrir/Editar', execView: 'Leitura' },
+  { grupo: 'Qualidade',          modulos: ['Validações', 'Fornecedores', 'GCM', 'Análise de Risco'],
+    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Monitorar', execView: 'Leitura' },
+  { grupo: 'Auditorias',         modulos: ['Plano Anual', 'Execução / Achados'],
+    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Executar / Gerir', execView: 'Leitura' },
+  { grupo: 'Documentos',         modulos: ['Controle de Docs.', 'Elaboração'],
+    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Executar / Cópia', execView: 'Leitura' },
+  { grupo: 'Planejamento',       modulos: ['Atividades', 'Cronograma', 'Calendário', 'Projetos', 'Revisão Gerencial'],
+    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Próprias atividades', execView: 'Leitura' },
+  { grupo: 'Administração',      modulos: ['Equipe', 'Permissões', 'Configurações'],
+    adm: 'Completo', gqManager: 'Leitura',  gqView: 'Leitura', execManager: '—',      execView: '—' },
+];
 
-  return `
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
-      ${perfis.map(p => {
-        const cor = COR_PERFIL[p.nome] || p.cor || '#6b7280';
-        const nomeUsuarios = db.get('equipe').filter(m => m.perfil === p.nome);
-        const perms = p.permissoes || {};
-        const totalOn = Object.values(perms).reduce((acc, m) => acc + Object.values(m).filter(Boolean).length, 0);
-        const totalMax = MODULOS_PERM.length * ACOES_PERM.length;
-        return `
-          <div class="card" style="padding:16px;border-top:4px solid ${cor}">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-              <div style="width:36px;height:36px;border-radius:8px;background:${cor}20;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:${cor}">🔐</div>
-              <div>
-                <div style="font-weight:700;color:${cor}">${p.nome}</div>
-                <div style="font-size:0.75rem;color:var(--muted)">${p.descricao}</div>
-              </div>
-            </div>
-            <div style="background:var(--bg);border-radius:6px;padding:8px 10px;font-size:0.78rem;margin-bottom:8px">
-              <strong>${totalOn}/${totalMax}</strong> permissões ativas
-              <div style="height:4px;background:var(--border);border-radius:2px;margin-top:4px">
-                <div style="height:4px;background:${cor};border-radius:2px;width:${Math.round(100*totalOn/totalMax)}%"></div>
-              </div>
-            </div>
-            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px">
-              ${nomeUsuarios.length > 0
-                ? `Usuários: ${nomeUsuarios.map(m => `<strong>${m.nome.split(' ')[0]}</strong>`).join(', ')}`
-                : 'Nenhum usuário atribuído'}
-            </div>
-            <button class="btn btn-secondary btn-sm" data-action="ver-matriz" data-perfil-id="${p.id}">Ver matriz completa</button>
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
+const COR_ACESSO = {
+  'Completo': '#059669', 'Leitura': '#3b82f6', 'Abrir/Editar': '#f59e0b',
+  'Executar / Gerir': '#f59e0b', 'Executar / Cópia': '#f59e0b',
+  'Próprias atividades': '#f59e0b', 'Monitorar': '#94a3b8', '—': '#e2e8f0',
+};
+
+function celula(val) {
+  const cor = COR_ACESSO[val] || '#6b7280';
+  if (val === '—') return `<td style="text-align:center;color:var(--border);font-size:0.9rem">—</td>`;
+  return `<td style="text-align:center"><span style="display:inline-block;padding:2px 7px;border-radius:4px;background:${cor}18;color:${cor};font-size:0.72rem;font-weight:600;white-space:nowrap">${val}</span></td>`;
 }
 
-function renderMatrizPerfil(perfilId) {
-  const perfil = db.get('perfis').find(p => p.id === Number(perfilId));
-  if (!perfil) return '<p>Perfil não encontrado.</p>';
-  const cor = COR_PERFIL[perfil.nome] || perfil.cor || '#6b7280';
-  const perms = perfil.permissoes || {};
+function renderPerfis() {
+  const equipe = db.get('equipe');
+  const porPerfil = { Adm: [], 'GQ Apoio': [], Executor: [] };
+  equipe.forEach(m => { if (porPerfil[m.perfil]) porPerfil[m.perfil].push(m); });
 
   return `
-    <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
-      <button class="btn btn-secondary btn-sm" data-action="voltar-perfis">← Voltar</button>
-      <h3 style="font-size:1rem;color:${cor}">${perfil.nome} — Matriz de Permissões</h3>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      ${PERFIS.map(p => {
+        const cor = COR_PERFIL[p];
+        const membros = porPerfil[p] || [];
+        const descs = { Adm: 'Coordenadora GQ + TI — acesso total ao sistema', 'GQ Apoio': 'Analistas GQ/AR — todos os módulos com licença Manager', Executor: 'Demais colaboradoras — módulos de execução e solicitação' };
+        return `<div style="border:1px solid var(--border);border-top:4px solid ${cor};border-radius:8px;padding:14px">
+          <div style="font-weight:700;font-size:0.9rem;color:${cor};margin-bottom:4px">${p}</div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-bottom:10px;line-height:1.4">${descs[p]}</div>
+          <div style="font-size:0.72rem;font-weight:600;margin-bottom:4px">Licenças disponíveis:</div>
+          <div style="display:flex;gap:4px;margin-bottom:10px">
+            ${LICENCAS.map(l => `<span style="padding:2px 8px;border-radius:3px;background:${l==='Manager'?'#f0fdf4':'#f8fafc'};color:${l==='Manager'?'#166534':'#64748b'};font-size:0.7rem;font-weight:600">${l}</span>`).join('')}
+          </div>
+          <div style="font-size:0.72rem;color:var(--muted)">${membros.length} usuária${membros.length !== 1?'s':''}: ${membros.map(m=>`<strong>${m.nome.split(' ')[0]}</strong>`).join(', ') || 'nenhuma'}</div>
+        </div>`;
+      }).join('')}
     </div>
-    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:12px">${perfil.descricao}</div>
+
+    <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px;color:var(--text)">Matriz de acesso por módulo</div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Módulo</th>
-            ${ACOES_PERM.map(a => `<th style="text-align:center">${a.label}</th>`).join('')}
+            <th>Grupo / Módulos</th>
+            <th style="text-align:center">Adm</th>
+            <th style="text-align:center">GQ Apoio<br><span style="font-weight:400;font-size:0.7rem">Manager</span></th>
+            <th style="text-align:center">GQ Apoio<br><span style="font-weight:400;font-size:0.7rem">View</span></th>
+            <th style="text-align:center">Executor<br><span style="font-weight:400;font-size:0.7rem">Manager</span></th>
+            <th style="text-align:center">Executor<br><span style="font-weight:400;font-size:0.7rem">View</span></th>
           </tr>
         </thead>
         <tbody>
-          ${MODULOS_PERM.map(mod => {
-            const mp = perms[mod.key] || {};
-            return `
-              <tr>
-                <td style="font-weight:600">${mod.label}</td>
-                ${ACOES_PERM.map(a => `
-                  <td style="text-align:center">
-                    ${mp[a.key]
-                      ? `<span style="color:#059669;font-size:1.1rem">✓</span>`
-                      : `<span style="color:var(--border);font-size:1rem">–</span>`}
-                  </td>
-                `).join('')}
-              </tr>
-            `;
-          }).join('')}
+          ${MATRIZ_ACESSO.map(row => `
+            <tr>
+              <td>
+                <div style="font-weight:600;font-size:0.82rem">${row.grupo}</div>
+                <div style="font-size:0.7rem;color:var(--muted)">${row.modulos.join(' · ')}</div>
+              </td>
+              ${celula(row.adm)}
+              ${celula(row.gqManager)}
+              ${celula(row.gqView)}
+              ${celula(row.execManager)}
+              ${celula(row.execView)}
+            </tr>
+          `).join('')}
         </tbody>
       </table>
     </div>
@@ -129,12 +130,11 @@ function renderMatrizPerfil(perfilId) {
 
 function renderUsuarios() {
   const equipe = db.get('equipe');
-  const perfis = db.get('perfis');
   return `
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Nome</th><th>Cargo</th><th>Área</th><th>Perfil de Acesso</th><th>E-mail</th><th>Ações</th></tr>
+          <tr><th>Nome</th><th>Cargo</th><th>Área</th><th>Perfil</th><th>Licença</th><th>Senha</th><th>Ações</th></tr>
         </thead>
         <tbody>
           ${equipe.map(m => {
@@ -149,12 +149,11 @@ function renderUsuarios() {
                 </td>
                 <td style="font-size:0.82rem">${m.cargo}</td>
                 <td style="font-size:0.82rem">${m.area || '—'}</td>
+                <td><span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${cor}15;color:${cor};font-size:0.75rem;font-weight:700">${m.perfil || '—'}</span></td>
+                <td><span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${m.licenca==='Manager'?'#f0fdf4':'#f8fafc'};color:${m.licenca==='Manager'?'#166534':'#64748b'};font-size:0.72rem;font-weight:600">${m.licenca || '—'}</span></td>
+                <td style="font-size:0.78rem;color:var(--muted)">${m.senha ? '●●●●' : '<span style="color:var(--red);font-size:0.72rem">não definida</span>'}</td>
                 <td>
-                  <span style="display:inline-block;padding:2px 10px;border-radius:4px;background:${cor}15;color:${cor};font-size:0.75rem;font-weight:700">${m.perfil || 'Sem perfil'}</span>
-                </td>
-                <td style="font-size:0.78rem;color:var(--muted)">${m.email || '—'}</td>
-                <td>
-                  <button class="btn btn-secondary btn-sm" data-action="edit-perfil" data-id="${m.id}">Alterar perfil</button>
+                  <button class="btn btn-secondary btn-sm" data-action="edit-perfil" data-id="${m.id}">Editar acesso</button>
                 </td>
               </tr>
             `;
@@ -273,11 +272,9 @@ function renderCFR() {
 // ── Render ────────────────────────────────────────────────────────────────────
 
 let _tab = 'perfis';
-let _viewMatriz = null;
 
 function switchTab(container, tab) {
   _tab = tab;
-  _viewMatriz = null;
   container.querySelectorAll('[data-tab-btn]').forEach(b => {
     const active = b.dataset.tabBtn === tab;
     b.style.fontWeight = active ? '700' : '400';
@@ -290,9 +287,7 @@ function switchTab(container, tab) {
 function rebuildContent(container) {
   const wrap = container.querySelector('#perm-content');
   if (!wrap) return;
-  if (_tab === 'perfis' && _viewMatriz) {
-    wrap.innerHTML = renderMatrizPerfil(_viewMatriz);
-  } else if (_tab === 'perfis') {
+  if (_tab === 'perfis') {
     wrap.innerHTML = renderPerfis();
   } else if (_tab === 'usuarios') {
     wrap.innerHTML = renderUsuarios();
@@ -350,7 +345,7 @@ export default {
   },
 
   init(container) {
-    _tab = 'perfis'; _viewMatriz = null;
+    _tab = 'perfis';
 
     container.addEventListener('click', e => {
       const tabBtn = e.target.closest('[data-tab-btn]');
@@ -360,31 +355,29 @@ export default {
       if (!btn) return;
       const { action, id, perfilId } = btn.dataset;
 
-      if (action === 'ver-matriz') {
-        _viewMatriz = perfilId;
-        rebuildContent(container);
-      }
-
-      if (action === 'voltar-perfis') {
-        _viewMatriz = null;
-        rebuildContent(container);
-      }
-
       if (action === 'edit-perfil') {
         const membro = db.getById('equipe', Number(id));
         if (!membro) return;
         openModal({
-          title: `Perfil de Acesso — ${membro.nome}`,
+          title: `Acesso — ${membro.nome}`,
           fields: [
-            { id: 'perfil', label: 'Perfil de acesso', type: 'select', required: true, span: 2, options: PERFIS },
-            { id: 'email',  label: 'E-mail',            type: 'text',   required: false, span: 2 },
-            { id: 'area',   label: 'Área',              type: 'text',   required: false, span: 2 },
+            { id: 'perfil',  label: 'Perfil',   type: 'select', required: true,  span: 1, options: PERFIS },
+            { id: 'licenca', label: 'Licença',   type: 'select', required: true,  span: 1, options: LICENCAS },
+            { id: 'email',   label: 'E-mail',    type: 'text',   required: false, span: 2 },
+            { id: 'area',    label: 'Área',      type: 'text',   required: false, span: 1 },
+            { id: 'senha',   label: 'Senha',     type: 'text',   required: false, span: 1 },
           ],
           data: membro,
+          setup(form) {
+            const s = form.querySelector('#field-senha');
+            if (s) s.type = 'password';
+          },
           onSave: data => {
-            db.update('equipe', Number(id), { perfil: data.perfil, email: data.email, area: data.area });
-            db.addAudit('Editou', 'permissoes', membro.nome, `Perfil alterado para "${data.perfil}"`);
-            toast(`Perfil de ${membro.nome} alterado para "${data.perfil}"`);
+            const updates = { perfil: data.perfil, licenca: data.licenca, email: data.email, area: data.area };
+            if (data.senha) updates.senha = data.senha;
+            db.update('equipe', Number(id), updates);
+            db.addAudit('Editou', 'permissoes', membro.nome, `Perfil → ${data.perfil} · Licença → ${data.licenca}`);
+            toast(`Acesso de ${membro.nome.split(' ')[0]} atualizado.`);
             rebuildContent(container);
           },
         });

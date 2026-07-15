@@ -7,6 +7,8 @@ import { formatDate, statusPill, emptyState, selectOptions, today } from '../uti
 import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
 import { STATUS, ORIGENS_CAPA } from '../constants.js';
+import { getSession } from '../session.js';
+import { can, A } from '../permissions.js';
 
 const AREAS       = ['GQ', 'Produção', 'P&D', 'Regulatório', 'Logística', 'Compras', 'RH', 'TI', 'Fábrica', 'Outros'];
 const RISK_LEVEL  = ['Baixa', 'Média', 'Alta'];
@@ -233,11 +235,14 @@ export default {
       if (action === 'edit') {
         const record = db.getById('capa', numId);
         if (!record) return;
+        const session = getSession();
+        const auth = can(session, 'capa', A.EDIT);
         openModal({
-          title: `Editar CAPA ${record.numero}`,
-          fields: buildFields(false),
+          title: `${auth ? 'Editar' : '👁 Visualizar'} CAPA ${record.numero}`,
+          fields: auth ? buildFields(false) : buildFields(false).map(f => f.type !== 'heading' ? { ...f, readonly: true } : f),
           data: record,
           onSave: data => {
+            if (!auth) return;
             const risco = calcRisco(data.probabilidade, data.severidade);
             db.update('capa', numId, { ...data, classificacaoRisco: risco });
             toast('CAPA atualizada!');
