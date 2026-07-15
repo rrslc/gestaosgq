@@ -9,13 +9,14 @@ import { toast } from '../toast.js';
 import { STATUS, TIPOS_TECNO } from '../constants.js';
 
 const FIELDS = [
-  { id: 'numero',     label: 'Número',            type: 'text',     required: true,  span: 1 },
-  { id: 'tipo',       label: 'Tipo',              type: 'select',   required: true,  span: 1, options: TIPOS_TECNO },
-  { id: 'produto',    label: 'Produto',           type: 'text',     required: true,  span: 2 },
-  { id: 'descricao',  label: 'Descrição',         type: 'textarea', required: true,  span: 2 },
-  { id: 'data',       label: 'Data de Abertura',  type: 'date',     required: true,  span: 1 },
-  { id: 'prazoAnvisa',label: 'Prazo ANVISA',      type: 'date',     required: false, span: 1 },
-  { id: 'status',     label: 'Status',            type: 'select',   required: true,  span: 2, options: STATUS.TECNO },
+  { id: 'numero',           label: 'Número',              type: 'text',     required: true,  span: 1 },
+  { id: 'tipo',             label: 'Tipo',                type: 'select',   required: true,  span: 1, options: TIPOS_TECNO },
+  { id: 'produto',          label: 'Produto',             type: 'text',     required: true,  span: 2 },
+  { id: 'descricao',        label: 'Descrição',           type: 'textarea', required: true,  span: 2 },
+  { id: 'data',             label: 'Data de Abertura',    type: 'date',     required: true,  span: 1 },
+  { id: 'prazoAnvisa',      label: 'Prazo ANVISA',        type: 'date',     required: false, span: 1 },
+  { id: 'status',           label: 'Status',              type: 'select',   required: true,  span: 2, options: STATUS.TECNO },
+  { id: 'reclamacaoOrigem', label: 'Reclamação de Origem', type: 'text',    required: false, span: 1 },
 ];
 
 function renderTable(items) {
@@ -32,6 +33,7 @@ function renderTable(items) {
             <th>Abertura</th>
             <th>Prazo ANVISA</th>
             <th>Status</th>
+            <th>Reclamação</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -45,6 +47,7 @@ function renderTable(items) {
               <td>${formatDate(r.data)}</td>
               <td>${deadlineCell(r.prazoAnvisa)}</td>
               <td>${statusPill(r.status)}</td>
+              <td style="white-space:nowrap">${r.reclamacaoOrigem ? `<span class="pill pill-blue" title="Originada da reclamação ${r.reclamacaoOrigem}">${r.reclamacaoOrigem}</span>` : '—'}</td>
               <td>
                 <div class="td-actions">
                   <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}">✏</button>

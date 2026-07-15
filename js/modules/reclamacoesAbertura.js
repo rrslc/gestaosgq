@@ -6,6 +6,7 @@ import { db } from '../db.js';
 import { formatDate, statusPill, emptyState, selectOptions, today, deadlineCell } from '../utils.js';
 import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
+import { TIPOS_TECNO, STATUS } from '../constants.js';
 
 const TIPOS_REC = [
   'Produto com defeito', 'Falha de embalagem', 'Problema de esterilidade',
@@ -98,9 +99,11 @@ function buildFields(record = null) {
       f('Em Investigação', { id: 'causaRaiz',         label: '2.3  Causa Raiz Identificada',      type: 'textarea', required: false, span: 2 }),
       f('Em Investigação', { id: 'geraRNC',           label: '2.4  Gera RNC?',                    type: 'select',   required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] }),
       f('Em Investigação', { id: 'numeroRNC',         label: 'Nº da RNC gerada',                  type: 'text',     required: false, span: 1 }),
-      f('Em Investigação', { id: 'geraCAPA',          label: '2.5  Gera CAPA?',                   type: 'select',   required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] }),
-      f('Em Investigação', { id: 'numeroCAPA',        label: 'Nº da CAPA gerada',                 type: 'text',     required: false, span: 1 }),
-      f('Em Investigação', { id: 'prazoFechamento',   label: 'Prazo de Fechamento (≤ 90 dias)',   type: 'date',     required: false, span: 1, readonly: true }),
+      f('Em Investigação', { id: 'geraCAPA',          label: '2.5  Gera CAPA?',                        type: 'select',   required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] }),
+      f('Em Investigação', { id: 'numeroCAPA',        label: 'Nº da CAPA gerada',                      type: 'text',     required: false, span: 1 }),
+      f('Em Investigação', { id: 'geraTecnovig',      label: '2.6  Gera Notif. Tecnovigilância (ANVISA)?', type: 'select', required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] }),
+      f('Em Investigação', { id: 'numeroTecnovig',    label: 'Nº da Notificação ANVISA',               type: 'text',     required: false, span: 1, readonly: true }),
+      f('Em Investigação', { id: 'prazoFechamento',   label: 'Prazo de Fechamento (≤ 90 dias)',        type: 'date',     required: false, span: 1, readonly: true }),
     );
   }
 
@@ -164,7 +167,7 @@ function renderTable(items) {
         <thead><tr>
           <th>Número</th><th>Tipo</th><th>Cliente</th><th>Produto</th>
           <th>Responsável</th><th>Abertura</th><th>T. Aberto</th>
-          <th>1º Contato</th><th>Prazo 90d</th><th>Status</th><th>Ações</th>
+          <th>1º Contato</th><th>Prazo 90d</th><th>Status</th><th>ANVISA</th><th>Ações</th>
         </tr></thead>
         <tbody>
           ${items.map(r => {
@@ -172,6 +175,14 @@ function renderTable(items) {
             const cancelBtn = !CLOSED.includes(r.status)
               ? `<button class="btn btn-secondary btn-sm" data-action="cancelar" data-id="${r.id}" title="Cancelar" style="color:var(--muted)">✕</button>`
               : '';
+            let anvisaCell = '—';
+            if (r.geraTecnovig === 'Sim' && r.numeroTecnovig) {
+              anvisaCell = `<span class="pill pill-red" title="Notificação ANVISA vinculada">${r.numeroTecnovig}</span>`;
+            } else if (r.geraTecnovig === 'Sim' && !CLOSED.includes(r.status)) {
+              anvisaCell = `<button class="btn btn-secondary btn-sm" data-action="notificar-anvisa" data-id="${r.id}" title="Criar notificação ANVISA" style="white-space:nowrap;font-size:0.72rem">🔔 Notif. ANVISA</button>`;
+            } else if (r.geraTecnovig === 'Em Avaliação') {
+              anvisaCell = `<span class="pill pill-amber">Em Avaliação</span>`;
+            }
             return `<tr style="${rowStyle(r)}">
               <td><strong>${r.numero}</strong></td>
               <td style="white-space:nowrap;font-size:0.8rem">${r.tipo || '—'}</td>
@@ -183,6 +194,7 @@ function renderTable(items) {
               <td>${formatDate(r.primeiroContato)}</td>
               <td>${deadlineCell(r.prazoFechamento)}</td>
               <td>${statusPill(r.status)}</td>
+              <td style="white-space:nowrap">${anvisaCell}</td>
               <td>
                 <div class="td-actions">
                   ${nextSt ? `<button class="btn btn-secondary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nextSt}" title="Avançar para ${nextSt}">▶</button>` : ''}
@@ -321,6 +333,44 @@ export default {
           db.remove('reclamacoes', numId);
           toast('Reclamação excluída.', 'warning');
           refresh(container);
+        });
+      }
+
+      if (action === 'notificar-anvisa') {
+        const rec = db.getById('reclamacoes', numId);
+        if (!rec) return;
+        const allTecno = db.get('tecno');
+        const yy = String(new Date().getFullYear()).slice(2);
+        const seqTecno = allTecno.filter(t => (t.numero || '').includes(`/TEC/${yy}`)).length + 1;
+        const novoNumero = `NOT.${String(seqTecno).padStart(3, '0')}/TEC/${yy}`;
+        const FIELDS_TECNO = [
+          { id: 'numero',           label: 'Número',                     type: 'text',     required: true,  span: 1 },
+          { id: 'tipo',             label: 'Tipo',                       type: 'select',   required: true,  span: 1, options: TIPOS_TECNO },
+          { id: 'produto',          label: 'Produto',                    type: 'text',     required: true,  span: 2 },
+          { id: 'descricao',        label: 'Descrição',                  type: 'textarea', required: true,  span: 2 },
+          { id: 'data',             label: 'Data de Abertura',           type: 'date',     required: true,  span: 1 },
+          { id: 'prazoAnvisa',      label: 'Prazo ANVISA',               type: 'date',     required: false, span: 1 },
+          { id: 'status',           label: 'Status',                     type: 'select',   required: true,  span: 2, options: STATUS.TECNO },
+          { id: 'reclamacaoOrigem', label: 'Reclamação de Origem',       type: 'text',     required: false, span: 1, readonly: true },
+        ];
+        openModal({
+          title: `Nova Notificação ANVISA — originada de ${rec.numero}`,
+          fields: FIELDS_TECNO,
+          data: {
+            numero:           novoNumero,
+            tipo:             'Queixa Técnica',
+            produto:          rec.produto || '',
+            descricao:        rec.descricao || '',
+            data:             today(),
+            status:           'Aberto',
+            reclamacaoOrigem: rec.numero,
+          },
+          onSave: data => {
+            db.add('tecno', data);
+            db.update('reclamacoes', numId, { numeroTecnovig: data.numero });
+            toast(`Notificação ${data.numero} criada e vinculada à reclamação ${rec.numero}!`);
+            refresh(container);
+          },
         });
       }
     });
