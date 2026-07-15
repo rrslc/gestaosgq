@@ -175,7 +175,11 @@ function renderMinhaFila() {
           <span style="font-size:0.72rem;font-weight:700;color:${stage.color}">${stage.label}</span>
           ${dias ? `<span style="font-size:0.7rem;color:var(--muted)">${dias} aberta</span>` : ''}
         </div>
-        <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" style="width:100%">👁 Visualizar</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}">👁 Ver</button>
+          ${user && nextSt ? `<button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nextSt}" style="flex:1">${nextSt === 'Encerrada' ? '⏹ Encerrar' : '→ Avançar'}</button>` : ''}
+          ${user && r.status === 'Em Avaliação' && (user.perfil === 'Adm' || user.perfil === 'GQ Apoio') ? `<button class="btn btn-danger btn-sm" data-action="nao-procedente" data-id="${r.id}" title="Não Procedente" style="padding:4px 8px">✗ NP</button>` : ''}
+        </div>
       </div>`;
     }).join('')}
   </div>`;
@@ -227,6 +231,13 @@ function renderTable(items) {
         const ownColor = own?.color ?? '#94a3b8';
         const risco    = r.classificacaoRisco
           ? `<span class="pill ${RISK_PILL[r.classificacaoRisco] ?? 'pill-gray'}">${r.classificacaoRisco}</span>` : '—';
+        const nxt      = NEXT_STATUS[r.status];
+        const act      = canAct(r, user);
+        const actBtn   = act && nxt
+          ? `<div class="td-actions"><button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" title="Editar">✏</button><button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nxt}" title="Avançar para ${nxt}">→</button></div>`
+          : act
+            ? `<button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" title="Editar">✏</button>`
+            : `<button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" title="Visualizar">👁</button>`;
         return `<tr>
           <td><strong>${r.numero}</strong></td>
           <td style="white-space:nowrap;font-size:0.8rem">${r.tipo || '—'}</td>
@@ -238,9 +249,7 @@ function renderTable(items) {
           <td style="white-space:nowrap">
             <span style="font-size:0.71rem;padding:2px 7px;border-radius:4px;background:${ownColor}18;color:${ownColor};font-weight:600">${ownLbl}</span>
           </td>
-          <td>
-            <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" title="Visualizar">👁</button>
-          </td>
+          <td>${actBtn}</td>
         </tr>`;
       }).join('')}
     </tbody>
@@ -408,7 +417,7 @@ export default {
     container.innerHTML = `
       <div class="page-header">
         <h2>RNC — Fluxo de Trabalho</h2>
-        <button class="btn btn-primary" data-action="new">+ Nova RNC</button>
+        ${can(getSession(), 'rnc', A.CREATE) ? `<button class="btn btn-primary" data-action="new">+ Nova RNC</button>` : ''}
       </div>
       <div id="rnc-pipeline">${renderPipelineBar(allRnc)}</div>
       <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px">
@@ -466,6 +475,7 @@ export default {
       const user  = getSession();
 
       if (action === 'new') {
+        if (!can(user, 'rnc', A.CREATE)) return;
         openModal({
           title: 'Nova RNC',
           fields: buildFields(null),
@@ -578,6 +588,7 @@ export default {
       }
 
       if (action === 'delete') {
+        if (!can(user, 'rnc', A.DELETE)) { toast('Sem permissão para excluir.', 'error'); return; }
         showConfirm('Deseja excluir esta RNC?').then(ok => {
           if (!ok) return;
           db.remove('rnc', numId);

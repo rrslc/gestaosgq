@@ -7,6 +7,8 @@ import { formatDate, deadlineCell, statusPill, emptyState } from '../utils.js';
 import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
 import { ETAPAS_ACAO } from '../constants.js';
+import { getSession } from '../session.js';
+import { can, A } from '../permissions.js';
 
 const ACAO_STATUS = ['Pendente', 'Em Andamento', 'Concluída'];
 
@@ -20,6 +22,15 @@ const PIPELINE_STEPS = [
   { key: 'Verificação de Eficácia', label: 'Verif. Eficácia', color: '#14b8a6' },
   { key: 'Encerrada',               label: 'Encerrada',       color: '#22c55e' },
 ];
+
+function canEditAcao(acao, session = getSession()) {
+  if (!session || !can(session, 'rnc', A.EDIT)) return false;
+  if (session.perfil === 'Executor') return acao?.responsavel === session.nome;
+  return true;
+}
+function canManageAcoes(session = getSession()) {
+  return can(session, 'rnc', A.MANAGE);
+}
 
 function miniPipeline(status) {
   const idx = PIPELINE_STEPS.findIndex(p => p.key === status);
@@ -553,7 +564,7 @@ function applyFiltros(acoes) {
   });
 }
 
-function renderAcoesTableBody(allAcoes) {
+function renderAcoesTableBody(allAcoes, session = getSession()) {
   const filtered  = applyFiltros(allAcoes);
   const hasFilter = acaoFiltros.busca || acaoFiltros.status || acaoFiltros.responsavel || acaoFiltros.rnc || acaoFiltros.etapa;
   const countLabel = hasFilter
@@ -573,6 +584,11 @@ function renderAcoesTableBody(allAcoes) {
             const etapaBadge = a.etapa
               ? `<span style="font-size:0.65rem;padding:1px 6px;border-radius:3px;background:${ec}18;color:${ec};font-weight:700;white-space:nowrap">${a.etapa}</span>`
               : '—';
+            const canEdit = canEditAcao(a, session);
+            const canDel  = canManageAcoes(session);
+            const editBtn = canEdit ? `<button class="btn btn-secondary btn-sm" data-action="edit-acao" data-id="${a.id}" title="Editar">✏</button>` : '';
+            const delBtn  = canDel  ? `<button class="btn btn-danger btn-sm" data-action="delete-acao" data-id="${a.id}" title="Excluir">🗑</button>` : '';
+            const acoesCel = (canEdit || canDel) ? `<div class="td-actions">${editBtn}${delBtn}</div>` : '—';
             return `<tr>
               <td><strong>${a.rncNumero}</strong></td>
               <td>${etapaBadge}</td>
@@ -581,12 +597,7 @@ function renderAcoesTableBody(allAcoes) {
               <td>${deadlineCell(a.prazo)}</td>
               <td>${statusPill(a.status)}</td>
               <td>${a.dataConclusao ? formatDate(a.dataConclusao) : '—'}</td>
-              <td>
-                <div class="td-actions">
-                  <button class="btn btn-secondary btn-sm" data-action="edit-acao" data-id="${a.id}" title="Editar">✏</button>
-                  <button class="btn btn-danger btn-sm" data-action="delete-acao" data-id="${a.id}" title="Excluir">🗑</button>
-                </div>
-              </td>
+              <td>${acoesCel}</td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -635,6 +646,7 @@ function renderPrazos(rncs) {
 }
 
 function renderAcoesPrazos() {
+  const session  = getSession();
   const allAcoes = db.get('rncAcoes');
   const rncs     = db.get('rnc');
 
@@ -646,10 +658,10 @@ function renderAcoesPrazos() {
     <div class="card" style="margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <span style="font-weight:600;font-size:0.9rem">Ações</span>
-        <button class="btn btn-primary btn-sm" data-action="new-acao">+ Nova Ação</button>
+        ${canManageAcoes(session) ? `<button class="btn btn-primary btn-sm" data-action="new-acao">+ Nova Ação</button>` : ''}
       </div>
       ${renderFiltrosBar(allAcoes)}
-      <div id="acoes-table-wrap">${renderAcoesTableBody(allAcoes)}</div>
+      <div id="acoes-table-wrap">${renderAcoesTableBody(allAcoes, session)}</div>
     </div>
     <div class="card">
       <div style="font-weight:600;margin-bottom:12px;font-size:0.9rem">Prazos de Finalização</div>
@@ -738,6 +750,7 @@ export default {
       }
 
       if (action === 'new-acao') {
+        if (!canManageAcoes()) return;
         const rncs = db.get('rnc');
         openModal({
           title: 'Nova Ação de RNC',
@@ -760,7 +773,7 @@ export default {
 
       if (action === 'edit-acao') {
         const record = db.getById('rncAcoes', numId);
-        if (!record) return;
+        if (!record || !canEditAcao(record)) return;
         const rncs   = db.get('rnc');
         const fields = fieldsAcao(rncs).filter(f => f.id !== 'rncRef');
         openModal({
@@ -776,6 +789,7 @@ export default {
       }
 
       if (action === 'delete-acao') {
+        if (!canManageAcoes()) return;
         showConfirm('Deseja excluir esta ação?').then(ok => {
           if (!ok) return;
           db.remove('rncAcoes', numId);
@@ -801,7 +815,7 @@ export default {
       _searchTimer = setTimeout(() => {
         acaoFiltros.busca = e.target.value;
         const wrap = container.querySelector('#acoes-table-wrap');
-        if (wrap) wrap.innerHTML = renderAcoesTableBody(db.get('rncAcoes'));
+        if (wrap) wrap.innerHTML = renderAcoesTableBody(db.get('rncAcoes'), getSession());
       }, 280);
     });
   },
