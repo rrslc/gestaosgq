@@ -33,6 +33,12 @@ function collectFormData(fields) {
   const data = {};
   const errors = [];
   for (const f of fields) {
+    if (f.type === 'heading') continue;
+    if (f.type === 'acoes-table') {
+      const el = document.getElementById('field-' + f.id);
+      try { data[f.id] = JSON.parse(el?.value || '[]'); } catch { data[f.id] = []; }
+      continue;
+    }
     if (f.type === 'checkboxgroup') {
       const checked = Array.from(
         document.querySelectorAll(`input[name="field-${f.id}"]:checked`)
@@ -62,12 +68,59 @@ function buildField(field, data) {
   let input = '';
 
   switch (field.type) {
-    case 'select':
-      input = `<select id="field-${field.id}" ${field.required ? 'required' : ''}>
+    case 'heading':
+      return `<div class="form-group span-2" style="padding:8px 0 4px;border-bottom:2px solid var(--border);margin-top:8px;display:flex;align-items:center;gap:10px;grid-column:1/-1">
+        <span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:${field.locked ? 'var(--muted)' : 'var(--blue,#3b82f6)'}">${field.label}</span>
+        ${field.locked ? '<span style="font-size:0.62rem;background:var(--border);color:var(--muted);padding:1px 7px;border-radius:10px">🔒 concluída</span>' : ''}
+      </div>`;
+    case 'acoes-table': {
+      let rows;
+      try { rows = val ? (Array.isArray(val) ? val : JSON.parse(val)) : []; } catch { rows = []; }
+      while (rows.length < 3) rows.push({});
+      const ro = !!field.readonly;
+      const b  = 'border:1px solid var(--border);padding:2px';
+      const si = `width:100%;border:none;background:transparent;padding:3px 5px;font-size:0.82rem${ro ? ';color:var(--muted)' : ''}`;
+      const sit = ['', 'Pendente', 'Em andamento', 'Concluída'];
+      const mkRow = (r, i) => `<tr>
+        <td style="${b};text-align:center;font-size:0.78rem;color:var(--muted)">${i + 1}</td>
+        <td style="${b}"><input type="text"  data-row="${i}" data-col="descricao"   value="${(r.descricao||'').replace(/"/g,'&quot;')}"   style="${si}" placeholder="Descreva a ação..." ${ro?'readonly':''}></td>
+        <td style="${b}"><input type="text"  data-row="${i}" data-col="responsavel" value="${(r.responsavel||'').replace(/"/g,'&quot;')}" style="${si}" ${ro?'readonly':''}></td>
+        <td style="${b}"><input type="date"  data-row="${i}" data-col="prazo"       value="${r.prazo||''}"        style="${si}" ${ro?'readonly':''}></td>
+        <td style="${b}"><select data-row="${i}" data-col="situacao" style="width:100%;border:none;background:transparent;padding:3px 2px;font-size:0.82rem${ro?';pointer-events:none;color:var(--muted)':''}">
+          ${sit.map(v => `<option value="${v}"${(r.situacao||'')=== v?' selected':''}>${v||'—'}</option>`).join('')}
+        </select></td>
+      </tr>`;
+      return `
+        <div class="form-group span-2">
+          <label>${field.label}${field.required ? ' <span style="color:var(--red)">*</span>' : ''}</label>
+          <input type="hidden" id="field-${field.id}">
+          <div data-acoes-table="field-${field.id}" style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;min-width:480px">
+              <thead><tr style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.04em;background:var(--surface,var(--bg))">
+                <th style="width:24px;${b};text-align:center;color:var(--muted);font-weight:600">Nº</th>
+                <th style="${b};padding:5px 8px;font-weight:600">Ação / Descrição</th>
+                <th style="width:130px;${b};padding:5px 8px;font-weight:600">Responsável</th>
+                <th style="width:108px;${b};padding:5px 8px;font-weight:600">Prazo</th>
+                <th style="width:108px;${b};padding:5px 8px;font-weight:600">Situação</th>
+              </tr></thead>
+              <tbody id="field-${field.id}-tbody">
+                ${rows.map((r, i) => mkRow(r, i)).join('')}
+              </tbody>
+            </table>
+            ${!ro ? `<button type="button" data-add-row style="margin-top:6px;font-size:0.72rem;color:var(--blue,#3b82f6);background:none;border:1px solid currentColor;border-radius:4px;padding:2px 9px;cursor:pointer">＋ linha</button>` : ''}
+          </div>
+        </div>`;
+    }
+    case 'select': {
+      const roAttrs = field.readonly
+        ? 'style="pointer-events:none;background:var(--bg);color:var(--muted);cursor:default" tabindex="-1"'
+        : '';
+      input = `<select id="field-${field.id}" ${field.required ? 'required' : ''} ${roAttrs}>
         <option value="">Selecione...</option>
         ${selectOptions(field.options ?? [], val)}
       </select>`;
       break;
+    }
     case 'checkboxgroup': {
       const selected = Array.isArray(val) ? val
         : (val ? String(val).split(',').map(s => s.trim()).filter(Boolean) : []);
@@ -81,7 +134,7 @@ function buildField(field, data) {
       break;
     }
     case 'textarea':
-      input = `<textarea id="field-${field.id}" rows="3" ${field.required ? 'required' : ''}>${val}</textarea>`;
+      input = `<textarea id="field-${field.id}" rows="3" ${field.required ? 'required' : ''} ${field.readonly ? 'readonly style="background:var(--bg);color:var(--muted);cursor:default"' : ''}>${val}</textarea>`;
       break;
     case 'number':
       input = `<input type="number" id="field-${field.id}" value="${val}"
@@ -107,7 +160,7 @@ function buildField(field, data) {
  * Abre um modal de formulário dinâmico.
  * @param {{ title: string, fields: Array, data: Object, onSave: function }} opts
  */
-export function openModal({ title, fields, data = {}, onSave }) {
+export function openModal({ title, fields, data = {}, onSave, setup }) {
   const o = getOverlay();
 
   const formRows = fields.map(f => buildField(f, data)).join('');
@@ -132,6 +185,44 @@ export function openModal({ title, fields, data = {}, onSave }) {
   `;
 
   o.style.display = 'flex';
+
+  // Callback de setup personalizado (ex: auto-calc de campos)
+  setup?.(o.querySelector('#modal-form'));
+
+  // Inicializa e sincroniza tabelas de ações imediatas
+  o.querySelectorAll('[data-acoes-table]').forEach(wrap => {
+    const hidId  = wrap.dataset.acoesTable;
+    const hidden = document.getElementById(hidId);
+    const sync = () => {
+      const map = {};
+      wrap.querySelectorAll('[data-row][data-col]').forEach(el => {
+        const i = el.dataset.row;
+        if (!map[i]) map[i] = {};
+        map[i][el.dataset.col] = el.value;
+      });
+      hidden.value = JSON.stringify(Object.values(map));
+    };
+    sync();
+    wrap.addEventListener('input',  sync);
+    wrap.addEventListener('change', sync);
+    wrap.querySelector('[data-add-row]')?.addEventListener('click', () => {
+      const tbody = wrap.querySelector('tbody');
+      const i     = tbody.rows.length;
+      const b     = 'border:1px solid var(--border);padding:2px';
+      const s     = 'width:100%;border:none;background:transparent;padding:3px 5px;font-size:0.82rem';
+      const tr    = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="${b};text-align:center;font-size:0.78rem;color:var(--muted)">${i + 1}</td>
+        <td style="${b}"><input type="text"  data-row="${i}" data-col="descricao"   style="${s}" placeholder="Descreva a ação..."></td>
+        <td style="${b}"><input type="text"  data-row="${i}" data-col="responsavel" style="${s}"></td>
+        <td style="${b}"><input type="date"  data-row="${i}" data-col="prazo"       style="${s}"></td>
+        <td style="${b}"><select data-row="${i}" data-col="situacao" style="width:100%;border:none;background:transparent;padding:3px 2px;font-size:0.82rem">
+          <option value="">—</option><option>Pendente</option><option>Em andamento</option><option>Concluída</option>
+        </select></td>`;
+      tbody.appendChild(tr);
+      sync();
+    });
+  });
 
   o.querySelector('.modal-close').addEventListener('click', closeModal);
   o.querySelector('[data-modal-action="cancel"]').addEventListener('click', closeModal);

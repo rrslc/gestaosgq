@@ -10,7 +10,7 @@
 
 import { STORE_KEY } from './constants.js';
 
-const COLLECTIONS = ['equipe', 'capa', 'capaAcoes', 'rnc', 'rncAcoes', 'fornecedores', 'tecno', 'validacoes', 'gcm', 'gcmAcoes', 'risco', 'pragas', 'obrigacoes', 'documentos', 'solicitacoes', 'perfis', 'trilha', 'reservatorio', 'residuos', 'microbiologico', 'limpezaMensal', 'gembaWalk', 'orcamentosAnuais', 'docsAdmin'];
+const COLLECTIONS = ['equipe', 'capa', 'capaAcoes', 'rnc', 'rncAcoes', 'fornecedores', 'tecno', 'validacoes', 'gcm', 'gcmAcoes', 'risco', 'pragas', 'obrigacoes', 'documentos', 'solicitacoes', 'perfis', 'trilha', 'reservatorio', 'residuos', 'microbiologico', 'limpezaMensal', 'gembaWalk', 'orcamentosAnuais', 'docsAdmin', 'reclamacoes', 'auditorias', 'assistenciaTecnica', 'revisaoGerencialAtas', 'projetos'];
 
 class Database {
   /** @type {Record<string, Array>} cache em memória */
@@ -312,16 +312,63 @@ class Database {
         { id: 5, capaId: 3, capaNumero: 'CAPA.003/26', acao: 'Re-treinamento de operadores da linha de embalagem', responsavel: 'Mariana Santos', prazo: '2026-07-15', status: 'Concluída', evidencia: 'Registro de treinamento TRN-2026-018', dataConclusao: '2026-07-14', etapa: 'Ação' },
       ],
       rnc: [
-        { id: 1, numero: 'RNC-2026-001', descricao: 'Cateter venoso central lote LVC-0512 — falha em teste de estanqueidade', produto: 'Cateter Venoso Central 7Fr', responsavel: 'Mariana Santos', dataAbertura: '2026-06-10', prazoFinalizacao: '2026-07-10', area: 'Produção', origem: 'Produto', status: 'Em Tratamento', classificacao: 'Maior', necessitaCapa: 'Sim', capaAberta: true },
-        { id: 2, numero: 'RNC-2026-002', descricao: 'Eletrodo descartável — embalagem primária com selagem incompleta', produto: 'Eletrodo ECG Descartável', responsavel: 'Fernanda Oliveira', dataAbertura: '2026-06-15', prazoFinalizacao: '2026-07-31', area: 'Produção', origem: 'Processo', status: 'Em Análise', classificacao: 'Maior', necessitaCapa: 'Em Avaliação', capaAberta: false },
-        { id: 3, numero: 'RNC-2026-003', descricao: 'Luva estéril — rótulo com data de fabricação ilegível lote LG-0601', produto: 'Luva Cirúrgica Estéril', responsavel: 'Fernanda Oliveira', dataAbertura: '2026-06-20', prazoFinalizacao: '2026-07-20', area: 'GQ', origem: 'Produto', status: 'Aberta', classificacao: 'Menor', necessitaCapa: 'Não', capaAberta: false },
+        {
+          id: 1, numero: 'RNC.001/26',
+          descricao: 'Cateter venoso central lote LVC-0512 — falha em teste de estanqueidade',
+          produto: 'Cateter Venoso Central 7Fr', responsavel: 'Mariana Santos',
+          dataAbertura: '2026-06-10', prazoFinalizacao: '2026-07-25',
+          prazoInvestigacao: '2026-06-25',
+          area: 'Produção', tipo: 'Produto',
+          abrangencia: 'Lote LVC-0512 — 250 unidades retidas em quarentena',
+          recorrencia: 'Não', probabilidade: 'Alta', severidade: 'Alta', classificacaoRisco: 'Crítica',
+          procedente: 'Sim', classificacao: 'Maior',
+          equipeInvestigacao: 'Mariana Santos, Fernanda Oliveira',
+          fontesInformacao: 'Laudos de CQ, registros de produção, histórico de calibração',
+          ferramentasInvestigacao: '5 Porquês',
+          porques: '1. Falha na selagem? Temperatura irregular\n2. Por quê? Controlador descalibrado\n3. Por quê? PM atrasado\n4. Por quê? Sem alerta de vencimento\n5. Por quê? Sistema sem notificação automática',
+          resumoInvestigacao: 'Investigação identificou desvio de calibração no controlador de temperatura da seladora principal, resultando em ciclos de selagem abaixo da temperatura especificada.',
+          causaRaiz: 'Controlador de temperatura descalibrado por atraso no plano de manutenção preventiva — ausência de alerta automático de vencimento de PM.',
+          disposicao: 'Rejeição',
+          necessitaCapa: 'Sim', capaAberta: true,
+          status: 'Em Plano de Ação',
+        },
+        {
+          id: 2, numero: 'RNC.002/26',
+          descricao: 'Eletrodo descartável — embalagem primária com selagem incompleta',
+          produto: 'Eletrodo ECG Descartável', responsavel: 'Fernanda Oliveira',
+          dataAbertura: '2026-06-15', prazoFinalizacao: '2026-08-15',
+          prazoInvestigacao: '2026-07-01',
+          area: 'Produção', tipo: 'Material de Embalagem',
+          abrangencia: 'Lote ELD-P-0610 — 500 unidades inspecionadas',
+          recorrencia: 'Não', probabilidade: 'Média', severidade: 'Alta', classificacaoRisco: 'Crítica',
+          procedente: 'Sim', classificacao: 'Maior',
+          equipeInvestigacao: 'Fernanda Oliveira',
+          fontesInformacao: '',
+          ferramentasInvestigacao: '5 Porquês',
+          porques: '', resumoInvestigacao: '', causaRaiz: '',
+          disposicao: 'Retrabalho',
+          necessitaCapa: 'Em Avaliação', capaAberta: false,
+          status: 'Em Investigação',
+        },
+        {
+          id: 3, numero: 'RNC.003/26',
+          descricao: 'Luva estéril — rótulo com data de fabricação ilegível lote LG-0601',
+          produto: 'Luva Cirúrgica Estéril', responsavel: 'Fernanda Oliveira',
+          dataAbertura: '2026-06-20', prazoFinalizacao: '2026-07-20',
+          area: 'GQ', tipo: 'Material de Embalagem',
+          abrangencia: 'Lote LG-0601 — 300 caixas com rótulo ilegível',
+          recorrencia: 'Não', probabilidade: 'Baixa', severidade: 'Média', classificacaoRisco: 'Menor',
+          procedente: 'Sim', classificacao: 'Menor',
+          necessitaCapa: 'Não', capaAberta: false,
+          status: 'Em Avaliação',
+        },
       ],
       rncAcoes: [
-        { id: 1, rncId: 1, rncNumero: 'RNC-2026-001', acao: 'Segregação e quarentena do lote LVC-0512', responsavel: 'Mariana Santos', prazo: '2026-06-12', status: 'Concluída', evidencia: 'Registro de quarentena QUA-2026-001', dataConclusao: '2026-06-11', etapa: 'Ação Imediata' },
-        { id: 2, rncId: 1, rncNumero: 'RNC-2026-001', acao: 'Análise de causa raiz — falha em teste de estanqueidade', responsavel: 'Mariana Santos', prazo: '2026-06-25', status: 'Concluída', evidencia: 'Relatório de análise RAC-2026-001', dataConclusao: '2026-06-24', etapa: 'Ação' },
-        { id: 3, rncId: 2, rncNumero: 'RNC-2026-002', acao: 'Inspeção 100% das embalagens do lote — selagem incompleta', responsavel: 'Fernanda Oliveira', prazo: '2026-06-20', status: 'Concluída', evidencia: 'Laudo INS-2026-008', dataConclusao: '2026-06-19', etapa: 'Ação Imediata' },
-        { id: 4, rncId: 2, rncNumero: 'RNC-2026-002', acao: 'Revisão do parâmetro de selagem e ajuste de processo', responsavel: 'Fernanda Oliveira', prazo: '2026-07-15', status: 'Em Andamento', evidencia: '', dataConclusao: '', etapa: 'Ação' },
-        { id: 5, rncId: 3, rncNumero: 'RNC-2026-003', acao: 'Reimpressão e substituição de rótulos do lote LG-0601', responsavel: 'Fernanda Oliveira', prazo: '2026-06-25', status: 'Pendente', evidencia: '', dataConclusao: '', etapa: 'Ação Imediata' },
+        { id: 1, rncId: 1, rncNumero: 'RNC.001/26', acao: 'Segregação e quarentena do lote LVC-0512', responsavel: 'Mariana Santos', prazo: '2026-06-12', status: 'Concluída', evidencia: 'Registro de quarentena QUA-2026-001', dataConclusao: '2026-06-11', etapa: 'Ação Imediata' },
+        { id: 2, rncId: 1, rncNumero: 'RNC.001/26', acao: 'Análise de causa raiz — falha em teste de estanqueidade (5 Porquês)', responsavel: 'Mariana Santos', prazo: '2026-06-25', status: 'Concluída', evidencia: 'Relatório de análise RAC-2026-001', dataConclusao: '2026-06-24', etapa: 'Ação' },
+        { id: 3, rncId: 2, rncNumero: 'RNC.002/26', acao: 'Inspeção 100% das embalagens do lote — selagem incompleta', responsavel: 'Fernanda Oliveira', prazo: '2026-06-20', status: 'Concluída', evidencia: 'Laudo INS-2026-008', dataConclusao: '2026-06-19', etapa: 'Ação Imediata' },
+        { id: 4, rncId: 2, rncNumero: 'RNC.002/26', acao: 'Revisão do parâmetro de selagem e ajuste de processo', responsavel: 'Fernanda Oliveira', prazo: '2026-07-15', status: 'Em Andamento', evidencia: '', dataConclusao: '', etapa: 'Ação' },
+        { id: 5, rncId: 3, rncNumero: 'RNC.003/26', acao: 'Reimpressão e substituição de rótulos do lote LG-0601', responsavel: 'Fernanda Oliveira', prazo: '2026-06-25', status: 'Pendente', evidencia: '', dataConclusao: '', etapa: 'Ação Imediata' },
       ],
       fornecedores: [
         { id: 1, nome: 'Polímeros Técnicos SA', cnpj: '45.678.901/0001-23', categoria: 'Matéria-Prima', criticidade: 'Crítico', status: 'Qualificado', validade: '2027-03-15', responsavel: 'Fernanda Oliveira' },
@@ -451,6 +498,11 @@ class Database {
         { id: 10, descricao: 'Licença Ambiental Unificada (LU)',                dataEmissao: '2025-12-02', dataValidade: '2027-12-02', prazoAntecedenciaDias: 120, renovacaoPeriodo: '2 anos',       orgao: 'INEMA — Instituto do Meio Ambiente e Recursos Hídricos/BA', renovacaoAutomatica: false, observacao: 'CONAMA 237/97, Art. 18, § único: o requerimento de renovação deverá ser protocolado com antecedência mínima de 120 dias antes do vencimento, sob pena de suspensão das atividades.', link: '', legislacaoBase: 'CONAMA 237/1997 — Art. 18, § único', checklistRenovacao: ['Protocolar requerimento de renovação no INEMA via sistema SEI (obrigatório mín. 120 dias antes)','Elaborar e anexar Relatório de Monitoramento Ambiental do período vigente','Pagar taxa de renovação de licença ambiental (DAE/INEMA)','Obter ART do responsável técnico ambiental','Apresentar planta de situação atualizada e memorial descritivo das atividades','Comprovar destinação adequada de resíduos sólidos e efluentes (laudos/contratos)','Aguardar vistoria do INEMA nas instalações (se solicitada)','Responder eventuais condicionantes ou exigências do INEMA','Aguardar emissão da nova Licença Ambiental Unificada'] },
         { id: 11, descricao: 'Certidão da Polícia Civil',                      dataEmissao: '2026-01-13', dataValidade: '2027-01-15', prazoAntecedenciaDias: 30,  renovacaoPeriodo: '1 ano',        orgao: 'Polícia Civil da Bahia — FISPROCEM',                renovacaoAutomatica: false, observacao: 'Enviar documentação nos 30 dias anteriores ao vencimento para renovação do cadastro.\nContato: fisprocem.cfpc@pcivil.ba.gov.br\nTel: (71) 3116-6417 | WhatsApp: (71) 9637-8211', link: '', legislacaoBase: 'Portaria FISPROCEM / Polícia Civil da Bahia', checklistRenovacao: ['Enviar e-mail para fisprocem.cfpc@pcivil.ba.gov.br solicitando renovação','Anexar CNPJ atualizado da empresa','Anexar contrato social atualizado e RG/CPF dos sócios','Anexar comprovante de endereço da empresa','Pagar taxa de renovação (se aplicável) e incluir comprovante','Confirmar recebimento com a FISPROCEM: (71) 3116-6417 ou WhatsApp (71) 9637-8211','Aguardar emissão e retirada da nova Certidão'] },
       ],
+      reclamacoes: [],
+      auditorias: [],
+      assistenciaTecnica: [],
+      revisaoGerencialAtas: [],
+      projetos: [],
     };
   }
 

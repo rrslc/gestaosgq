@@ -6,7 +6,7 @@ export const STORE_KEY = 'sgq_data_v1';
 
 export const STATUS = Object.freeze({
   CAPA: ['Aberta', 'Em Investigação', 'Em Plano de Ação', 'Em Verificação de Eficácia', 'Encerrada', 'Não Procedente'],
-  RNC: ['Aberta', 'Em Análise', 'Em Tratamento', 'Verificação de Eficácia', 'Encerrada', 'Cancelada'],
+  RNC: ['Aberta', 'Em Avaliação', 'Em Investigação', 'Em Plano de Ação', 'Verificação de Eficácia', 'Encerrada', 'Não Procedente', 'Cancelada'],
   FORN: ['Qualificado', 'Em Qualificação', 'Suspenso', 'Desqualificado'],
   TECNO: ['Aberto', 'Em Investigação', 'Notificado ANVISA', 'Concluído', 'Cancelado'],
   VAL: ['Planejada', 'Em Execução', 'Em Revalidação', 'Qualificado/Validado', 'Não Qualificado/Não Validado', 'Reprovada', 'Descontinuado', 'Cancelada'],
@@ -15,6 +15,11 @@ export const STATUS = Object.freeze({
   PRAGA: ['Agendado', 'Realizado', 'Pendente Laudo', 'Concluído', 'Vencido'],
   OBR:   ['Em Dia', 'A Vencer', 'Vencido', 'Suspenso'],
   DOC:   ['Em Elaboração', 'Em Revisão', 'Em Aprovação', 'Em Homologação', 'Vigente', 'A Vencer', 'Vencido', 'Cancelado', 'Suspenso'],
+  RECLAM: ['Aberta', 'Em Investigação', 'Aguardando Retorno', 'Concluída', 'Cancelada'],
+  AUDIT:  ['Planejada', 'Em Execução', 'Concluída', 'Cancelada'],
+  AT:     ['Aberta', 'Em Análise', 'Em Reparo', 'Aguardando Peça', 'Concluída', 'Cancelada'],
+  PROJ:   ['Planejamento', 'Desenvolvimento', 'Verificação', 'Validação', 'Liberado', 'Cancelado'],
+  ATIV:   ['Pendente', 'Em Andamento', 'Concluído', 'N/A'],
 });
 
 export const ORIGENS_CAPA = Object.freeze([
@@ -23,6 +28,20 @@ export const ORIGENS_CAPA = Object.freeze([
 
 export const ORIGENS_RNC = Object.freeze([
   'Produto', 'Auditorias', 'Reclamação', 'Processo', 'Outros',
+]);
+
+export const TIPOS_NC = Object.freeze([
+  'Matéria-prima', 'Produto', 'Material de Embalagem', 'Processos',
+  'Equipamento', 'Documento', 'Reclamação de Cliente', 'Outros',
+]);
+
+export const FERRAMENTAS_INVEST = Object.freeze([
+  '5 Porquês', 'Diagrama de Ishikawa', 'Brainstorming',
+  'Análise de Pareto', 'Histograma', 'MASP', 'Outra',
+]);
+
+export const DISPOSICOES_NC = Object.freeze([
+  'Retrabalho', 'Concessão', 'Rejeição', 'Não aplicável',
 ]);
 
 export const ETAPAS_ACAO = Object.freeze([
@@ -54,30 +73,38 @@ export const CLASSIFICACOES_RNC = Object.freeze(['Crítica', 'Maior', 'Menor', '
 export const IMPACTOS = Object.freeze(['Alto', 'Médio', 'Baixo']);
 
 export const ROUTES = Object.freeze({
-  DASHBOARD:      'dashboard',
-  CAPA_GERENCIAL: 'capaGerencial',
-  CAPA_ABERTURA:  'capaAbertura',
-  RNC:            'rnc',
-  FORNECEDORES: 'fornecedores',
-  TECNOVIG:     'tecnovig',
-  VALIDACOES:   'validacoes',
-  GCM:          'gcm',
-  GCM_GERENCIAL:'gcmGerencial',
-  GCM_ABERTURA: 'gcmAbertura',
-  RNC_GERENCIAL:'rncGerencial',
-  RNC_ABERTURA: 'rncAbertura',
-  RISCO:        'risco',
-  PRAGAS:       'pragas',
-  EQUIPE:       'equipe',
-  CRONOGRAMA:   'cronograma',
-  CALENDARIO:   'calendario',
-  AGENDA:       'agenda',
-  OBRIGACOES:   'obrigacoes',
-  DOCUMENTOS:     'documentos',
-  ELABORACAO:     'elaboracao',
-  MONITORAMENTO:  'monitoramento',
-  PERMISSOES:   'permissoes',
-  CONFIGURACOES:'configuracoes',
+  DASHBOARD:         'dashboard',
+  CAPA_GERENCIAL:    'capaGerencial',
+  CAPA_ABERTURA:     'capaAbertura',
+  RNC:               'rnc',
+  FORNECEDORES:      'fornecedores',
+  TECNOVIG:          'tecnovig',
+  VALIDACOES:        'validacoes',
+  GCM:               'gcm',
+  GCM_GERENCIAL:     'gcmGerencial',
+  GCM_ABERTURA:      'gcmAbertura',
+  RNC_GERENCIAL:     'rncGerencial',
+  RNC_ABERTURA:      'rncAbertura',
+  RISCO:             'risco',
+  PRAGAS:            'pragas',
+  EQUIPE:            'equipe',
+  CRONOGRAMA:        'cronograma',
+  CALENDARIO:        'calendario',
+  AGENDA:            'agenda',
+  OBRIGACOES:        'obrigacoes',
+  DOCUMENTOS:        'documentos',
+  ELABORACAO:        'elaboracao',
+  MONITORAMENTO:     'monitoramento',
+  PERMISSOES:        'permissoes',
+  CONFIGURACOES:     'configuracoes',
+  RECLAM_GERENCIAL:  'reclamacoesGerencial',
+  RECLAM_ABERTURA:   'reclamacoesAbertura',
+  AUDIT_PLANO:       'auditoriasPlano',
+  AUDIT_EXEC:        'auditoriasExec',
+  ASSIST_TEC:        'assistenciaTecnica',
+  REVISAO_GER:       'revisaoGerencial',
+  PROJ_GERENCIAL:    'projetosGerencial',
+  PROJ_ABERTURA:     'projetosAbertura',
 });
 
 export const PILL_MAP = Object.freeze({
@@ -92,6 +119,7 @@ export const PILL_MAP = Object.freeze({
   'Concluída':                    'pill-green',
   'Cancelada':                    'pill-gray',
   'Em Análise':                   'pill-purple',
+  'Em Avaliação':                 'pill-purple',
   'Em Tratamento':                'pill-blue',
   'Verificação de Eficácia':      'pill-amber',
   'Encerrada':                    'pill-green',
@@ -140,6 +168,15 @@ export const PILL_MAP = Object.freeze({
   'Crítico':                      'pill-red',
   'Maior':                        'pill-amber',
   'Menor':                        'pill-blue',
+  'Aguardando Retorno':           'pill-amber',
+  'Em Reparo':                    'pill-blue',
+  'Aguardando Peça':              'pill-amber',
+  'Aprovado':                     'pill-green',
+  'Aprovado com Ressalvas':       'pill-amber',
+  'Reprovado':                    'pill-red',
+  'Procedente':                   'pill-red',
+  'Não Procedente':               'pill-gray',
+  'Parcialmente Procedente':      'pill-amber',
   'default':                      'pill-gray',
 });
 
@@ -158,21 +195,26 @@ export const PERFIS = Object.freeze([
 
 /** Módulos do sistema para a matriz de permissões. */
 export const MODULOS_PERM = Object.freeze([
-  { key: 'dashboard',     label: 'Dashboard' },
-  { key: 'agenda',        label: 'Agenda GQ' },
-  { key: 'capa',          label: 'CAPA' },
-  { key: 'rnc',           label: 'RNC' },
-  { key: 'fornecedores',  label: 'Fornecedores' },
-  { key: 'tecnovig',      label: 'Tecnovigilância' },
-  { key: 'validacoes',    label: 'Validações' },
-  { key: 'gcm',           label: 'Controle de Mudanças' },
-  { key: 'risco',         label: 'Análise de Risco' },
-  { key: 'pragas',        label: 'Controle de Pragas' },
-  { key: 'obrigacoes',    label: 'Obrig. Regulatórias' },
-  { key: 'documentos',    label: 'Controle de Docs.' },
-  { key: 'equipe',        label: 'Equipe' },
-  { key: 'permissoes',    label: 'Permissões' },
-  { key: 'configuracoes', label: 'Configurações' },
+  { key: 'dashboard',         label: 'Dashboard' },
+  { key: 'agenda',            label: 'Agenda GQ' },
+  { key: 'capa',              label: 'CAPA' },
+  { key: 'rnc',               label: 'RNC' },
+  { key: 'reclamacoes',       label: 'Reclamações' },
+  { key: 'auditorias',        label: 'Auditorias' },
+  { key: 'fornecedores',      label: 'Fornecedores' },
+  { key: 'tecnovig',          label: 'Tecnovigilância' },
+  { key: 'validacoes',        label: 'Validações' },
+  { key: 'assistenciaTec',    label: 'Assistência Técnica' },
+  { key: 'gcm',               label: 'Controle de Mudanças' },
+  { key: 'risco',             label: 'Análise de Risco' },
+  { key: 'revisaoGerencial',  label: 'Revisão Gerencial' },
+  { key: 'projetos',          label: 'Projetos (GQ/Regulatório)' },
+  { key: 'pragas',            label: 'Controle de Pragas' },
+  { key: 'obrigacoes',        label: 'Obrig. Regulatórias' },
+  { key: 'documentos',        label: 'Controle de Docs.' },
+  { key: 'equipe',            label: 'Equipe' },
+  { key: 'permissoes',        label: 'Permissões' },
+  { key: 'configuracoes',     label: 'Configurações' },
 ]);
 
 /** Tipos de operação disponíveis na matriz de permissões. */

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__visualize__show_widget",
+      "PowerShell($p3 = Get-Command python3 -ErrorAction SilentlyContinue; if \\($p3\\) { $p3.Source } else { \"not found\" }; $py = Get-Command py -ErrorAction SilentlyContinue; if \\($py\\) { $py.Source } else { \"not found\" }; $npx = Get-Command npx -ErrorAction SilentlyContinue; if \\($npx\\) { $npx.Source } else { \"not found\" })",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(git init *)",
+      "Bash(mkdir \"C:\\\\Users\\\\raissa.caldas\\\\Raissa\\\\gestaosgq\\\\api\" && mkdir \"C:\\\\Users\\\\raissa.caldas\\\\Raissa\\\\gestaosgq\\\\api\\\\_lib\" && mkdir \"C:\\\\Users\\\\raissa.caldas\\\\Raissa\\\\gestaosgq\\\\api\\\\[collection]\" && echo done)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)"
+    ]
+  }
+}

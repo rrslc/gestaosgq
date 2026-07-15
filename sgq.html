@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SGQ — Dispositivos Médicos</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0d1b4b;--blue:#1a3a8c;--blue-light:#2d5be3;--accent:#00b4d8;
+  --green:#00897b;--amber:#f59e0b;--red:#dc2626;--purple:#7c3aed;
+  --bg:#f0f4ff;--surface:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;
+  --sidebar-w:220px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:13px;display:flex;min-height:100vh}
+
+/* SIDEBAR */
+#sidebar{width:var(--sidebar-w);background:var(--navy);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100}
+#sidebar .logo{padding:18px 16px 12px;border-bottom:1px solid rgba(255,255,255,.1)}
+#sidebar .logo h1{font-size:13px;font-weight:700;line-height:1.3}
+#sidebar .logo span{font-size:10px;color:rgba(255,255,255,.5)}
+#sidebar nav{flex:1;padding:8px 0}
+.nav-section{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35);padding:12px 16px 4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;color:rgba(255,255,255,.7);font-size:12px;font-weight:500;transition:.15s;border-left:3px solid transparent}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:rgba(255,255,255,.12);color:#fff;border-left-color:var(--accent)}
+.nav-item .icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px}
+.nav-badge.amber{background:var(--amber)}
+.nav-badge.green{background:var(--green)}
+#sidebar .footer{padding:12px 16px;border-top:1px solid rgba(255,255,255,.1);font-size:10px;color:rgba(255,255,255,.4)}
+
+/* MAIN */
+#main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar h2{font-size:15px;font-weight:700;color:var(--navy)}
+.topbar .actions{display:flex;gap:8px;align-items:center}
+.content{padding:20px 24px;flex:1}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:.15s}
+.btn-primary{background:var(--blue-light);color:#fff}
+.btn-primary:hover{background:var(--blue)}
+.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--bg)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-icon{padding:6px;border-radius:6px;background:transparent;border:1px solid var(--border);cursor:pointer;font-size:13px;color:var(--muted)}
+.btn-icon:hover{background:var(--bg)}
+
+/* CARDS */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.kpi{background:var(--surface);border-radius:10px;padding:14px;border-left:4px solid var(--border)}
+.kpi.red{border-left-color:var(--red)}.kpi.amber{border-left-color:var(--amber)}.kpi.green{border-left-color:var(--green)}.kpi.blue{border-left-color:var(--blue-light)}.kpi.purple{border-left-color:var(--purple)}
+.kpi-num{font-size:28px;font-weight:800;line-height:1}
+.kpi-label{font-size:10px;color:var(--muted);font-weight:600;margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:4px}
+
+.card{background:var(--surface);border-radius:10px;border:1px solid var(--border);margin-bottom:16px}
+.card-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-title{font-size:13px;font-weight:700}
+.card-body{padding:16px}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{background:var(--bg);padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);text-align:left;border-bottom:2px solid var(--border)}
+td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg)}
+
+/* PILLS */
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+.pill-red{background:#fee2e2;color:#991b1b}
+.pill-amber{background:#fef3c7;color:#92400e}
+.pill-green{background:#d1fae5;color:#065f46}
+.pill-blue{background:#dbeafe;color:#1e40af}
+.pill-purple{background:#ede9fe;color:#5b21b6}
+.pill-gray{background:#f1f5f9;color:#475569}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:12px;width:560px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:14px;font-weight:700}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.close-btn{background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);line-height:1}
+
+/* FORM */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-row.single{grid-template-columns:1fr}
+.form-group{display:flex;flex-direction:column;gap:4px}
+label{font-size:11px;font-weight:600;color:var(--muted)}
+input,select,textarea{border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);background:#fff;font-family:inherit;transition:.15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue-light);box-shadow:0 0 0 3px rgba(45,91,227,.1)}
+textarea{resize:vertical;min-height:70px}
+
+/* PROGRESS BAR */
+.progress-wrap{background:#e2e8f0;border-radius:4px;height:6px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;transition:.3s}
+
+/* GANTT simples */
+.gantt-row{display:grid;grid-template-columns:200px 80px 80px 1fr 80px;gap:0;border-bottom:1px solid var(--border);align-items:center}
+.gantt-row.header{background:var(--bg);font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted)}
+.gantt-cell{padding:8px 10px;font-size:11px}
+.gantt-bar-wrap{position:relative;height:20px;background:#e2e8f0;border-radius:4px;overflow:visible}
+.gantt-bar{position:absolute;top:0;height:100%;border-radius:4px;min-width:4px}
+.today-line{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--red);z-index:5}
+
+/* CALENDAR */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-head{text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);padding:4px 0}
+.cal-day{min-height:70px;border:1px solid var(--border);border-radius:4px;padding:4px;background:#fff}
+.cal-day.today{border-color:var(--blue-light);background:#eff6ff}
+.cal-day.other-month{background:var(--bg);opacity:.5}
+.cal-num{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:2px}
+.cal-event{font-size:9px;padding:1px 4px;border-radius:3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.ev-red{background:#fee2e2;color:#991b1b}
+.ev-amber{background:#fef3c7;color:#92400e}
+.ev-blue{background:#dbeafe;color:#1e40af}
+.ev-green{background:#d1fae5;color:#065f46}
+.ev-purple{background:#ede9fe;color:#5b21b6}
+
+/* TEAM CARDS */
+.team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.team-card{background:var(--surface);border-radius:10px;border:1px solid var(--border);padding:16px}
+.team-avatar{width:38px;height:38px;border-radius:50%;background:var(--blue-light);color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.team-name{font-size:13px;font-weight:700}
+.team-role{font-size:10px;color:var(--muted);margin-bottom:10px}
+.task-list-mini .t-item{display:flex;align-items:flex-start;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px}
+.task-list-mini .t-item:last-child{border-bottom:none}
+.t-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:3px}
+.t-due{font-size:9px;color:var(--muted);white-space:nowrap;margin-left:auto;padding-left:4px}
+.t-due.late{color:var(--red);font-weight:700}
+.workload-row{margin-top:10px}
+.workload-label{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px}
+
+/* SEARCH + FILTER */
+.filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.search-input{border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;width:200px}
+.search-input:focus{outline:none;border-color:var(--blue-light)}
+
+/* SECTIONS */
+.section{display:none}
+.section.active{display:block}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty-state .icon{font-size:36px;margin-bottom:8px}
+.empty-state p{font-size:12px;margin-bottom:12px}
+
+/* PRINT */
+@media print{#sidebar{display:none}#main{margin-left:0}.topbar .actions{display:none}}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="logo">
+    <h1>SGQ · Dispositivos Médicos</h1>
+    <span>GA & AR · ANVISA</span>
+  </div>
+  <nav>
+    <div class="nav-section">Painel</div>
+    <div class="nav-item active" onclick="show('dashboard')"><span class="icon">📊</span>Dashboard</div>
+    <div class="nav-item" onclick="show('cronograma')"><span class="icon">📅</span>Cronograma</div>
+    <div class="nav-item" onclick="show('calendario')"><span class="icon">🗓️</span>Calendário</div>
+
+    <div class="nav-section">SGQ</div>
+    <div class="nav-item" onclick="show('capa')" id="nav-capa"><span class="icon">🔴</span>CAPA<span class="nav-badge" id="badge-capa">0</span></div>
+    <div class="nav-item" onclick="show('rnc')" id="nav-rnc"><span class="icon">🟠</span>RNC<span class="nav-badge amber" id="badge-rnc">0</span></div>
+    <div class="nav-item" onclick="show('fornecedores')"><span class="icon">🏭</span>Fornecedores</div>
+    <div class="nav-item" onclick="show('tecnovig')"><span class="icon">⚠️</span>REC / Tecnovigilância</div>
+    <div class="nav-item" onclick="show('validacoes')"><span class="icon">🧪</span>Qualificações & Validações</div>
+    <div class="nav-item" onclick="show('gcm')"><span class="icon">🔄</span>Controle de Mudanças</div>
+    <div class="nav-item" onclick="show('risco')"><span class="icon">🛡️</span>Gerenciamento de Risco</div>
+    <div class="nav-item" onclick="show('pragas')"><span class="icon">🐛</span>Controle de Pragas</div>
+
+    <div class="nav-section">Equipe</div>
+    <div class="nav-item" onclick="show('equipe')"><span class="icon">👥</span>Colaboradoras</div>
+    <div class="nav-item" onclick="show('config')"><span class="icon">⚙️</span>Configurações</div>
+  </nav>
+  <div class="footer">v1.0 · SGQ ANVISA</div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div class="topbar">
+    <h2 id="page-title">Dashboard</h2>
+    <div class="actions">
+      <button class="btn btn-secondary btn-sm" onclick="exportData()">⬇ Exportar</button>
+      <button class="btn btn-secondary btn-sm" onclick="importData()">⬆ Importar</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="doImport(event)">
+      <span id="topbar-date" style="font-size:11px;color:var(--muted)"></span>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="section active" id="sec-dashboard">
+      <div class="kpi-row" id="kpi-row"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-header"><span class="card-title">CAPAs — visão rápida</span><button class="btn btn-sm btn-primary" onclick="show('capa')">Ver todas</button></div>
+          <div class="card-body" id="dash-capa"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">RNCs — visão rápida</span><button class="btn btn-sm btn-primary" onclick="show('rnc')">Ver todas</button></div>
+          <div class="card-body" id="dash-rnc"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Próximas entregas (30 dias)</span></div>
+          <div class="card-body" id="dash-upcoming"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Carga por colaboradora</span></div>
+          <div class="card-body" id="dash-workload"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAPA -->
+    <div class="section" id="sec-capa">
+      <div class="filter-bar">
+        <input class="search-input" placeholder="Buscar CAPA..." oninput="renderCapa(this.value)">
+        <select id="capa-status-filter" onchange="renderCapa()" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px">
+          <option value="">Todos os status</option>
+          <option>Aberta</option><option>Em andamento</option><option>Aguardando verificação</option><option>Encerrada</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModal('capa')">+ Nova CAPA</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Nº</th><th>Descrição</th><th>Origem</th><th>Resp.</th><th>Prazo</th><th>Status</th><th>%</th><th></th></tr></thead>
+          <tbody id="capa-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- RNC -->
+    <div class="section" id="sec-rnc">
+      <div class="filter-bar">
+        <input class="search-input" placeholder="Buscar RNC..." oninput="renderRnc(this.value)">
+        <select id="rnc-status-filter" onchange="renderRnc()" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px">
+          <option value="">Todos os status</option>
+          <option>Aberta</option><option>Em análise</option><option>Aguardando disposição</option><option>Encerrada</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModal('rnc')">+ Nova RNC</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Nº</th><th>Descrição</th><th>Produto/Processo</th><th>Resp.</th><th>Data abertura</th><th>Status</th><th>Classificação</th><th></th></tr></thead>
+          <tbody id="rnc-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- FORNECEDORES -->
+    <div class="section" id="sec-fornecedores">
+      <div class="filter-bar">
+        <input class="search-input" placeholder="Buscar fornecedor..." oninput="renderForn(this.value)">
+        <button class="btn btn-primary" onclick="openModal('forn')">+ Novo Fornecedor</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Fornecedor</th><th>CNPJ</th><th>Categoria</th><th>Criticidade</th><th>Status</th><th>Validade Qualif.</th><th>Resp.</th><th></th></tr></thead>
+          <tbody id="forn-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- TECNOVIGILÂNCIA / REC -->
+    <div class="section" id="sec-tecnovig">
+      <div class="filter-bar">
+        <input class="search-input" placeholder="Buscar REC..." oninput="renderTecno(this.value)">
+        <select id="tecno-tipo-filter" onchange="renderTecno()" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px">
+          <option value="">Todos os tipos</option>
+          <option>Queixa/Reclamação</option><option>Evento adverso</option><option>Notificação ANVISA</option><option>Recall</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModal('tecno')">+ Novo REC</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Nº</th><th>Tipo</th><th>Produto</th><th>Descrição</th><th>Data</th><th>Prazo ANVISA</th><th>Status</th><th></th></tr></thead>
+          <tbody id="tecno-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- VALIDAÇÕES -->
+    <div class="section" id="sec-validacoes">
+      <div class="filter-bar">
+        <input class="search-input" placeholder="Buscar validação..." oninput="renderVal(this.value)">
+        <select id="val-tipo-filter" onchange="renderVal()" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px">
+          <option value="">Todos os tipos</option>
+          <option>Qualificação de Equipamento</option><option>Validação de Processo</option><option>Validação de Método</option><option>Validação de Limpeza</option><option>Qualificação de Utilidades</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModal('val')">+ Nova Qualificação/Validação</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Nº</th><th>Tipo</th><th>Descrição</th><th>Fase</th><th>Resp.</th><th>Prazo</th><th>Status</th><th>%</th><th></th></tr></thead>
+          <tbody id="val-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- GCM -->
+    <div class="section" id="sec-gcm">
+      <div class="filter-bar">
+        <input class="search-input" placeholder="Buscar mudança..." oninput="renderGcm(this.value)">
+        <button class="btn btn-primary" onclick="openModal('gcm')">+ Nova Mudança</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Nº</th><th>Descrição da Mudança</th><th>Categoria</th><th>Solicitante</th><th>Data</th><th>Status</th><th>Impacto</th><th></th></tr></thead>
+          <tbody id="gcm-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- RISCO -->
+    <div class="section" id="sec-risco">
+      <div class="filter-bar">
+        <input class="search-input" placeholder="Buscar risco..." oninput="renderRisco(this.value)">
+        <button class="btn btn-primary" onclick="openModal('risco')">+ Novo Risco</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>ID</th><th>Produto/Processo</th><th>Perigo</th><th>Situação</th><th>S</th><th>P</th><th>RPN</th><th>Controle</th><th>Status</th><th></th></tr></thead>
+          <tbody id="risco-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- PRAGAS -->
+    <div class="section" id="sec-pragas">
+      <div class="filter-bar">
+        <input class="search-input" placeholder="Buscar..." oninput="renderPragas(this.value)">
+        <button class="btn btn-primary" onclick="openModal('praga')">+ Novo Monitoramento</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Nº</th><th>Área</th><th>Empresa prestadora</th><th>Tipo serviço</th><th>Data realização</th><th>Próxima visita</th><th>Status</th><th></th></tr></thead>
+          <tbody id="pragas-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- EQUIPE -->
+    <div class="section" id="sec-equipe">
+      <div class="filter-bar">
+        <button class="btn btn-primary" onclick="openModal('colab')">+ Nova Colaboradora</button>
+      </div>
+      <div class="team-grid" id="team-grid"></div>
+    </div>
+
+    <!-- CRONOGRAMA (GANTT) -->
+    <div class="section" id="sec-cronograma">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Cronograma Geral — todos os módulos</span></div>
+        <div class="card-body" id="gantt-body-wrap" style="overflow-x:auto;padding:0"></div>
+      </div>
+    </div>
+
+    <!-- CALENDÁRIO -->
+    <div class="section" id="sec-calendario">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title" id="cal-title"></span>
+          <div style="display:flex;gap:8px">
+            <button class="btn-icon" onclick="changeMonth(-1)">‹</button>
+            <button class="btn-icon" onclick="changeMonth(1)">›</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="cal-grid" id="cal-heads"></div>
+          <div class="cal-grid" id="cal-body" style="gap:4px;margin-top:4px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIG -->
+    <div class="section" id="sec-config">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Configurações da empresa</span></div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group"><label>Nome da empresa</label><input id="cfg-empresa" placeholder="Ex.: MedDev Ltda."></div>
+            <div class="form-group"><label>CNPJ</label><input id="cfg-cnpj" placeholder="00.000.000/0001-00"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>AFE ANVISA</label><input id="cfg-afe" placeholder="Nº AFE"></div>
+            <div class="form-group"><label>Classes de produtos</label><input id="cfg-classes" placeholder="Classe I, II, III, IV"></div>
+          </div>
+          <div class="form-row single">
+            <div class="form-group"><label>Observações / escopo do SGQ</label><textarea id="cfg-obs" rows="3"></textarea></div>
+          </div>
+          <button class="btn btn-primary" onclick="saveConfig()">Salvar configurações</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- MODAL UNIVERSAL -->
+<div class="overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Título</span>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="modal-save" onclick="saveModal()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// DATA LAYER
+// ═══════════════════════════════════════════════════════
+const STORE_KEY = 'sgq_data_v1';
+let DB = load();
+
+function load(){
+  try{return JSON.parse(localStorage.getItem(STORE_KEY))||defaultData()}
+  catch(e){return defaultData()}
+}
+function save(){localStorage.setItem(STORE_KEY,JSON.stringify(DB))}
+
+function defaultData(){
+  return{
+    config:{empresa:'',cnpj:'',afe:'',classes:'Classe I, II, III e IV',obs:''},
+    colaboradoras:[
+      {id:1,nome:'Raissa',iniciais:'RC',cargo:'Gestora QA & AR',areas:['CAPA','Validações','Auditoria','GCM'],cor:'#2d5be3'},
+      {id:2,nome:'Colaboradora 2',iniciais:'C2',cargo:'Analista de Qualidade',areas:['RNC','CAPA','Fornecedores'],cor:'#00897b'},
+      {id:3,nome:'Colaboradora 3',iniciais:'C3',cargo:'Analista de Qualidade',areas:['Fornecedores','Pragas','RNC'],cor:'#7c3aed'},
+    ],
+    capas:[
+      {id:1,numero:'CAPA-2024-001',descricao:'Desvio de processo na esterilização — lote 240312',origem:'RNC',responsavel:'Raissa',prazo:'2026-06-30',status:'Em andamento',progresso:75,causa:'Falha em parâmetro de ciclo',acao:'Revisão do protocolo e requalificação do autoclave'},
+      {id:2,numero:'CAPA-2025-001',descricao:'Produto fora de especificação dimensional',origem:'Auditoria interna',responsavel:'Colaboradora 2',prazo:'2026-06-20',status:'Aberta',progresso:30,causa:'',acao:''},
+      {id:3,numero:'CAPA-2025-003',descricao:'Falha em barreira de contaminação — sala limpa',origem:'Tecnovigilância',responsavel:'Raissa',prazo:'2026-07-15',status:'Em andamento',progresso:50,causa:'',acao:''},
+    ],
+    rncs:[
+      {id:1,numero:'RNC-2026-001',descricao:'Matéria-prima reprovada no recebimento',produto:'Revestimento A',responsavel:'Colaboradora 3',dataAbertura:'2026-05-10',status:'Em análise',classificacao:'Crítica'},
+      {id:2,numero:'RNC-2026-002',descricao:'Falha de rotulagem — ausência de lote',produto:'Produto classe II',responsavel:'Colaboradora 2',dataAbertura:'2026-05-28',status:'Aguardando disposição',classificacao:'Maior'},
+      {id:3,numero:'RNC-2026-003',descricao:'Desvio de temperatura durante transporte',produto:'Produto estéril classe III',responsavel:'Raissa',dataAbertura:'2026-06-01',status:'Aberta',classificacao:'Crítica'},
+    ],
+    fornecedores:[
+      {id:1,nome:'Fornecedor Alpha',cnpj:'11.222.333/0001-44',categoria:'Matéria-prima crítica',criticidade:'Crítico',status:'Qualificado',validade:'2026-12-31',responsavel:'Colaboradora 3'},
+      {id:2,nome:'Fornecedor Beta',cnpj:'55.666.777/0001-88',categoria:'Embalagem primária',criticidade:'Crítico',status:'Em qualificação',validade:'',responsavel:'Colaboradora 3'},
+      {id:3,nome:'Fornecedor Gama',cnpj:'99.000.111/0001-22',categoria:'Serviço de esterilização',criticidade:'Crítico',status:'Qualificado',validade:'2026-09-30',responsavel:'Raissa'},
+    ],
+    tecno:[
+      {id:1,numero:'REC-2026-001',tipo:'Queixa/Reclamação',produto:'Produto classe II',descricao:'Relato de falha de vedação por usuário',data:'2026-05-15',prazoAnvisa:'2026-07-15',status:'Em investigação'},
+      {id:2,numero:'REC-2026-002',tipo:'Evento adverso',produto:'Produto estéril classe III',descricao:'Reação adversa relatada — investigando causalidade',data:'2026-06-01',prazoAnvisa:'2026-06-30',status:'Aguardando laudo'},
+    ],
+    validacoes:[
+      {id:1,numero:'VAL-2026-001',tipo:'Validação de Limpeza',descricao:'Validação de limpeza — sala limpa ISO 7',fase:'DQ/IQ em andamento',responsavel:'Raissa',prazo:'2026-07-15',status:'Em andamento',progresso:45},
+      {id:2,numero:'VAL-2026-002',tipo:'Qualificação de Equipamento',descricao:'Requalificação do autoclave 02',fase:'OQ concluída — PQ pendente',responsavel:'Colaboradora 2',prazo:'2026-08-30',status:'Em andamento',progresso:60},
+      {id:3,numero:'VAL-2026-003',tipo:'Validação de Processo',descricao:'Validação de processo de montagem — produto classe IV',fase:'Planejamento',responsavel:'Raissa',prazo:'2026-10-31',status:'Planejada',progresso:10},
+    ],
+    gcms:[
+      {id:1,numero:'GCM-2026-001',descricao:'Alteração de fornecedor de embalagem primária',categoria:'Fornecedor',solicitante:'Colaboradora 3',data:'2026-05-20',status:'Em análise',impacto:'Alto'},
+      {id:2,numero:'GCM-2026-002',descricao:'Atualização de parâmetro de processo — soldagem',categoria:'Processo',solicitante:'Produção',data:'2026-06-05',status:'Aprovada',impacto:'Médio'},
+      {id:3,numero:'GCM-2026-003',descricao:'Atualização de POP-QA-012',categoria:'Documento',solicitante:'Raissa',data:'2026-06-10',status:'Em análise',impacto:'Baixo'},
+    ],
+    riscos:[
+      {id:1,produto:'Produto estéril classe III',perigo:'Contaminação microbiológica',situacao:'Falha de barreira de sala limpa',severidade:5,probabilidade:2,rpn:10,controle:'Monitoramento ambiental mensal + BPF',status:'Aceitável'},
+      {id:2,produto:'Produto classe IV',perigo:'Falha de biocompatibilidade',situacao:'Troca de material componente',severidade:5,probabilidade:1,rpn:5,controle:'Teste de biocompatibilidade ISO 10993',status:'Aceitável'},
+    ],
+    pragas:[
+      {id:1,numero:'CPP-2026-001',area:'Toda a planta + sala limpa',empresa:'Dedetizadora XYZ',tipo:'Desinsetização + desratização',dataRealizacao:'2026-04-15',proximaVisita:'2026-07-15',status:'Em dia'},
+      {id:2,numero:'CPP-2026-002',area:'Área de armazenamento',empresa:'Dedetizadora XYZ',tipo:'Monitoramento de iscas',dataRealizacao:'2026-06-01',proximaVisita:'2026-07-01',status:'Em dia'},
+    ]
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+const titles={dashboard:'Dashboard',capa:'CAPA — Ações Corretivas e Preventivas',rnc:'RNC — Não Conformidades',fornecedores:'Qualificação de Fornecedores',tecnovig:'REC / Tecnovigilância',validacoes:'Qualificações & Validações',gcm:'Controle de Mudanças (GCM)',risco:'Gerenciamento de Risco',pragas:'Controle de Pragas',equipe:'Equipe — Colaboradoras',cronograma:'Cronograma Geral',calendario:'Calendário de Atividades',config:'Configurações'};
+
+function show(id){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  const ni=document.querySelector(`.nav-item[onclick="show('${id}')"]`);
+  if(ni)ni.classList.add('active');
+  document.getElementById('page-title').textContent=titles[id]||id;
+  renders[id]&&renders[id]();
+}
+
+const renders={
+  dashboard:renderDashboard,capa:renderCapa,rnc:renderRnc,
+  fornecedores:renderForn,tecnovig:renderTecno,validacoes:renderVal,
+  gcm:renderGcm,risco:renderRisco,pragas:renderPragas,
+  equipe:renderEquipe,cronograma:renderGantt,calendario:()=>renderCal(),config:loadConfig
+};
+
+// ═══════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════
+function today(){return new Date().toISOString().slice(0,10)}
+function fmtDate(d){if(!d)return'—';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`}
+function daysLeft(d){if(!d)return null;return Math.ceil((new Date(d)-new Date(today()))/(86400000))}
+function statusPill(s){
+  const map={'Aberta':'red','Em andamento':'amber','Em análise':'amber','Encerrada':'green','Qualificado':'green','Em qualificação':'blue','Aprovada':'green','Planejada':'blue','Em investigação':'amber','Aguardando laudo':'amber','Aguardando disposição':'amber','Aguardando verificação':'blue','Em dia':'green','Aceitável':'green','Atrasada':'red'};
+  return`<span class="pill pill-${map[s]||'gray'}">${s}</span>`;
+}
+function impactPill(v){
+  const map={'Alto':'red','Médio':'amber','Baixo':'green','Crítico':'red','Maior':'amber','Menor':'blue'};
+  return`<span class="pill pill-${map[v]||'gray'}">${v}</span>`;
+}
+function progressBar(p,color){
+  color=color||(p>=80?'#dc2626':p>=50?'#f59e0b':'#00897b');
+  return`<div style="display:flex;align-items:center;gap:6px"><div class="progress-wrap" style="flex:1"><div class="progress-fill" style="width:${p}%;background:${color}"></div></div><span style="font-size:10px;color:var(--muted);width:28px">${p}%</span></div>`;
+}
+function deadlineCell(d){
+  const dl=daysLeft(d);
+  if(dl===null)return'—';
+  if(dl<0)return`<span style="color:var(--red);font-weight:700">${fmtDate(d)} <span class="pill pill-red">ATRASADA</span></span>`;
+  if(dl<=7)return`<span style="color:var(--red);font-weight:700">${fmtDate(d)} <span class="pill pill-red">${dl}d</span></span>`;
+  if(dl<=30)return`<span style="color:#92400e;font-weight:600">${fmtDate(d)} <span class="pill pill-amber">${dl}d</span></span>`;
+  return fmtDate(d);
+}
+function nextId(arr){return arr.length?Math.max(...arr.map(x=>x.id))+1:1}
+function emptyRow(cols,msg){return`<tr><td colspan="${cols}" style="text-align:center;padding:24px;color:var(--muted)">${msg}</td></tr>`}
+
+// ═══════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════
+function renderDashboard(){
+  const capasOpen=DB.capas.filter(c=>c.status!=='Encerrada');
+  const capasLate=capasOpen.filter(c=>daysLeft(c.prazo)<0);
+  const capasUrgent=capasOpen.filter(c=>{const d=daysLeft(c.prazo);return d>=0&&d<=7});
+  const rncsOpen=DB.rncs.filter(r=>r.status!=='Encerrada');
+  const fornQ=DB.fornecedores.filter(f=>f.status==='Qualificado').length;
+  const fornPct=DB.fornecedores.length?Math.round(fornQ/DB.fornecedores.length*100):0;
+  const valCurso=DB.validacoes.filter(v=>v.status==='Em andamento').length;
+
+  document.getElementById('kpi-row').innerHTML=`
+    <div class="kpi red"><div class="kpi-num">${capasOpen.length}</div><div class="kpi-label">CAPAs Abertas</div><div class="kpi-sub">${capasLate.length} atrasadas · ${capasUrgent.length} urgentes</div></div>
+    <div class="kpi amber"><div class="kpi-num">${rncsOpen.length}</div><div class="kpi-label">RNCs em andamento</div><div class="kpi-sub">${DB.rncs.filter(r=>r.classificacao==='Crítica').length} críticas</div></div>
+    <div class="kpi green"><div class="kpi-num">${fornPct}%</div><div class="kpi-label">Fornecedores qualificados</div><div class="kpi-sub">${fornQ} de ${DB.fornecedores.length}</div></div>
+    <div class="kpi blue"><div class="kpi-num">${valCurso}</div><div class="kpi-label">Qualif./Validações em curso</div><div class="kpi-sub">${DB.validacoes.length} total</div></div>
+    <div class="kpi purple"><div class="kpi-num">${DB.tecno.filter(t=>t.status!=='Encerrada').length}</div><div class="kpi-label">RECs em aberto</div><div class="kpi-sub">Tecnovigilância</div></div>
+  `;
+
+  // dash-capa
+  const capHtml=capasOpen.slice(0,4).map(c=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
+      <div><div style="font-size:11px;font-weight:600">${c.numero}</div><div style="font-size:10px;color:var(--muted)">${c.descricao.slice(0,45)}…</div></div>
+      <div style="text-align:right">${deadlineCell(c.prazo)}</div>
+    </div>`).join('')||'<div style="color:var(--muted);font-size:12px">Nenhuma CAPA aberta.</div>';
+  document.getElementById('dash-capa').innerHTML=capHtml;
+
+  // dash-rnc
+  const rncHtml=rncsOpen.slice(0,4).map(r=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
+      <div><div style="font-size:11px;font-weight:600">${r.numero}</div><div style="font-size:10px;color:var(--muted)">${r.descricao.slice(0,45)}…</div></div>
+      ${impactPill(r.classificacao)}
+    </div>`).join('')||'<div style="color:var(--muted);font-size:12px">Nenhuma RNC aberta.</div>';
+  document.getElementById('dash-rnc').innerHTML=rncHtml;
+
+  // upcoming
+  const all30=[];
+  DB.capas.filter(c=>c.status!=='Encerrada'&&c.prazo).forEach(c=>{const d=daysLeft(c.prazo);if(d!=null&&d>=0&&d<=30)all30.push({label:c.numero,desc:c.descricao,date:c.prazo,tipo:'CAPA',cor:'#dc2626'})});
+  DB.validacoes.filter(v=>v.status!=='Encerrada'&&v.prazo).forEach(v=>{const d=daysLeft(v.prazo);if(d!=null&&d>=0&&d<=30)all30.push({label:v.numero,desc:v.descricao,date:v.prazo,tipo:'VAL',cor:'#7c3aed'})});
+  DB.tecno.filter(t=>t.status!=='Encerrada'&&t.prazoAnvisa).forEach(t=>{const d=daysLeft(t.prazoAnvisa);if(d!=null&&d>=0&&d<=30)all30.push({label:t.numero,desc:t.descricao,date:t.prazoAnvisa,tipo:'REC',cor:'#f59e0b'})});
+  all30.sort((a,b)=>a.date.localeCompare(b.date));
+  document.getElementById('dash-upcoming').innerHTML=all30.slice(0,6).map(x=>`
+    <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span class="pill" style="background:${x.cor}22;color:${x.cor}">${x.tipo}</span>
+      <div style="flex:1;font-size:11px">${x.label} — ${x.desc.slice(0,35)}…</div>
+      <div style="font-size:10px;font-weight:700;color:${daysLeft(x.date)<=7?'var(--red)':'var(--muted)'}">${fmtDate(x.date)}</div>
+    </div>`).join('')||'<div style="color:var(--muted);font-size:12px">Nenhum prazo nos próximos 30 dias.</div>';
+
+  // workload
+  const wl=DB.colaboradoras.map(c=>{
+    const tasks=[
+      ...DB.capas.filter(x=>x.responsavel===c.nome&&x.status!=='Encerrada'),
+      ...DB.rncs.filter(x=>x.responsavel===c.nome&&x.status!=='Encerrada'),
+      ...DB.validacoes.filter(x=>x.responsavel===c.nome&&x.status!=='Encerrada'),
+    ];
+    const pct=Math.min(100,tasks.length*20);
+    const barC=pct>70?'var(--red)':pct>40?'var(--amber)':'var(--green)';
+    return`<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="font-weight:600">${c.nome}</span><span style="color:var(--muted)">${tasks.length} atividades</span></div>
+      <div class="progress-wrap"><div class="progress-fill" style="width:${pct}%;background:${barC}"></div></div>
+    </div>`;
+  }).join('');
+  document.getElementById('dash-workload').innerHTML=wl||'<div style="color:var(--muted);font-size:12px">Sem dados de equipe.</div>';
+
+  // badges sidebar
+  document.getElementById('badge-capa').textContent=capasOpen.length;
+  document.getElementById('badge-rnc').textContent=rncsOpen.length;
+}
+
+// ═══════════════════════════════════════════════════════
+// CAPA
+// ═══════════════════════════════════════════════════════
+function renderCapa(q){
+  const sf=document.getElementById('capa-status-filter')?.value||'';
+  q=q??document.querySelector('#sec-capa .search-input')?.value||'';
+  let list=DB.capas.filter(c=>{
+    const match=c.numero.toLowerCase().includes(q.toLowerCase())||c.descricao.toLowerCase().includes(q.toLowerCase());
+    const st=!sf||c.status===sf;
+    return match&&st;
+  });
+  const body=document.getElementById('capa-body');
+  if(!list.length){body.innerHTML=emptyRow(8,'Nenhuma CAPA encontrada.');return}
+  body.innerHTML=list.map(c=>`<tr>
+    <td style="font-weight:600;white-space:nowrap">${c.numero}</td>
+    <td style="max-width:220px">${c.descricao}</td>
+    <td>${c.origem||'—'}</td>
+    <td>${c.responsavel||'—'}</td>
+    <td>${deadlineCell(c.prazo)}</td>
+    <td>${statusPill(c.status)}</td>
+    <td style="min-width:100px">${progressBar(c.progresso||0)}</td>
+    <td><button class="btn-icon" onclick="openModal('capa',${c.id})" title="Editar">✏️</button> <button class="btn-icon" onclick="del('capas',${c.id},renderCapa)" title="Excluir">🗑️</button></td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// RNC
+// ═══════════════════════════════════════════════════════
+function renderRnc(q){
+  const sf=document.getElementById('rnc-status-filter')?.value||'';
+  q=q??document.querySelector('#sec-rnc .search-input')?.value||'';
+  let list=DB.rncs.filter(r=>{
+    const match=r.numero.toLowerCase().includes(q.toLowerCase())||r.descricao.toLowerCase().includes(q.toLowerCase());
+    return match&&(!sf||r.status===sf);
+  });
+  const body=document.getElementById('rnc-body');
+  if(!list.length){body.innerHTML=emptyRow(8,'Nenhuma RNC encontrada.');return}
+  body.innerHTML=list.map(r=>`<tr>
+    <td style="font-weight:600;white-space:nowrap">${r.numero}</td>
+    <td style="max-width:200px">${r.descricao}</td>
+    <td>${r.produto||'—'}</td>
+    <td>${r.responsavel||'—'}</td>
+    <td>${fmtDate(r.dataAbertura)}</td>
+    <td>${statusPill(r.status)}</td>
+    <td>${impactPill(r.classificacao)}</td>
+    <td><button class="btn-icon" onclick="openModal('rnc',${r.id})">✏️</button> <button class="btn-icon" onclick="del('rncs',${r.id},renderRnc)">🗑️</button></td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// FORNECEDORES
+// ═══════════════════════════════════════════════════════
+function renderForn(q){
+  q=q??'';
+  let list=DB.fornecedores.filter(f=>f.nome.toLowerCase().includes(q.toLowerCase())||f.categoria.toLowerCase().includes(q.toLowerCase()));
+  const body=document.getElementById('forn-body');
+  if(!list.length){body.innerHTML=emptyRow(8,'Nenhum fornecedor encontrado.');return}
+  body.innerHTML=list.map(f=>`<tr>
+    <td style="font-weight:600">${f.nome}</td>
+    <td>${f.cnpj||'—'}</td>
+    <td>${f.categoria||'—'}</td>
+    <td>${impactPill(f.criticidade)}</td>
+    <td>${statusPill(f.status)}</td>
+    <td>${deadlineCell(f.validade)}</td>
+    <td>${f.responsavel||'—'}</td>
+    <td><button class="btn-icon" onclick="openModal('forn',${f.id})">✏️</button> <button class="btn-icon" onclick="del('fornecedores',${f.id},renderForn)">🗑️</button></td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// TECNOVIGILÂNCIA
+// ═══════════════════════════════════════════════════════
+function renderTecno(q){
+  const tf=document.getElementById('tecno-tipo-filter')?.value||'';
+  q=q??document.querySelector('#sec-tecnovig .search-input')?.value||'';
+  let list=DB.tecno.filter(t=>{
+    const match=t.numero.toLowerCase().includes(q.toLowerCase())||t.descricao.toLowerCase().includes(q.toLowerCase());
+    return match&&(!tf||t.tipo===tf);
+  });
+  const body=document.getElementById('tecno-body');
+  if(!list.length){body.innerHTML=emptyRow(8,'Nenhum REC encontrado.');return}
+  body.innerHTML=list.map(t=>`<tr>
+    <td style="font-weight:600">${t.numero}</td>
+    <td>${t.tipo||'—'}</td>
+    <td>${t.produto||'—'}</td>
+    <td style="max-width:200px">${t.descricao}</td>
+    <td>${fmtDate(t.data)}</td>
+    <td>${deadlineCell(t.prazoAnvisa)}</td>
+    <td>${statusPill(t.status)}</td>
+    <td><button class="btn-icon" onclick="openModal('tecno',${t.id})">✏️</button> <button class="btn-icon" onclick="del('tecno',${t.id},renderTecno)">🗑️</button></td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// VALIDAÇÕES
+// ═══════════════════════════════════════════════════════
+function renderVal(q){
+  const tf=document.getElementById('val-tipo-filter')?.value||'';
+  q=q??document.querySelector('#sec-validacoes .search-input')?.value||'';
+  let list=DB.validacoes.filter(v=>{
+    const match=v.numero.toLowerCase().includes(q.toLowerCase())||v.descricao.toLowerCase().includes(q.toLowerCase());
+    return match&&(!tf||v.tipo===tf);
+  });
+  const body=document.getElementById('val-body');
+  if(!list.length){body.innerHTML=emptyRow(9,'Nenhuma qualificação/validação encontrada.');return}
+  body.innerHTML=list.map(v=>`<tr>
+    <td style="font-weight:600">${v.numero}</td>
+    <td><span class="pill pill-blue">${v.tipo}</span></td>
+    <td style="max-width:180px">${v.descricao}</td>
+    <td style="font-size:11px;color:var(--muted)">${v.fase||'—'}</td>
+    <td>${v.responsavel||'—'}</td>
+    <td>${deadlineCell(v.prazo)}</td>
+    <td>${statusPill(v.status)}</td>
+    <td style="min-width:100px">${progressBar(v.progresso||0)}</td>
+    <td><button class="btn-icon" onclick="openModal('val',${v.id})">✏️</button> <button class="btn-icon" onclick="del('validacoes',${v.id},renderVal)">🗑️</button></td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// GCM
+// ═══════════════════════════════════════════════════════
+function renderGcm(q){
+  q=q??'';
+  let list=DB.gcms.filter(g=>g.numero.toLowerCase().includes(q.toLowerCase())||g.descricao.toLowerCase().includes(q.toLowerCase()));
+  const body=document.getElementById('gcm-body');
+  if(!list.length){body.innerHTML=emptyRow(8,'Nenhuma mudança encontrada.');return}
+  body.innerHTML=list.map(g=>`<tr>
+    <td style="font-weight:600">${g.numero}</td>
+    <td style="max-width:200px">${g.descricao}</td>
+    <td>${g.categoria||'—'}</td>
+    <td>${g.solicitante||'—'}</td>
+    <td>${fmtDate(g.data)}</td>
+    <td>${statusPill(g.status)}</td>
+    <td>${impactPill(g.impacto)}</td>
+    <td><button class="btn-icon" onclick="openModal('gcm',${g.id})">✏️</button> <button class="btn-icon" onclick="del('gcms',${g.id},renderGcm)">🗑️</button></td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// RISCO
+// ═══════════════════════════════════════════════════════
+function renderRisco(q){
+  q=q??'';
+  let list=DB.riscos.filter(r=>r.produto.toLowerCase().includes(q.toLowerCase())||r.perigo.toLowerCase().includes(q.toLowerCase()));
+  const body=document.getElementById('risco-body');
+  if(!list.length){body.innerHTML=emptyRow(10,'Nenhum risco encontrado.');return}
+  body.innerHTML=list.map(r=>{
+    const rpnColor=r.rpn>=15?'var(--red)':r.rpn>=8?'var(--amber)':'var(--green)';
+    return`<tr>
+      <td style="font-weight:600">${r.id}</td>
+      <td>${r.produto}</td>
+      <td>${r.perigo}</td>
+      <td style="font-size:11px">${r.situacao}</td>
+      <td style="text-align:center;font-weight:700">${r.severidade}</td>
+      <td style="text-align:center;font-weight:700">${r.probabilidade}</td>
+      <td style="text-align:center;font-weight:700;color:${rpnColor}">${r.rpn}</td>
+      <td style="font-size:11px;max-width:180px">${r.controle}</td>
+      <td>${statusPill(r.status)}</td>
+      <td><button class="btn-icon" onclick="openModal('risco',${r.id})">✏️</button> <button class="btn-icon" onclick="del('riscos',${r.id},renderRisco)">🗑️</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// PRAGAS
+// ═══════════════════════════════════════════════════════
+function renderPragas(q){
+  q=q??'';
+  let list=DB.pragas.filter(p=>p.area.toLowerCase().includes(q.toLowerCase())||p.empresa.toLowerCase().includes(q.toLowerCase()));
+  const body=document.getElementById('pragas-body');
+  if(!list.length){body.innerHTML=emptyRow(8,'Nenhum registro encontrado.');return}
+  body.innerHTML=list.map(p=>`<tr>
+    <td style="font-weight:600">${p.numero}</td>
+    <td>${p.area}</td>
+    <td>${p.empresa}</td>
+    <td>${p.tipo}</td>
+    <td>${fmtDate(p.dataRealizacao)}</td>
+    <td>${deadlineCell(p.proximaVisita)}</td>
+    <td>${statusPill(p.status)}</td>
+    <td><button class="btn-icon" onclick="openModal('praga',${p.id})">✏️</button> <button class="btn-icon" onclick="del('pragas',${p.id},renderPragas)">🗑️</button></td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// EQUIPE
+// ═══════════════════════════════════════════════════════
+function renderEquipe(){
+  const grid=document.getElementById('team-grid');
+  const colabs=DB.colaboradoras;
+  if(!colabs.length){grid.innerHTML='<div class="empty-state"><div class="icon">👥</div><p>Nenhuma colaboradora cadastrada.</p><button class="btn btn-primary" onclick="openModal(\'colab\')">Adicionar</button></div>';return}
+  grid.innerHTML=colabs.map(c=>{
+    const tasks=[
+      ...DB.capas.filter(x=>x.responsavel===c.nome&&x.status!=='Encerrada').map(x=>({label:x.numero,desc:x.descricao,date:x.prazo,cor:'#dc2626'})),
+      ...DB.rncs.filter(x=>x.responsavel===c.nome&&x.status!=='Encerrada').map(x=>({label:x.numero,desc:x.descricao,date:x.dataAbertura,cor:'#f59e0b'})),
+      ...DB.validacoes.filter(x=>x.responsavel===c.nome&&x.status!=='Encerrada').map(x=>({label:x.numero,desc:x.descricao,date:x.prazo,cor:'#7c3aed'})),
+      ...DB.gcms.filter(x=>x.solicitante===c.nome&&x.status!=='Aprovada'&&x.status!=='Encerrada').map(x=>({label:x.numero,desc:x.descricao,date:x.data,cor:'#00897b'})),
+    ].slice(0,5);
+    const pct=Math.min(100,tasks.length*20);
+    const barC=pct>70?'#dc2626':pct>40?'#f59e0b':'#00897b';
+    return`<div class="team-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div class="team-avatar" style="background:${c.cor||'#2d5be3'}">${c.iniciais||c.nome[0]}</div>
+        <div><div class="team-name">${c.nome}</div><div class="team-role">${c.cargo||''}</div></div>
+        <button class="btn-icon btn-sm" style="margin-left:auto" onclick="openModal('colab',${c.id})">✏️</button>
+      </div>
+      <div class="task-list-mini">${tasks.map(t=>`<div class="t-item"><div class="t-dot" style="background:${t.cor}"></div><span style="flex:1">${t.label} — ${t.desc.slice(0,30)}…</span><span class="t-due${daysLeft(t.date)!=null&&daysLeft(t.date)<=7?' late':''}">${fmtDate(t.date)}</span></div>`).join('')||'<div style="color:var(--muted);font-size:11px">Sem atividades abertas</div>'}</div>
+      <div class="workload-row"><div class="workload-label"><span>Carga estimada</span><span>${pct}%</span></div><div class="progress-wrap"><div class="progress-fill" style="width:${pct}%;background:${barC}"></div></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// GANTT
+// ═══════════════════════════════════════════════════════
+function renderGantt(){
+  const wrap=document.getElementById('gantt-body-wrap');
+  const t=today();
+  const start=new Date(t.slice(0,7)+'-01');
+  const end=new Date(start.getFullYear(),start.getMonth()+3,0);
+  const totalDays=(end-start)/(86400000)+1;
+  const todayPct=Math.round((new Date(t)-start)/(86400000)/totalDays*100);
+
+  const items=[
+    ...DB.capas.filter(c=>c.status!=='Encerrada'&&c.prazo).map(c=>({label:c.numero,desc:c.descricao,end:c.prazo,resp:c.responsavel,tipo:'CAPA',cor:'#dc2626',pct:c.progresso||0,status:c.status})),
+    ...DB.validacoes.filter(v=>v.status!=='Encerrada'&&v.prazo).map(v=>({label:v.numero,desc:v.descricao,end:v.prazo,resp:v.responsavel,tipo:'VAL',cor:'#7c3aed',pct:v.progresso||0,status:v.status})),
+    ...DB.tecno.filter(x=>x.status!=='Encerrada'&&x.prazoAnvisa).map(x=>({label:x.numero,desc:x.descricao,end:x.prazoAnvisa,resp:'—',tipo:'REC',cor:'#f59e0b',pct:50,status:x.status})),
+    ...DB.pragas.filter(x=>x.proximaVisita).map(x=>({label:x.numero,desc:x.tipo,end:x.proximaVisita,resp:'—',tipo:'PRAGAS',cor:'#00897b',pct:0,status:x.status})),
+  ].sort((a,b)=>a.end.localeCompare(b.end));
+
+  if(!items.length){wrap.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted)">Sem atividades com prazo definido.</div>';return}
+
+  const mNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const m0=start.getMonth(),m1=(start.getMonth()+1)%12,m2=(start.getMonth()+2)%12;
+
+  wrap.innerHTML=`
+  <div style="padding:12px 16px;background:var(--bg);border-bottom:1px solid var(--border);display:grid;grid-template-columns:180px 50px 80px 1fr;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);gap:0">
+    <div style="padding:0 8px">Atividade</div><div style="padding:0 8px">Tipo</div><div style="padding:0 8px">Resp.</div>
+    <div style="position:relative;padding:0 8px">
+      <div style="display:flex;justify-content:space-between"><span>${mNames[m0]}</span><span>${mNames[m1]}</span><span>${mNames[m2]}</span></div>
+      <div class="today-line" style="left:${todayPct}%;top:0;bottom:-2px"></div>
+    </div>
+  </div>
+  ${items.map((item,i)=>{
+    const itemEnd=new Date(item.end);
+    const endPct=Math.min(100,Math.max(0,Math.round((itemEnd-start)/(86400000)/totalDays*100)));
+    const startPct=Math.max(0,endPct-Math.max(5,item.pct*endPct/100));
+    return`<div style="display:grid;grid-template-columns:180px 50px 80px 1fr;border-bottom:1px solid var(--border);align-items:center;background:${i%2?'var(--bg)':'#fff'}">
+      <div style="padding:8px;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${item.desc}">${item.label}</div>
+      <div style="padding:8px"><span class="pill" style="background:${item.cor}22;color:${item.cor}">${item.tipo}</span></div>
+      <div style="padding:8px;font-size:11px;color:var(--muted)">${item.resp}</div>
+      <div style="padding:8px;position:relative">
+        <div class="gantt-bar-wrap">
+          <div class="gantt-bar" style="left:${startPct}%;width:${endPct-startPct}%;background:${item.cor};opacity:.85"></div>
+          <div class="today-line" style="left:${todayPct}%"></div>
+        </div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px">${fmtDate(item.end)} · ${item.pct}%</div>
+      </div>
+    </div>`;
+  }).join('')}`;
+}
+
+// ═══════════════════════════════════════════════════════
+// CALENDÁRIO
+// ═══════════════════════════════════════════════════════
+let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
+function changeMonth(d){calMonth+=d;if(calMonth>11){calMonth=0;calYear++}if(calMonth<0){calMonth=11;calYear--}renderCal()}
+function renderCal(){
+  const mNames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  document.getElementById('cal-title').textContent=`${mNames[calMonth]} ${calYear}`;
+  const heads=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  document.getElementById('cal-heads').innerHTML=heads.map(h=>`<div class="cal-head">${h}</div>`).join('');
+
+  const first=new Date(calYear,calMonth,1).getDay();
+  const days=new Date(calYear,calMonth+1,0).getDate();
+  const todayStr=today();
+
+  // collect events
+  const eventsMap={};
+  const addEv=(date,label,cls)=>{if(!date)return;const k=date.slice(0,10);if(!eventsMap[k])eventsMap[k]=[];eventsMap[k].push({label,cls})};
+  DB.capas.forEach(c=>addEv(c.prazo,`${c.numero}`,'ev-red'));
+  DB.validacoes.forEach(v=>addEv(v.prazo,`${v.numero}`,'ev-purple'));
+  DB.tecno.forEach(t=>addEv(t.prazoAnvisa,`${t.numero}`,'ev-amber'));
+  DB.pragas.forEach(p=>addEv(p.proximaVisita,`${p.numero}`,'ev-green'));
+  DB.pragas.forEach(p=>addEv(p.dataRealizacao,`${p.numero} (realiz.)`,'ev-green'));
+
+  let cells='';
+  for(let i=0;i<first;i++) cells+=`<div class="cal-day other-month"></div>`;
+  for(let d=1;d<=days;d++){
+    const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=ds===todayStr;
+    const evs=eventsMap[ds]||[];
+    cells+=`<div class="cal-day${isToday?' today':''}">
+      <div class="cal-num">${d}</div>
+      ${evs.map(e=>`<div class="cal-event ${e.cls}" title="${e.label}">${e.label}</div>`).join('')}
+    </div>`;
+  }
+  document.getElementById('cal-body').innerHTML=cells;
+}
+
+// ═══════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════
+function loadConfig(){
+  const c=DB.config;
+  document.getElementById('cfg-empresa').value=c.empresa||'';
+  document.getElementById('cfg-cnpj').value=c.cnpj||'';
+  document.getElementById('cfg-afe').value=c.afe||'';
+  document.getElementById('cfg-classes').value=c.classes||'';
+  document.getElementById('cfg-obs').value=c.obs||'';
+}
+function saveConfig(){
+  DB.config={
+    empresa:document.getElementById('cfg-empresa').value,
+    cnpj:document.getElementById('cfg-cnpj').value,
+    afe:document.getElementById('cfg-afe').value,
+    classes:document.getElementById('cfg-classes').value,
+    obs:document.getElementById('cfg-obs').value
+  };
+  save();alert('Configurações salvas!');
+}
+
+// ═══════════════════════════════════════════════════════
+// DELETE
+// ═══════════════════════════════════════════════════════
+function del(collection,id,renderFn){
+  if(!confirm('Excluir este registro?'))return;
+  DB[collection]=DB[collection].filter(x=>x.id!==id);
+  save();renderFn();renderDashboard();
+}
+
+// ═══════════════════════════════════════════════════════
+// MODAL FORMS
+// ═══════════════════════════════════════════════════════
+let _modalType='',_modalId=null;
+const colabOptions=()=>DB.colaboradoras.map(c=>`<option>${c.nome}</option>`).join('');
+
+const forms={
+  capa:(d={})=>`
+    <div class="form-row">
+      <div class="form-group"><label>Número</label><input id="f-numero" value="${d.numero||''}"></div>
+      <div class="form-group"><label>Origem</label>
+        <select id="f-origem"><option ${d.origem==='RNC'?'selected':''}>RNC</option><option ${d.origem==='Auditoria interna'?'selected':''}>Auditoria interna</option><option ${d.origem==='Tecnovigilância'?'selected':''}>Tecnovigilância</option><option ${d.origem==='Reclamação de cliente'?'selected':''}>Reclamação de cliente</option><option ${d.origem==='Autoinspecção'?'selected':''}>Autoinspecção</option></select>
+      </div>
+    </div>
+    <div class="form-row single"><div class="form-group"><label>Descrição</label><textarea id="f-descricao">${d.descricao||''}</textarea></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Responsável</label><select id="f-responsavel">${colabOptions()}</select></div>
+      <div class="form-group"><label>Prazo</label><input id="f-prazo" type="date" value="${d.prazo||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Status</label>
+        <select id="f-status"><option>Aberta</option><option>Em andamento</option><option>Aguardando verificação</option><option>Encerrada</option></select>
+      </div>
+      <div class="form-group"><label>Progresso (%)</label><input id="f-progresso" type="number" min="0" max="100" value="${d.progresso||0}"></div>
+    </div>
+    <div class="form-row single"><div class="form-group"><label>Análise de causa raiz</label><textarea id="f-causa">${d.causa||''}</textarea></div></div>
+    <div class="form-row single"><div class="form-group"><label>Ação corretiva / preventiva</label><textarea id="f-acao">${d.acao||''}</textarea></div></div>`,
+
+  rnc:(d={})=>`
+    <div class="form-row">
+      <div class="form-group"><label>Número</label><input id="f-numero" value="${d.numero||''}"></div>
+      <div class="form-group"><label>Produto / Processo</label><input id="f-produto" value="${d.produto||''}"></div>
+    </div>
+    <div class="form-row single"><div class="form-group"><label>Descrição</label><textarea id="f-descricao">${d.descricao||''}</textarea></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Responsável</label><select id="f-responsavel">${colabOptions()}</select></div>
+      <div class="form-group"><label>Data de abertura</label><input id="f-dataAbertura" type="date" value="${d.dataAbertura||today()}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Status</label><select id="f-status"><option>Aberta</option><option>Em análise</option><option>Aguardando disposição</option><option>Encerrada</option></select></div>
+      <div class="form-group"><label>Classificação</label><select id="f-classificacao"><option>Crítica</option><option>Maior</option><option>Menor</option></select></div>
+    </div>`,
+
+  forn:(d={})=>`
+    <div class="form-row">
+      <div class="form-group"><label>Nome do fornecedor</label><input id="f-nome" value="${d.nome||''}"></div>
+      <div class="form-group"><label>CNPJ</label><input id="f-cnpj" value="${d.cnpj||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Categoria / produto fornecido</label><input id="f-categoria" value="${d.categoria||''}"></div>
+      <div class="form-group"><label>Criticidade</label><select id="f-criticidade"><option>Crítico</option><option>Maior</option><option>Menor</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Status</label><select id="f-status"><option>Qualificado</option><option>Em qualificação</option><option>Suspenso</option><option>Reprovado</option></select></div>
+      <div class="form-group"><label>Validade da qualificação</label><input id="f-validade" type="date" value="${d.validade||''}"></div>
+    </div>
+    <div class="form-row single"><div class="form-group"><label>Responsável</label><select id="f-responsavel">${colabOptions()}</select></div></div>`,
+
+  tecno:(d={})=>`
+    <div class="form-row">
+      <div class="form-group"><label>Número</label><input id="f-numero" value="${d.numero||''}"></div>
+      <div class="form-group"><label>Tipo</label><select id="f-tipo"><option>Queixa/Reclamação</option><option>Evento adverso</option><option>Notificação ANVISA</option><option>Recall</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Produto</label><input id="f-produto" value="${d.produto||''}"></div>
+      <div class="form-group"><label>Data da ocorrência</label><input id="f-data" type="date" value="${d.data||today()}"></div>
+    </div>
+    <div class="form-row single"><div class="form-group"><label>Descrição</label><textarea id="f-descricao">${d.descricao||''}</textarea></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Prazo notificação ANVISA</label><input id="f-prazoAnvisa" type="date" value="${d.prazoAnvisa||''}"></div>
+      <div class="form-group"><label>Status</label><select id="f-status"><option>Aberta</option><option>Em investigação</option><option>Aguardando laudo</option><option>Notificada ANVISA</option><option>Encerrada</option></select></div>
+    </div>`,
+
+  val:(d={})=>`
+    <div class="form-row">
+      <div class="form-group"><label>Número</label><input id="f-numero" value="${d.numero||''}"></div>
+      <div class="form-group"><label>Tipo</label><select id="f-tipo"><option>Qualificação de Equipamento</option><option>Validação de Processo</option><option>Validação de Método</option><option>Validação de Limpeza</option><option>Qualificação de Utilidades</option></select></div>
+    </div>
+    <div class="form-row single"><div class="form-group"><label>Descrição</label><textarea id="f-descricao">${d.descricao||''}</textarea></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Fase atual</label><input id="f-fase" value="${d.fase||''}"></div>
+      <div class="form-group"><label>Responsável</label><select id="f-responsavel">${colabOptions()}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Prazo conclusão</label><input id="f-prazo" type="date" value="${d.prazo||''}"></div>
+      <div class="form-group"><label>Status</label><select id="f-status"><option>Planejada</option><option>Em andamento</option><option>Encerrada</option></select></div>
+    </div>
+    <div class="form-row single"><div class="form-group"><label>Progresso (%)</label><input id="f-progresso" type="number" min="0" max="100" value="${d.progresso||0}"></div></div>`,
+
+  gcm:(d={})=>`
+    <div class="form-row">
+      <div class="form-group"><label>Número</label><input id="f-numero" value="${d.numero||''}"></div>
+      <div class="form-group"><label>Categoria</label><select id="f-categoria"><option>Processo</option><option>Produto</option><option>Equipamento</option><option>Fornecedor</option><option>Documento</option><option>Infraestrutura</option></select></div>
+    </div>
+    <div class="form-row single"><div class="form-group"><label>Descrição da mudança</label><textarea id="f-descricao">${d.descricao||''}</textarea></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Solicitante</label><input id="f-solicitante" value="${d.solicitante||''}"></div>
+      <div class="form-group"><label>Data</label><input id="f-data" type="date" value="${d.data||today()}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Status</label><select id="f-status"><option>Em análise</option><option>Aprovada</option><option>Reprovada</option><option>Implementada</option></select></div>
+      <div class="form-group"><label>Impacto regulatório</label><select id="f-impacto"><option>Alto</option><option>Médio</option><option>Baixo</option></select></div>
+    </div>`,
+
+  risco:(d={})=>`
+    <div class="form-row">
+      <div class="form-group"><label>Produto / Processo</label><input id="f-produto" value="${d.produto||''}"></div>
+      <div class="form-group"><label>Perigo identificado</label><input id="f-perigo" value="${d.perigo||''}"></div>
+    </div>
+    <div class="form-row single"><div class="form-group"><label>Situação de risco</label><textarea id="f-situacao">${d.situacao||''}</textarea></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Severidade (1–5)</label><input id="f-severidade" type="number" min="1" max="5" value="${d.severidade||1}"></div>
+      <div class="form-group"><label>Probabilidade (1–5)</label><input id="f-probabilidade" type="number" min="1" max="5" value="${d.probabilidade||1}"></div>
+    </div>
+    <div class="form-row single"><div class="form-group"><label>Medida de controle / mitigação</label><textarea id="f-controle">${d.controle||''}</textarea></div></div>
+    <div class="form-row single"><div class="form-group"><label>Status do risco</label><select id="f-status"><option>Aceitável</option><option>Em mitigação</option><option>Inaceitável</option></select></div></div>`,
+
+  praga:(d={})=>`
+    <div class="form-row">
+      <div class="form-group"><label>Número</label><input id="f-numero" value="${d.numero||''}"></div>
+      <div class="form-group"><label>Área(s) coberta(s)</label><input id="f-area" value="${d.area||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Empresa prestadora</label><input id="f-empresa" value="${d.empresa||''}"></div>
+      <div class="form-group"><label>Tipo de serviço</label><input id="f-tipo" value="${d.tipo||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Data de realização</label><input id="f-dataRealizacao" type="date" value="${d.dataRealizacao||''}"></div>
+      <div class="form-group"><label>Próxima visita</label><input id="f-proximaVisita" type="date" value="${d.proximaVisita||''}"></div>
+    </div>
+    <div class="form-row single"><div class="form-group"><label>Status</label><select id="f-status"><option>Em dia</option><option>Pendente</option><option>Atrasada</option></select></div></div>`,
+
+  colab:(d={})=>`
+    <div class="form-row">
+      <div class="form-group"><label>Nome completo</label><input id="f-nome" value="${d.nome||''}"></div>
+      <div class="form-group"><label>Iniciais (2 letras)</label><input id="f-iniciais" maxlength="2" value="${d.iniciais||''}" style="text-transform:uppercase"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Cargo / função</label><input id="f-cargo" value="${d.cargo||''}"></div>
+      <div class="form-group"><label>Cor do avatar</label><input id="f-cor" type="color" value="${d.cor||'#2d5be3'}"></div>
+    </div>`,
+};
+
+function openModal(type,id){
+  _modalType=type;_modalId=id||null;
+  const titleMap={capa:'CAPA',rnc:'RNC',forn:'Fornecedor',tecno:'REC / Tecnovigilância',val:'Qualificação / Validação',gcm:'Controle de Mudança',risco:'Risco',praga:'Controle de Pragas',colab:'Colaboradora'};
+  document.getElementById('modal-title').textContent=(id?'Editar ':'Nova ')+titleMap[type];
+  const dataMap={capa:DB.capas,rnc:DB.rncs,forn:DB.fornecedores,tecno:DB.tecno,val:DB.validacoes,gcm:DB.gcms,risco:DB.riscos,praga:DB.pragas,colab:DB.colaboradoras};
+  const d=id?(dataMap[type]||[]).find(x=>x.id===id):{};
+  document.getElementById('modal-body').innerHTML=forms[type](d||{});
+  // set selects after render
+  if(d){
+    setTimeout(()=>{
+      const setVal=(id,v)=>{const el=document.getElementById(id);if(el&&v!==undefined){el.value=v}};
+      if(type==='capa'){setVal('f-status',d.status);setVal('f-responsavel',d.responsavel);setVal('f-origem',d.origem)}
+      if(type==='rnc'){setVal('f-status',d.status);setVal('f-responsavel',d.responsavel);setVal('f-classificacao',d.classificacao)}
+      if(type==='forn'){setVal('f-status',d.status);setVal('f-criticidade',d.criticidade);setVal('f-responsavel',d.responsavel)}
+      if(type==='tecno'){setVal('f-status',d.status);setVal('f-tipo',d.tipo)}
+      if(type==='val'){setVal('f-status',d.status);setVal('f-responsavel',d.responsavel);setVal('f-tipo',d.tipo)}
+      if(type==='gcm'){setVal('f-status',d.status);setVal('f-categoria',d.categoria);setVal('f-impacto',d.impacto)}
+      if(type==='risco'){setVal('f-status',d.status)}
+      if(type==='praga'){setVal('f-status',d.status)}
+    },50);
+  }
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(e){if(e&&e.target!==document.getElementById('modal-overlay'))return;document.getElementById('modal-overlay').classList.remove('open')}
+
+function g(id){const el=document.getElementById(id);return el?el.value.trim():''}
+
+function saveModal(){
+  const type=_modalType,id=_modalId;
+  const maps={capa:'capas',rnc:'rncs',forn:'fornecedores',tecno:'tecno',val:'validacoes',gcm:'gcms',risco:'riscos',praga:'pragas',colab:'colaboradoras'};
+  const key=maps[type];
+  let record;
+  if(type==='capa') record={numero:g('f-numero'),descricao:g('f-descricao'),origem:g('f-origem'),responsavel:g('f-responsavel'),prazo:g('f-prazo'),status:g('f-status'),progresso:parseInt(g('f-progresso'))||0,causa:g('f-causa'),acao:g('f-acao')};
+  else if(type==='rnc') record={numero:g('f-numero'),descricao:g('f-descricao'),produto:g('f-produto'),responsavel:g('f-responsavel'),dataAbertura:g('f-dataAbertura'),status:g('f-status'),classificacao:g('f-classificacao')};
+  else if(type==='forn') record={nome:g('f-nome'),cnpj:g('f-cnpj'),categoria:g('f-categoria'),criticidade:g('f-criticidade'),status:g('f-status'),validade:g('f-validade'),responsavel:g('f-responsavel')};
+  else if(type==='tecno') record={numero:g('f-numero'),tipo:g('f-tipo'),produto:g('f-produto'),descricao:g('f-descricao'),data:g('f-data'),prazoAnvisa:g('f-prazoAnvisa'),status:g('f-status')};
+  else if(type==='val') record={numero:g('f-numero'),tipo:g('f-tipo'),descricao:g('f-descricao'),fase:g('f-fase'),responsavel:g('f-responsavel'),prazo:g('f-prazo'),status:g('f-status'),progresso:parseInt(g('f-progresso'))||0};
+  else if(type==='gcm') record={numero:g('f-numero'),descricao:g('f-descricao'),categoria:g('f-categoria'),solicitante:g('f-solicitante'),data:g('f-data'),status:g('f-status'),impacto:g('f-impacto')};
+  else if(type==='risco'){const s=parseInt(g('f-severidade'))||1,p=parseInt(g('f-probabilidade'))||1;record={produto:g('f-produto'),perigo:g('f-perigo'),situacao:g('f-situacao'),severidade:s,probabilidade:p,rpn:s*p,controle:g('f-controle'),status:g('f-status')}}
+  else if(type==='praga') record={numero:g('f-numero'),area:g('f-area'),empresa:g('f-empresa'),tipo:g('f-tipo'),dataRealizacao:g('f-dataRealizacao'),proximaVisita:g('f-proximaVisita'),status:g('f-status')};
+  else if(type==='colab') record={nome:g('f-nome'),iniciais:g('f-iniciais').toUpperCase(),cargo:g('f-cargo'),cor:document.getElementById('f-cor')?.value||'#2d5be3'};
+
+  if(id){const idx=DB[key].findIndex(x=>x.id===id);if(idx>=0)DB[key][idx]={...DB[key][idx],...record}}
+  else{DB[key].push({id:nextId(DB[key]),...record})}
+  save();
+  document.getElementById('modal-overlay').classList.remove('open');
+  const renderMap={capa:renderCapa,rnc:renderRnc,forn:renderForn,tecno:renderTecno,val:renderVal,gcm:renderGcm,risco:renderRisco,praga:renderPragas,colab:renderEquipe};
+  renderMap[type]&&renderMap[type]();
+  renderDashboard();
+}
+
+// ═══════════════════════════════════════════════════════
+// IMPORT / EXPORT
+// ═══════════════════════════════════════════════════════
+function exportData(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`sgq_backup_${today()}.json`;a.click();
+}
+function importData(){document.getElementById('import-file').click()}
+function doImport(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=ev=>{
+    try{DB=JSON.parse(ev.target.result);save();alert('Dados importados com sucesso!');location.reload()}
+    catch{alert('Erro ao importar. Verifique o arquivo.')}
+  };r.readAsText(f);
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+renderDashboard();
+</script>
+</body>
+</html>
