@@ -49,6 +49,7 @@ import assistenciaTecnica   from './modules/assistenciaTecnica.js';
 import revisaoGerencial     from './modules/revisaoGerencial.js';
 import projetosGerencial    from './modules/projetosGerencial.js';
 import projetosAbertura     from './modules/projetosAbertura.js';
+import atividades           from './modules/atividades.js';
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,7 @@ export const router = new Router({
   [ROUTES.OBRIGACOES]:   { module: obrigacoes,   title: 'Obrig. Regulatórias',      icon: '📋' },
   [ROUTES.DOCUMENTOS]:   { module: documentos,   title: 'Controle de Docs.',         icon: '📄' },
   [ROUTES.ELABORACAO]:   { module: elaboracao,   title: 'Elaboração de Docs.',        icon: '✏' },
+  atividades:            { module: atividades,    title: 'Atividades Individuais',   icon: '✅' },
   [ROUTES.EQUIPE]:       { module: equipe,       title: 'Equipe',                   icon: '⚇' },
   [ROUTES.CRONOGRAMA]:   { module: cronograma,   title: 'Cronograma',               icon: '▤' },
   [ROUTES.CALENDARIO]:   { module: calendario,   title: 'Calendário',               icon: '▦' },

@@ -32,6 +32,7 @@ const EXECUTOR_ACCESS = new Set([
   'elaboracao',
   'risco',
   'configuracoes',
+  'atividades',
   // Solicitações — apenas abrir (create/view); o avanço fica com GQ
   'capa',
   'rnc',
