@@ -101,38 +101,6 @@ function generateNumero() {
   return `RNC.${String(n).padStart(3, '0')}/${yy}`;
 }
 
-// ── UI: user bar ─────────────────────────────────────────────────────────────
-
-function renderUserBar() {
-  const u = getUser();
-  const n = pendingCount(u);
-  return u
-    ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;flex-wrap:wrap">
-        <span style="font-size:0.78rem;color:var(--muted)">Operando como:</span>
-        <strong style="font-size:0.84rem">${u.nome}</strong>
-        <span class="pill ${u.area === 'GQ' ? 'pill-purple' : 'pill-blue'}" style="font-size:0.72rem">${u.area}</span>
-        ${n > 0 ? `<span style="font-size:0.78rem;color:var(--amber);font-weight:600">· ${n} ${n > 1 ? 'ações' : 'ação'} pendente${n > 1 ? 's' : ''}</span>` : '<span style="font-size:0.78rem;color:var(--green)">· fila em dia ✓</span>'}
-        <button class="btn btn-secondary btn-sm" data-action="trocar-user" style="margin-left:auto">Trocar perfil</button>
-        <button class="btn btn-secondary btn-sm" data-action="limpar-user" style="color:var(--muted)">× Sair</button>
-      </div>`
-    : `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px dashed var(--border);border-radius:8px;margin-bottom:16px;flex-wrap:wrap">
-        <span style="font-size:0.82rem;color:var(--muted)">🔓 Nenhum perfil selecionado — acesso irrestrito (modo admin)</span>
-        <button class="btn btn-primary btn-sm" data-action="trocar-user" style="margin-left:auto">Selecionar Perfil</button>
-      </div>`;
-}
-
-function openUserSelector(onDone) {
-  const nomes = db.get('equipe').map(m => m.nome);
-  openModal({
-    title: 'Selecionar Perfil de Acesso',
-    fields: [
-      { id: 'nome', label: 'Seu nome',              type: 'select', required: true, span: 2, options: nomes.length ? nomes : ['—'] },
-      { id: 'area', label: 'Sua área / departamento', type: 'select', required: true, span: 2, options: AREAS },
-    ],
-    data: getUser() ?? {},
-    onSave: data => { setUser({ nome: data.nome, area: data.area }); onDone(); },
-  });
-}
 
 // ── UI: stage stepper ─────────────────────────────────────────────────────────
 
@@ -166,24 +134,21 @@ const RISK_PILL = { 'Menor': 'pill-blue', 'Maior': 'pill-amber', 'Crítica': 'pi
 
 function renderMinhaFila() {
   const user = getUser();
-  if (!user) {
-    return `<div style="text-align:center;padding:48px 24px">
-      <div style="font-size:2.5rem;margin-bottom:12px">🔐</div>
-      <div style="font-size:0.95rem;font-weight:600;margin-bottom:6px">Selecione seu perfil</div>
-      <div style="font-size:0.82rem;color:var(--muted);margin-bottom:20px">Cada área vê apenas as RNCs que requerem sua ação</div>
-      <button class="btn btn-primary" data-action="trocar-user">Selecionar Perfil</button>
-    </div>`;
-  }
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 
-  const hoje    = new Date(); hoje.setHours(0, 0, 0, 0);
-  const pending = db.get('rnc').filter(r => !CLOSED.includes(r.status) && canAct(r, user));
+  // Sem perfil → mostra todas as ativas; com perfil → filtra pela área
+  const pending = user
+    ? db.get('rnc').filter(r => !CLOSED.includes(r.status) && canAct(r, user))
+    : db.get('rnc').filter(r => !CLOSED.includes(r.status));
 
   if (!pending.length) {
-    return `<div style="text-align:center;padding:48px 24px">
-      <div style="font-size:2.5rem;margin-bottom:12px">✅</div>
-      <div style="font-size:0.95rem;font-weight:600;margin-bottom:6px">Fila em dia!</div>
-      <div style="font-size:0.82rem;color:var(--muted)">Nenhuma RNC aguarda ação de ${user.area}</div>
-    </div>`;
+    return user
+      ? `<div style="text-align:center;padding:48px 24px">
+          <div style="font-size:2.5rem;margin-bottom:12px">✅</div>
+          <div style="font-size:0.95rem;font-weight:600;margin-bottom:6px">Fila em dia!</div>
+          <div style="font-size:0.82rem;color:var(--muted)">Nenhuma RNC aguarda ação de ${user.area}</div>
+        </div>`
+      : emptyState('Nenhuma RNC em andamento.');
   }
 
   return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
@@ -432,7 +397,6 @@ function refresh(container) {
   if (area)   items = items.filter(r => r.area === area);
 
   const el = id => container.querySelector(id);
-  if (el('#rnc-user-bar'))   el('#rnc-user-bar').innerHTML   = renderUserBar();
   if (el('#rnc-pipeline'))   el('#rnc-pipeline').innerHTML   = renderPipelineBar(db.get('rnc'));
   if (el('#rnc-queue-wrap')) el('#rnc-queue-wrap').innerHTML = renderMinhaFila();
   if (el('#rnc-table-wrap')) el('#rnc-table-wrap').innerHTML = renderTable(items);
@@ -472,7 +436,6 @@ export default {
         <h2>RNC — Fluxo de Trabalho</h2>
         <button class="btn btn-primary" data-action="new">+ Nova RNC</button>
       </div>
-      <div id="rnc-user-bar">${renderUserBar()}</div>
       <div id="rnc-pipeline">${renderPipelineBar(allRnc)}</div>
       <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px">
         ${buildTabBar(_activeTab)}
@@ -527,9 +490,6 @@ export default {
       const { action, id, next } = btn.dataset;
       const numId = id !== undefined ? Number(id) : null;
       const user  = getUser();
-
-      if (action === 'trocar-user') { openUserSelector(() => refresh(container)); return; }
-      if (action === 'limpar-user') { setUser(null); refresh(container); return; }
 
       if (action === 'new') {
         openModal({
