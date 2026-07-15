@@ -7,6 +7,8 @@ import { db } from './db.js';
 import { toast } from './toast.js';
 import { today, formatDate } from './utils.js';
 import { ROUTES } from './constants.js';
+import { openModal } from './modal.js';
+import { getSession, setSession, clearSession } from './session.js';
 
 // Modules
 import dashboard      from './modules/dashboard.js';
@@ -93,6 +95,67 @@ export const router = new Router({
   [ROUTES.PROJ_GERENCIAL]:     { module: projetosGerencial,    title: 'Projetos — Gerencial',       icon: '🗂' },
   [ROUTES.PROJ_ABERTURA]:      { module: projetosAbertura,     title: 'Projetos — Atividades GQ',   icon: '📐' },
   projetos: { module: { render() {}, init() { router.navigate(ROUTES.PROJ_GERENCIAL); } }, title: 'Projetos', icon: '📐' },
+});
+
+// ── Session / Login ───────────────────────────────────────────────────────────
+
+function updateTopbarSession() {
+  const el = document.getElementById('topbar-session');
+  if (!el) return;
+  const session = getSession();
+  if (session) {
+    const cor      = session.cor || '#2d5be3';
+    const iniciais = session.iniciais || session.nome.charAt(0);
+    const nome     = session.nome.split(' ')[0];
+    const area     = session.area ? `<span style="padding:1px 6px;border-radius:3px;background:var(--surface2);color:var(--muted);font-size:0.7rem">${session.area}</span>` : '';
+    el.innerHTML = `
+      <span style="display:flex;align-items:center;gap:6px;font-size:0.8rem">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${cor};color:#fff;font-weight:700;font-size:0.7rem;flex-shrink:0">${iniciais}</span>
+        <span style="color:var(--text);white-space:nowrap">${nome}</span>
+        ${area}
+        <button id="btn-logout" class="btn btn-secondary btn-sm" style="white-space:nowrap">Sair</button>
+      </span>`;
+  } else {
+    el.innerHTML = `<button id="btn-login" class="btn btn-secondary btn-sm">🔐 Entrar</button>`;
+  }
+}
+
+function openLoginModal() {
+  const equipe = db.get('equipe').filter(m => m.senha);
+  if (!equipe.length) {
+    toast('Nenhum usuário com senha cadastrada. Configure as senhas no módulo Equipe.', 'warning');
+    return;
+  }
+  openModal({
+    title: 'Entrar no SGQ',
+    fields: [
+      { id: 'nome',  label: 'Seu nome', type: 'select', required: true,  span: 2, options: equipe.map(m => m.nome) },
+      { id: 'senha', label: 'Senha',    type: 'text',   required: true,  span: 2 },
+    ],
+    data: {},
+    setup(form) {
+      const inp = form.querySelector('#field-senha');
+      if (inp) inp.type = 'password';
+    },
+    onSave(data) {
+      const user = equipe.find(m => m.nome === data.nome && m.senha === data.senha);
+      if (!user) throw new Error('Senha incorreta. Verifique e tente novamente.');
+      setSession({ id: user.id, nome: user.nome, iniciais: user.iniciais, area: user.area, perfil: user.perfil, cor: user.cor });
+      updateTopbarSession();
+      router.navigate(router.current || ROUTES.DASHBOARD);
+      toast(`Bem-vinda, ${user.nome.split(' ')[0]}!`);
+    },
+  });
+}
+
+document.getElementById('topbar-session')?.addEventListener('click', e => {
+  if (e.target.id === 'btn-login')  openLoginModal();
+  if (e.target.id === 'btn-logout') {
+    clearSession();
+    updateTopbarSession();
+    router.navigate(router.current || ROUTES.DASHBOARD);
+    toast('Sessão encerrada.');
+  }
 });
 
 // ── Sidebar navigation (event delegation) ───────────────────────────────────
@@ -188,6 +251,7 @@ db.ready.then(() => {
   }
 
   updateAllBadges();
+  updateTopbarSession();
 
   const initialRoute = window.location.hash.replace('#', '') || ROUTES.DASHBOARD;
   router.navigate(initialRoute);

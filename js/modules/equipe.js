@@ -31,6 +31,7 @@ const FIELDS = [
   { id: 'email',    label: 'E-mail corporativo',   type: 'text',   required: false, span: 1 },
   { id: 'perfil',   label: 'Perfis de acesso',     type: 'checkboxgroup', required: false, span: 2, options: PERFIS_ACESSO },
   { id: 'cor',      label: 'Cor do Avatar (hex)',   type: 'text',   required: false, span: 2 },
+  { id: 'senha',    label: 'Senha de Acesso',       type: 'text',   required: false, span: 2 },
 ];
 
 function getOpenItems(nome) {

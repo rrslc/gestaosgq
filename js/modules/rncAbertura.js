@@ -8,6 +8,7 @@ import { formatDate, deadlineCell, statusPill, emptyState, selectOptions, today 
 import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
 import { STATUS, TIPOS_NC, FERRAMENTAS_INVEST, DISPOSICOES_NC } from '../constants.js';
+import { getSession } from '../session.js';
 
 const AREAS     = ['GQ', 'Produção', 'P&D', 'Regulatório', 'Logística', 'Compras', 'RH', 'TI', 'Fábrica', 'Outros'];
 const RISK_LVL  = ['Baixa', 'Média', 'Alta'];
@@ -50,15 +51,7 @@ const STAGE_OWNER = {
 
 // ── Permission logic ─────────────────────────────────────────────────────────
 
-const USER_KEY = 'sgq_rnc_user';
-let _user = (() => {
-  try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch { return null; }
-})();
-
-function getUser()  { return _user; }
-function setUser(u) { _user = u; u ? localStorage.setItem(USER_KEY, JSON.stringify(u)) : localStorage.removeItem(USER_KEY); }
-
-function canAct(record, user = getUser()) {
+function canAct(record, user = getSession()) {
   if (!user) return false;
   const s = record?.status;
   if (s === 'Aberta')                   return !record.area || record.area === user.area || user.area === 'GQ';
@@ -133,7 +126,7 @@ function renderStepper(status) {
 const RISK_PILL = { 'Menor': 'pill-blue', 'Maior': 'pill-amber', 'Crítica': 'pill-red' };
 
 function renderMinhaFila() {
-  const user = getUser();
+  const user = getSession();
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 
   // Sem perfil → mostra todas as ativas; com perfil → filtra pela área
@@ -208,7 +201,7 @@ function renderPipelineBar(items) {
 
 function renderTable(items) {
   if (!items.length) return emptyState('Nenhuma RNC encontrada.');
-  const user = getUser();
+  const user = getSession();
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 
   function diasAberto(r) {
@@ -381,7 +374,7 @@ function refresh(container) {
   if (el('#rnc-table-wrap')) el('#rnc-table-wrap').innerHTML = renderTable(items);
 
   // Update tab badge
-  const user = getUser();
+  const user = getSession();
   const n    = pendingCount(user);
   const tab  = el('[data-tab="fila"]');
   if (tab) tab.textContent = n > 0 ? `Minha Fila (${n})` : 'Minha Fila';
@@ -392,7 +385,7 @@ function refresh(container) {
 let _activeTab = 'fila';
 
 function buildTabBar(active) {
-  const user = getUser();
+  const user = getSession();
   const n    = pendingCount(user);
   return [
     { key: 'fila',  label: n > 0 ? `Minha Fila (${n})` : 'Minha Fila', urgent: n > 0 },
@@ -468,7 +461,7 @@ export default {
       if (!btn) return;
       const { action, id, next } = btn.dataset;
       const numId = id !== undefined ? Number(id) : null;
-      const user  = getUser();
+      const user  = getSession();
 
       if (action === 'new') {
         openModal({
