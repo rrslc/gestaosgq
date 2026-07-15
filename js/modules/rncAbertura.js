@@ -59,7 +59,7 @@ function getUser()  { return _user; }
 function setUser(u) { _user = u; u ? localStorage.setItem(USER_KEY, JSON.stringify(u)) : localStorage.removeItem(USER_KEY); }
 
 function canAct(record, user = getUser()) {
-  if (!user) return true;
+  if (!user) return false;
   const s = record?.status;
   if (s === 'Aberta')                   return !record.area || record.area === user.area || user.area === 'GQ';
   if (s === 'Em Avaliação')             return user.area === 'GQ';
@@ -180,10 +180,7 @@ function renderMinhaFila() {
           <span style="font-size:0.72rem;font-weight:700;color:${stage.color}">${stage.label}</span>
           ${dias ? `<span style="font-size:0.7rem;color:var(--muted)">${dias} aberta</span>` : ''}
         </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-primary btn-sm" data-action="edit" data-id="${r.id}" style="flex:1">✏ Preencher Etapa</button>
-          ${nextSt ? `<button class="btn btn-secondary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nextSt}" title="Encaminhar para: ${STAGE_OWNER[nextSt]?.label ?? nextSt}">▶</button>` : ''}
-        </div>
+        <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" style="width:100%">👁 Visualizar</button>
       </div>`;
     }).join('')}
   </div>`;
@@ -230,22 +227,11 @@ function renderTable(items) {
     </tr></thead>
     <tbody>
       ${items.map(r => {
-        const auth     = canAct(r, user);
-        const nextSt   = NEXT_STATUS[r.status];
         const own      = STAGE_OWNER[r.status];
         const ownLbl   = ownerLabel(r);
         const ownColor = own?.color ?? '#94a3b8';
         const risco    = r.classificacaoRisco
           ? `<span class="pill ${RISK_PILL[r.classificacaoRisco] ?? 'pill-gray'}">${r.classificacaoRisco}</span>` : '—';
-        const capaBtn  = r.necessitaCapa === 'Sim' && !r.capaAberta
-          ? `<button class="btn btn-secondary btn-sm" data-action="abrir-capa" data-id="${r.id}" title="Abrir CAPA">📋</button>` : '';
-        const npBtn    = r.status === 'Em Avaliação' && auth
-          ? `<button class="btn btn-secondary btn-sm" data-action="nao-procedente" data-id="${r.id}" title="Marcar Não Procedente" style="color:var(--muted)">✕ NP</button>` : '';
-        const advBtn   = nextSt
-          ? auth
-            ? `<button class="btn btn-secondary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nextSt}" title="Avançar para ${nextSt}">▶</button>`
-            : `<button class="btn btn-secondary btn-sm" disabled title="Pertence a: ${ownLbl}" style="opacity:0.35;cursor:not-allowed">▶</button>`
-          : '';
         return `<tr>
           <td><strong>${r.numero}</strong></td>
           <td style="white-space:nowrap;font-size:0.8rem">${r.tipo || '—'}</td>
@@ -256,16 +242,9 @@ function renderTable(items) {
           <td>${statusPill(r.encerradoStatus || r.status)}</td>
           <td style="white-space:nowrap">
             <span style="font-size:0.71rem;padding:2px 7px;border-radius:4px;background:${ownColor}18;color:${ownColor};font-weight:600">${ownLbl}</span>
-            ${auth && !CLOSED.includes(r.status) ? '<span title="Você pode agir nesta etapa" style="margin-left:4px;color:var(--green);font-size:0.72rem">✓</span>' : ''}
           </td>
           <td>
-            <div class="td-actions">
-              ${advBtn}
-              ${npBtn}
-              <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" title="${auth ? 'Editar' : 'Visualizar — etapa pertence a ' + ownLbl}">${auth ? '✏' : '👁'}</button>
-              ${capaBtn}
-              <button class="btn btn-danger btn-sm" data-action="delete" data-id="${r.id}">🗑</button>
-            </div>
+            <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" title="Visualizar">👁</button>
           </td>
         </tr>`;
       }).join('')}
