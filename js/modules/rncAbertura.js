@@ -50,6 +50,17 @@ const STAGE_OWNER = {
   'Encerrada':                { label: 'Garantia da Qualidade',     color: '#22c55e' },
 };
 
+// ── Perfis e etapas GQ ───────────────────────────────────────────────────────
+
+const GQ_PERFIS  = new Set(['GQ Administrador', 'GQ Analista']);
+const GQ_STAGES  = ['Em Avaliação', 'Em Investigação', 'Em Plano de Ação', 'Verificação de Eficácia'];
+const STAGE_PILL = {
+  'Em Avaliação':            'purple',
+  'Em Investigação':         'blue',
+  'Em Plano de Ação':        'amber',
+  'Verificação de Eficácia': 'teal',
+};
+
 // ── Permission logic ─────────────────────────────────────────────────────────
 
 /**
@@ -60,9 +71,9 @@ const STAGE_OWNER = {
  * Licença View              → nunca pode agir.
  */
 function canAct(record, user = getSession()) {
-  if (!user || !can(user, 'rnc', A.EDIT)) return false;
-  if (user.perfil === 'Adm' || user.perfil === 'GQ Apoio') return true;
-  // Executor: só pode interagir com RNCs ainda abertas (etapa de origem)
+  if (!user || !can(user, 'rncAbertura', A.EDIT)) return false;
+  if (user.perfil === 'GQ Administrador' || user.perfil === 'GQ Analista') return true;
+  // Demais perfis: só podem interagir com RNCs ainda abertas (etapa de origem)
   return record?.status === 'Aberta';
 }
 
@@ -72,9 +83,13 @@ function ownerLabel(record) {
   return record.status === 'Aberta' && record.area ? `Área: ${record.area}` : o.label;
 }
 
-function pendingCount(user) {
-  if (!user) return 0;
-  return db.get('rnc').filter(r => !CLOSED.includes(r.status) && canAct(r, user)).length;
+function pendingCount() {
+  const user = getSession();
+  const rncs = db.get('rnc');
+  if (user && GQ_PERFIS.has(user.perfil)) {
+    return rncs.filter(r => GQ_STAGES.includes(r.status)).length;
+  }
+  return rncs.filter(r => r.status === 'Aberta').length;
 }
 
 // ── Risk matrix ───────────────────────────────────────────────────────────────
@@ -131,54 +146,76 @@ const RISK_PILL = { 'Menor': 'pill-blue', 'Maior': 'pill-amber', 'Crítica': 'pi
 function renderMinhaFila() {
   const user = getSession();
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const isGQ = user && GQ_PERFIS.has(user.perfil);
 
-  const pending = user
-    ? db.get('rnc').filter(r => !CLOSED.includes(r.status) && canAct(r, user))
-    : db.get('rnc').filter(r => !CLOSED.includes(r.status));
+  const items = isGQ
+    ? db.get('rnc').filter(r => GQ_STAGES.includes(r.status))
+    : db.get('rnc').filter(r => r.status === 'Aberta');
 
-  if (!pending.length) {
-    return user
-      ? `<div style="text-align:center;padding:48px 24px">
-          <div style="font-size:2.5rem;margin-bottom:12px">✅</div>
-          <div style="font-size:0.95rem;font-weight:600;margin-bottom:6px">Fila em dia!</div>
-          <div style="font-size:0.82rem;color:var(--muted)">Nenhuma RNC aguarda ação de ${user.nome.split(' ')[0]}</div>
-        </div>`
-      : emptyState('Nenhuma RNC em andamento.');
+  if (!items.length) {
+    const [msg, sub] = isGQ
+      ? ['Nenhuma RNC aguarda ação da GQ.', 'Todas as RNCs foram encerradas ou estão em etapas de área.']
+      : ['Sem RNCs em aberto!', 'Todas as RNCs registradas foram encaminhadas à Garantia da Qualidade.'];
+    return `<div style="text-align:center;padding:48px 24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">✅</div>
+      <div style="font-size:0.95rem;font-weight:600;margin-bottom:6px">${msg}</div>
+      <div style="font-size:0.82rem;color:var(--muted)">${sub}</div>
+    </div>`;
   }
 
   return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
-    ${pending.map(r => {
-      const stage    = PIPELINE.find(p => p.key === r.status) ?? PIPELINE[0];
-      const si       = stageIdx(r.status);
-      const owner    = STAGE_OWNER[r.status];
+    ${items.map(r => {
+      const stage    = PIPELINE.find(p => p.key === r.status);
+      const cor      = stage?.color ?? 'var(--border)';
+      const own      = STAGE_OWNER[r.status];
+      const nxt      = NEXT_STATUS[r.status];
+      const act      = canAct(r, user);
       const emAtraso = r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje;
-      const nextSt   = NEXT_STATUS[r.status];
       const dias     = r.dataAbertura
         ? Math.round((hoje - new Date(r.dataAbertura + 'T00:00:00')) / 86400000) + 'd'
         : '';
-      return `<div style="border:1px solid var(--border);border-top:3px solid ${stage.color};border-radius:8px;padding:14px;background:var(--surface);display:flex;flex-direction:column;gap:10px">
+
+      if (isGQ) {
+        const pillColor = STAGE_PILL[r.status] ?? 'gray';
+        const nxtLabel  = PIPELINE.find(p => p.key === nxt)?.label ?? nxt;
+        return `<div style="border:1px solid var(--border);border-top:3px solid ${cor};border-radius:8px;padding:14px;background:var(--surface);display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div>
+              <div style="font-weight:700;font-size:0.9rem">${r.numero}</div>
+              <div style="font-size:0.71rem;color:var(--muted);margin-top:2px">${r.area || '—'}${r.tipo ? ' · ' + r.tipo : ''}</div>
+            </div>
+            <span class="pill pill-${pillColor}" style="white-space:nowrap;font-size:0.65rem">${stage?.label ?? r.status}</span>
+          </div>
+          <div style="font-size:0.8rem;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden" title="${r.descricao}">${r.descricao}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:0.72rem;color:var(--muted)">${own?.label ?? r.status}</span>
+            ${emAtraso ? `<span style="font-size:0.67rem;color:var(--red);font-weight:700">⚠ atraso</span>` : (dias ? `<span style="font-size:0.7rem;color:var(--muted)">${dias}</span>` : '')}
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}">✏ Editar</button>
+            ${act && nxt ? `<button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nxt}" style="flex:1">→ ${nxtLabel}</button>` : ''}
+          </div>
+        </div>`;
+      }
+
+      // Área: cards de abertura pendente
+      return `<div style="border:1px solid var(--border);border-top:3px solid ${cor};border-radius:8px;padding:14px;background:var(--surface);display:flex;flex-direction:column;gap:10px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
             <div style="font-weight:700;font-size:0.9rem">${r.numero}</div>
-            <div style="font-size:0.71rem;color:var(--muted);margin-top:2px">${r.area || '—'} · ${r.tipo || '—'}</div>
+            <div style="font-size:0.71rem;color:var(--muted);margin-top:2px">${r.area || '—'}${r.tipo ? ' · ' + r.tipo : ''}</div>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
-            ${r.classificacaoRisco ? `<span class="pill ${RISK_PILL[r.classificacaoRisco] ?? 'pill-gray'}" style="font-size:0.67rem">${r.classificacaoRisco}</span>` : ''}
-            ${emAtraso ? `<span style="font-size:0.67rem;color:var(--red);font-weight:700">⚠ atraso</span>` : ''}
-          </div>
+          ${emAtraso ? `<span style="font-size:0.67rem;color:var(--red);font-weight:700">⚠ atraso</span>` : ''}
         </div>
-        <div style="font-size:0.8rem;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden" title="${r.descricao}">${r.descricao}</div>
-        <div style="display:flex;gap:1px;height:4px;border-radius:2px;overflow:hidden">
-          ${PIPELINE.map((p, i) => `<div style="flex:1;background:${i < si ? '#22c55e' : i === si ? p.color : 'var(--border)'}"></div>`).join('')}
-        </div>
+        <div style="font-size:0.8rem;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden" title="${r.descricao}">${r.descricao}</div>
         <div style="display:flex;align-items:center;justify-content:space-between">
-          <span style="font-size:0.72rem;font-weight:700;color:${stage.color}">${stage.label}</span>
-          ${dias ? `<span style="font-size:0.7rem;color:var(--muted)">${dias} aberta</span>` : ''}
+          <span style="font-size:0.72rem;color:var(--muted)">Abertura pendente · aguarda GQ</span>
+          ${dias ? `<span style="font-size:0.7rem;color:var(--muted)">${dias}</span>` : ''}
         </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}">👁 Ver</button>
-          ${user && nextSt ? `<button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nextSt}" style="flex:1">${nextSt === 'Encerrada' ? '⏹ Encerrar' : '→ Avançar'}</button>` : ''}
-          ${user && r.status === 'Em Avaliação' && (user.perfil === 'Adm' || user.perfil === 'GQ Apoio') ? `<button class="btn btn-danger btn-sm" data-action="nao-procedente" data-id="${r.id}" title="Não Procedente" style="padding:4px 8px">✗ NP</button>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}">✏ Preencher</button>
+          ${act ? `<button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="Em Avaliação" style="flex:1">→ Enviar à GQ</button>` : ''}
+          ${act ? `<button class="btn btn-secondary btn-sm" data-action="close-direct" data-id="${r.id}" style="width:100%;margin-top:2px;border-color:var(--green,#22c55e);color:var(--green,#22c55e)">✓ Já corrigido — Encerrar</button>` : ''}
         </div>
       </div>`;
     }).join('')}
@@ -321,9 +358,19 @@ function buildFields(record = null) {
       f('Em Investigação', { id: 'equipeInvestigacao',      label: '      Equipe de Investigação',        type: 'text',     required: false, span: 2 }),
       f('Em Investigação', { id: 'fontesInformacao',        label: '7.   Fonte de Informações / Dados',   type: 'text',     required: false, span: 2 }),
       f('Em Investigação', { id: 'resumoInvestigacao',      label: '8.   Resumo da Investigação',         type: 'textarea', required: false, span: 2 }),
-      f('Em Investigação', { id: 'porques',                 label: '9.1  5 Porquês',                      type: 'textarea', required: false, span: 2 }),
-      f('Em Investigação', { id: 'ferramentasInvestigacao', label: '9.2  Outras Ferramentas da Qualidade',type: 'select',   required: false, span: 1, options: FERRAMENTAS_INVEST }),
-      f('Em Investigação', { id: 'causaRaiz',               label: '9.3  Causa(s) Raiz(ízes)',            type: 'textarea', required: false, span: 2 }),
+      f('Em Investigação', { id: 'porque1',              label: '9.1.1  Por que 1 — qual é o desvio observado?',  type: 'text',     required: false, span: 2 }),
+      f('Em Investigação', { id: 'porque2',              label: '9.1.2  Por que 2',                               type: 'text',     required: false, span: 2 }),
+      f('Em Investigação', { id: 'porque3',              label: '9.1.3  Por que 3',                               type: 'text',     required: false, span: 2 }),
+      f('Em Investigação', { id: 'porque4',              label: '9.1.4  Por que 4',                               type: 'text',     required: false, span: 2 }),
+      f('Em Investigação', { id: 'porque5',              label: '9.1.5  Por que 5 — causa raiz identificada',     type: 'text',     required: false, span: 2 }),
+      f('Em Investigação', { id: 'ferramentasInvestigacao', label: '9.2  Ferramenta Complementar',                type: 'select',   required: false, span: 1, options: FERRAMENTAS_INVEST }),
+      f('Em Investigação', { id: 'ishikawaMaterial',     label: '6M · Material / Matéria-prima',                  type: 'textarea', required: false, span: 1 }),
+      f('Em Investigação', { id: 'ishikawaMetodo',       label: '6M · Método / Processo',                         type: 'textarea', required: false, span: 1 }),
+      f('Em Investigação', { id: 'ishikawaMaquina',      label: '6M · Máquina / Equipamento',                     type: 'textarea', required: false, span: 1 }),
+      f('Em Investigação', { id: 'ishikawaMaoDeObra',    label: '6M · Mão de Obra',                               type: 'textarea', required: false, span: 1 }),
+      f('Em Investigação', { id: 'ishikawaMeioAmbiente', label: '6M · Meio Ambiente',                             type: 'textarea', required: false, span: 1 }),
+      f('Em Investigação', { id: 'ishikawaMedicao',      label: '6M · Medição / Monitoramento',                   type: 'textarea', required: false, span: 1 }),
+      f('Em Investigação', { id: 'causaRaiz',            label: '9.3  Causa(s) Raiz(ízes)',                       type: 'textarea', required: false, span: 2 }),
       f('Em Investigação', { id: 'observacoes',             label: '10.  Observação',                      type: 'textarea', required: false, span: 2 }),
     );
   }
@@ -331,10 +378,14 @@ function buildFields(record = null) {
   if (cur >= 3) {
     fields.push(
       h('ETAPA 4 — PLANO DE AÇÃO', 'Em Plano de Ação'),
-      f('Em Plano de Ação', { id: 'disposicao',              label: 'Disposição',                      type: 'select',   required: false, span: 1, options: DISPOSICOES_NC }),
-      f('Em Plano de Ação', { id: 'numFormularioRetrabalho', label: 'Nº Formulário de Retrabalho',     type: 'text',     required: false, span: 1 }),
-      f('Em Plano de Ação', { id: 'necessitaCapa',           label: 'Necessita CAPA?',                 type: 'select',   required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] }),
-      f('Em Plano de Ação', { id: 'prazoFinalizacao',        label: 'Prazo de Finalização do Plano',   type: 'date',     required: false, span: 1 }),
+      f('Em Plano de Ação', { id: 'disposicao',              label: 'Disposição (SGQ)',                       type: 'checkboxgroup', required: false, span: 2, options: DISPOSICOES_NC }),
+      f('Em Plano de Ação', { id: 'numFormularioRetrabalho', label: 'Nº Formulário de Retrabalho',            type: 'text',          required: false, span: 1 }),
+      f('Em Plano de Ação', { id: 'disposicaoJustificativa', label: 'Justificativa (Não aplicável)',          type: 'text',          required: false, span: 2 }),
+      f('Em Plano de Ação', { id: 'disposicaoAprovadaPor',   label: 'Disposição aprovada por',               type: 'select',        required: false, span: 1, options: resp.length ? resp : ['—'] }),
+      f('Em Plano de Ação', { id: 'dataAprovacaoDisposicao', label: 'Data de Aprovação da Disposição',       type: 'date',          required: false, span: 1 }),
+      f('Em Plano de Ação', { id: 'planoCorretivoAcoes',     label: 'Plano de Ação Corretivo',               type: 'plano-acao-table', required: false, span: 2 }),
+      f('Em Plano de Ação', { id: 'necessitaCapa',           label: 'Necessita CAPA?',                       type: 'select',        required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] }),
+      f('Em Plano de Ação', { id: 'prazoFinalizacao',        label: 'Prazo de Finalização do Plano',         type: 'date',          required: false, span: 1 }),
     );
   }
 
@@ -385,9 +436,8 @@ function refresh(container) {
   if (el('#rnc-table-wrap')) el('#rnc-table-wrap').innerHTML = renderTable(items);
 
   // Update tab badge
-  const user = getSession();
-  const n    = pendingCount(user);
-  const tab  = el('[data-tab="fila"]');
+  const n   = pendingCount();
+  const tab = el('[data-tab="fila"]');
   if (tab) tab.textContent = n > 0 ? `Minha Fila (${n})` : 'Minha Fila';
 }
 
@@ -396,8 +446,7 @@ function refresh(container) {
 let _activeTab = 'fila';
 
 function buildTabBar(active) {
-  const user = getSession();
-  const n    = pendingCount(user);
+  const n = pendingCount();
   return [
     { key: 'fila',  label: n > 0 ? `Minha Fila (${n})` : 'Minha Fila', urgent: n > 0 },
     { key: 'todas', label: 'Todas as RNCs', urgent: false },
@@ -416,8 +465,8 @@ export default {
     const allRnc = db.get('rnc');
     container.innerHTML = `
       <div class="page-header">
-        <h2>RNC — Fluxo de Trabalho</h2>
-        ${can(getSession(), 'rnc', A.CREATE) ? `<button class="btn btn-primary" data-action="new">+ Nova RNC</button>` : ''}
+        <h2>Registro de RNC</h2>
+        ${can(getSession(), 'rncAbertura', A.CREATE) ? `<button class="btn btn-primary" data-action="new">+ Nova RNC</button>` : ''}
       </div>
       <div id="rnc-pipeline">${renderPipelineBar(allRnc)}</div>
       <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px">
@@ -475,13 +524,16 @@ export default {
       const user  = getSession();
 
       if (action === 'new') {
-        if (!can(user, 'rnc', A.CREATE)) return;
+        if (!can(user, 'rncAbertura', A.CREATE)) return;
+        const fields = buildFields(null).map(f =>
+          f.id === 'responsavel' || f.id === 'dataAbertura' ? { ...f, type: 'text', readonly: true } : f
+        );
         openModal({
           title: 'Nova RNC',
-          fields: buildFields(null),
-          data: { numero: generateNumero(), dataAbertura: today(), status: 'Aberta' },
+          fields,
+          data: { numero: generateNumero(), dataAbertura: today().split('-').reverse().join('-'), status: 'Aberta', responsavel: user?.nome ?? '' },
           onSave: data => {
-            db.add('rnc', { ...data, status: 'Aberta' });
+            db.add('rnc', { ...data, dataAbertura: today(), status: 'Aberta' });
             toast('RNC criada com sucesso!');
             refresh(container);
           },
@@ -527,6 +579,41 @@ export default {
                 sevEl.addEventListener('change', update);
                 probEl.addEventListener('change', update);
               }
+
+              // 5 Porquês — placeholders em cascata
+              ['Qual é o desvio observado?', 'Por que isso ocorreu?', 'Por que? (aprofunde)', 'Por que? (continue)', 'Por que? — tende a ser a causa raiz'].forEach((ph, i) => {
+                const el = form.querySelector(`#field-porque${i + 1}`);
+                if (el) el.placeholder = ph;
+              });
+            }
+
+            // Ishikawa 6M — show/hide baseado na ferramenta selecionada
+            const ferramEl2 = form.querySelector('#field-ferramentasInvestigacao');
+            const ishIds = ['ishikawaMaterial','ishikawaMetodo','ishikawaMaquina','ishikawaMaoDeObra','ishikawaMeioAmbiente','ishikawaMedicao'];
+            const ishGrps = ishIds.map(id => form.querySelector(`#field-${id}`)?.closest('.form-group')).filter(Boolean);
+            if (ferramEl2 && ishGrps.length) {
+              const ishHd = document.createElement('div');
+              ishHd.style.cssText = 'grid-column:1/-1;padding:6px 0 4px;border-bottom:1px dashed var(--border);margin-top:2px;display:flex;align-items:center;gap:8px';
+              ishHd.innerHTML = '<span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9333ea">Ishikawa — 6M (Espinha de Peixe)</span>';
+              form.insertBefore(ishHd, ishGrps[0]);
+              const allIsh = [ishHd, ...ishGrps];
+              const toggleIsh = () => {
+                const show = ferramEl2.value === 'Diagrama de Ishikawa';
+                allIsh.forEach(el => { el.style.display = show ? '' : 'none'; });
+              };
+              toggleIsh();
+              ferramEl2.addEventListener('change', toggleIsh);
+            }
+
+            // Nota de dados legados (campo 'porques' anterior ao redesign)
+            if (record.porques) {
+              const firstPq = form.querySelector('#field-porque1')?.closest('.form-group');
+              if (firstPq) {
+                const legDiv = document.createElement('div');
+                legDiv.style.cssText = 'grid-column:1/-1;padding:10px 12px;border:1px solid var(--border);border-left:3px solid #f59e0b;border-radius:6px;font-size:0.78rem;color:var(--muted);background:var(--surface)';
+                legDiv.innerHTML = '<div style="font-weight:600;color:var(--text);margin-bottom:6px">📋 Análise anterior registrada</div><div style="white-space:pre-wrap;line-height:1.5">' + record.porques.replace(/</g, '&lt;') + '</div>';
+                form.insertBefore(legDiv, firstPq);
+              }
             }
           },
           onSave: data => {
@@ -557,6 +644,18 @@ export default {
           }
           db.update('rnc', numId, updates);
           toast(`✅ Encaminhado para "${next}" → ${nextOwner?.label ?? next}`);
+          refresh(container);
+        });
+        return;
+      }
+
+      if (action === 'close-direct') {
+        const record = db.getById('rnc', numId);
+        if (!record || !canAct(record, user)) { toast('Sem permissão para esta ação.', 'error'); return; }
+        showConfirm('Encerrar esta RNC como já corrigida?\n\nUse esta opção apenas quando a correção foi imediata e documentada no formulário de abertura.').then(ok => {
+          if (!ok) return;
+          db.update('rnc', numId, { status: 'Encerrada', dataFechamento: today(), encerradoStatus: 'Correção imediata' });
+          toast('RNC encerrada como correção imediata.');
           refresh(container);
         });
         return;

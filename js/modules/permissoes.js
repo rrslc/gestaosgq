@@ -10,9 +10,31 @@ import { toast } from '../toast.js';
 import { PERFIS, LICENCAS } from '../permissions.js';
 
 const COR_PERFIL = {
-  'Adm':      '#dc2626',
-  'GQ Apoio': '#2563eb',
-  'Executor': '#0891b2',
+  'GQ Administrador':      '#dc2626',
+  'GQ Analista':           '#2563eb',
+  'Controle de Qualidade': '#7c3aed',
+  'Melhoria Contínua':     '#059669',
+  'Produção':              '#0891b2',
+  'Manutenção':            '#d97706',
+  'PCP':                   '#6366f1',
+  'Logística':             '#0d9488',
+  'Engenharia':            '#1d4ed8',
+  'Comercial':             '#db2777',
+  'Gente e Gestão':        '#9333ea',
+};
+
+const DESC_PERFIL = {
+  'GQ Administrador':      'Coordenação GQ — acesso total, incluindo equipe, permissões e configurações',
+  'GQ Analista':           'Analistas GQ/AR — acesso completo a todos os módulos GQ e regulatórios',
+  'Controle de Qualidade': 'Qualidade e fábrica — abertura de RNC/CAPA/GCM, controle de docs., monitoramentos',
+  'Melhoria Contínua':     'Melhoria contínua — abertura de RNC/CAPA/GCM, validações, análise de risco',
+  'Produção':              'Produção e fábrica — abertura de RNC/CAPA/GCM, monitoramentos de produção',
+  'Manutenção':            'Manutenção — abertura de RNC/CAPA/GCM, assistência técnica, fábrica',
+  'PCP':                   'Planejamento e controle da produção — abertura de RNC/CAPA/GCM',
+  'Logística':             'Logística — abertura de RNC/CAPA/GCM, fornecedores',
+  'Engenharia':            'Engenharia — abertura de RNC/CAPA/GCM, validações, análise de risco',
+  'Comercial':             'Comercial — abertura de RNC/CAPA/GCM, reclamações de clientes',
+  'Gente e Gestão':        'Gestão de pessoas — abertura de RNC/CAPA/GCM',
 };
 
 // ── CFR Part 11 Checklist ───────────────────────────────────────────────────
@@ -40,30 +62,36 @@ const COR_STATUS = { 'Atendido': '#059669', 'Parcial': '#d97706', 'Pendente': '#
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 
 const MATRIZ_ACESSO = [
-  { grupo: 'Visão Geral',        modulos: ['Dashboard', 'Agenda GQ'],
-    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Leitura', execView: 'Leitura' },
+  { grupo: 'Visão Geral',        modulos: ['Dashboard'],
+    adm: 'Completo', gqA: 'Completo', outros: 'Leitura' },
   { grupo: 'Não-Conformidades',  modulos: ['RNC — Gerencial', 'RNC — Fluxo'],
-    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Abrir/Editar', execView: 'Leitura' },
+    adm: 'Completo', gqA: 'Completo', outros: 'Abrir/Editar' },
   { grupo: 'CAPA',               modulos: ['CAPA — Gerencial', 'CAPA — Abertura'],
-    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Abrir/Editar', execView: 'Leitura' },
+    adm: 'Completo', gqA: 'Completo', outros: 'Abrir/Editar' },
   { grupo: 'Reclamações / Tecnovig', modulos: ['Reclamações', 'Tecnovigilância'],
-    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Abrir/Editar', execView: 'Leitura' },
-  { grupo: 'Qualidade',          modulos: ['Validações', 'Fornecedores', 'GCM', 'Análise de Risco'],
-    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Monitorar', execView: 'Leitura' },
+    adm: 'Completo', gqA: 'Completo', outros: 'Abrir/Editar' },
+  { grupo: 'Gestão de Mudanças', modulos: ['GCM — Gerencial', 'GCM — Abertura'],
+    adm: 'Completo', gqA: 'Completo', outros: 'Abrir/Editar' },
   { grupo: 'Auditorias',         modulos: ['Plano Anual', 'Execução / Achados'],
-    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Executar / Gerir', execView: 'Leitura' },
+    adm: 'Completo', gqA: 'Completo', outros: 'Leitura' },
   { grupo: 'Documentos',         modulos: ['Controle de Docs.', 'Elaboração'],
-    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Executar / Cópia', execView: 'Leitura' },
-  { grupo: 'Planejamento',       modulos: ['Atividades', 'Cronograma', 'Calendário', 'Projetos', 'Revisão Gerencial'],
-    adm: 'Completo', gqManager: 'Completo', gqView: 'Leitura', execManager: 'Próprias atividades', execView: 'Leitura' },
-  { grupo: 'Administração',      modulos: ['Equipe', 'Permissões', 'Configurações'],
-    adm: 'Completo', gqManager: 'Leitura',  gqView: 'Leitura', execManager: '—',      execView: '—' },
+    adm: 'Completo', gqA: 'Completo', outros: 'Leitura / Elaborar' },
+  { grupo: 'Assuntos Regulatórios', modulos: ['Docs. Administrativos'],
+    adm: 'Completo', gqA: 'Completo', outros: '—' },
+  { grupo: 'Qualidade',          modulos: ['Validações', 'Fornecedores', 'Análise de Risco', 'Assistência Técnica'],
+    adm: 'Completo', gqA: 'Completo', outros: 'Leitura' },
+  { grupo: 'Fábrica',            modulos: ['Pragas', 'Reservatório', 'Resíduos', 'Monit. Microbiológico', 'Limpeza Mensal', 'Gemba Walk', 'Orçamentos Anuais'],
+    adm: 'Completo', gqA: 'Completo', outros: 'Executar / Registrar' },
+  { grupo: 'Planejamento GQ',    modulos: ['Atividades', 'Agenda GQ', 'Calendário', 'Cronograma', 'Projetos', 'Revisão Gerencial'],
+    adm: 'Completo', gqA: 'Completo', outros: '—' },
+  { grupo: 'Administração',      modulos: ['Equipe', 'Permissões', 'Trilha de Auditoria', 'Configurações'],
+    adm: 'Completo', gqA: 'Leitura',  outros: '—' },
 ];
 
 const COR_ACESSO = {
   'Completo': '#059669', 'Leitura': '#3b82f6', 'Abrir/Editar': '#f59e0b',
-  'Executar / Gerir': '#f59e0b', 'Executar / Cópia': '#f59e0b',
-  'Próprias atividades': '#f59e0b', 'Monitorar': '#94a3b8', '—': '#e2e8f0',
+  'Leitura / Elaborar': '#f59e0b', 'Executar / Registrar': '#f59e0b',
+  'Monitorar': '#94a3b8', '—': '#e2e8f0',
 };
 
 function celula(val) {
@@ -74,25 +102,50 @@ function celula(val) {
 
 function renderPerfis() {
   const equipe = db.get('equipe');
-  const porPerfil = { Adm: [], 'GQ Apoio': [], Executor: [] };
-  equipe.forEach(m => { if (porPerfil[m.perfil]) porPerfil[m.perfil].push(m); });
+  const porPerfil = {};
+  PERFIS.forEach(p => { porPerfil[p] = []; });
+  equipe.forEach(m => { if (m.perfil && porPerfil[m.perfil]) porPerfil[m.perfil].push(m); });
+
+  const GQ_PERFIS   = ['GQ Administrador', 'GQ Analista'];
+  const AREA_PERFIS = PERFIS.filter(p => !GQ_PERFIS.includes(p));
+
+  const gqCards = GQ_PERFIS.map(p => {
+    const cor     = COR_PERFIL[p];
+    const membros = porPerfil[p] || [];
+    return `
+      <div style="border:1px solid var(--border);border-top:4px solid ${cor};border-radius:8px;padding:14px">
+        <div style="font-weight:700;font-size:0.88rem;color:${cor};margin-bottom:4px">${p}</div>
+        <div style="font-size:0.71rem;color:var(--muted);margin-bottom:10px;line-height:1.4">${DESC_PERFIL[p]}</div>
+        <div style="font-size:0.71rem;color:var(--muted)">
+          <strong>${membros.length}</strong> usuária${membros.length !== 1 ? 's' : ''}${membros.length ? ': ' + membros.map(m => `<strong>${m.nome.split(' ')[0]}</strong>`).join(', ') : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  const areaCards = AREA_PERFIS.map(p => {
+    const cor     = COR_PERFIL[p] || '#6b7280';
+    const membros = porPerfil[p] || [];
+    return `
+      <div style="border:1px solid var(--border);border-left:3px solid ${cor};border-radius:6px;padding:9px 12px;display:flex;gap:12px;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:0.78rem;color:${cor}">${p}</div>
+          <div style="font-size:0.68rem;color:var(--muted);margin-top:2px;line-height:1.3">${DESC_PERFIL[p]}</div>
+        </div>
+        <div style="font-size:0.7rem;color:var(--muted);white-space:nowrap;flex-shrink:0">
+          ${membros.length ? membros.map(m => `<strong>${m.nome.split(' ')[0]}</strong>`).join(', ') : '<em>nenhuma</em>'}
+        </div>
+      </div>`;
+  }).join('');
 
   return `
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
-      ${PERFIS.map(p => {
-        const cor = COR_PERFIL[p];
-        const membros = porPerfil[p] || [];
-        const descs = { Adm: 'Coordenadora GQ + TI — acesso total ao sistema', 'GQ Apoio': 'Analistas GQ/AR — todos os módulos com licença Manager', Executor: 'Demais colaboradoras — módulos de execução e solicitação' };
-        return `<div style="border:1px solid var(--border);border-top:4px solid ${cor};border-radius:8px;padding:14px">
-          <div style="font-weight:700;font-size:0.9rem;color:${cor};margin-bottom:4px">${p}</div>
-          <div style="font-size:0.72rem;color:var(--muted);margin-bottom:10px;line-height:1.4">${descs[p]}</div>
-          <div style="font-size:0.72rem;font-weight:600;margin-bottom:4px">Licenças disponíveis:</div>
-          <div style="display:flex;gap:4px;margin-bottom:10px">
-            ${LICENCAS.map(l => `<span style="padding:2px 8px;border-radius:3px;background:${l==='Manager'?'#f0fdf4':'#f8fafc'};color:${l==='Manager'?'#166534':'#64748b'};font-size:0.7rem;font-weight:600">${l}</span>`).join('')}
-          </div>
-          <div style="font-size:0.72rem;color:var(--muted)">${membros.length} usuária${membros.length !== 1?'s':''}: ${membros.map(m=>`<strong>${m.nome.split(' ')[0]}</strong>`).join(', ') || 'nenhuma'}</div>
-        </div>`;
-      }).join('')}
+    <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px;color:var(--text)">Equipe GQ</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">
+      ${gqCards}
+    </div>
+
+    <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px;color:var(--text)">Perfis por Área</div>
+    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:20px">
+      ${areaCards}
     </div>
 
     <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px;color:var(--text)">Matriz de acesso por módulo</div>
@@ -101,11 +154,9 @@ function renderPerfis() {
         <thead>
           <tr>
             <th>Grupo / Módulos</th>
-            <th style="text-align:center">Adm</th>
-            <th style="text-align:center">GQ Apoio<br><span style="font-weight:400;font-size:0.7rem">Manager</span></th>
-            <th style="text-align:center">GQ Apoio<br><span style="font-weight:400;font-size:0.7rem">View</span></th>
-            <th style="text-align:center">Executor<br><span style="font-weight:400;font-size:0.7rem">Manager</span></th>
-            <th style="text-align:center">Executor<br><span style="font-weight:400;font-size:0.7rem">View</span></th>
+            <th style="text-align:center">GQ Administrador</th>
+            <th style="text-align:center">GQ Analista</th>
+            <th style="text-align:center">Outros Perfis<br><span style="font-weight:400;font-size:0.68rem">acesso varia por área</span></th>
           </tr>
         </thead>
         <tbody>
@@ -116,14 +167,16 @@ function renderPerfis() {
                 <div style="font-size:0.7rem;color:var(--muted)">${row.modulos.join(' · ')}</div>
               </td>
               ${celula(row.adm)}
-              ${celula(row.gqManager)}
-              ${celula(row.gqView)}
-              ${celula(row.execManager)}
-              ${celula(row.execView)}
+              ${celula(row.gqA)}
+              ${celula(row.outros)}
             </tr>
           `).join('')}
         </tbody>
       </table>
+    </div>
+    <div style="margin-top:8px;font-size:0.72rem;color:var(--muted)">
+      * Leitura / Elaborar: Controle de Docs. em leitura; Elaboração disponível para todas as áreas conforme POP-GQ-002.<br>
+      * Executar / Registrar: acesso às áreas responsáveis (Produção, Manutenção, CQ) conforme configuração por módulo.
     </div>
   `;
 }

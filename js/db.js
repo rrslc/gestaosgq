@@ -10,7 +10,10 @@
 
 import { STORE_KEY } from './constants.js';
 
-const COLLECTIONS = ['equipe', 'capa', 'capaAcoes', 'rnc', 'rncAcoes', 'fornecedores', 'tecno', 'validacoes', 'gcm', 'gcmAcoes', 'risco', 'pragas', 'obrigacoes', 'documentos', 'solicitacoes', 'perfis', 'trilha', 'reservatorio', 'residuos', 'microbiologico', 'limpezaMensal', 'gembaWalk', 'orcamentosAnuais', 'docsAdmin', 'reclamacoes', 'auditorias', 'assistenciaTecnica', 'revisaoGerencialAtas', 'projetos'];
+// Collections que não geram entrada na trilha (evita recursão)
+const AUDIT_SKIP = new Set(['trilha']);
+
+const COLLECTIONS = ['equipe', 'capa', 'capaAcoes', 'rnc', 'rncAcoes', 'fornecedores', 'tecno', 'validacoes', 'gcm', 'gcmAcoes', 'risco', 'pragas', 'obrigacoes', 'documentos', 'solicitacoes', 'perfis', 'trilha', 'atividades', 'reservatorio', 'residuos', 'microbiologico', 'limpezaMensal', 'gembaWalk', 'orcamentosAnuais', 'docsAdmin', 'reclamacoes', 'auditorias', 'assistenciaTecnica', 'revisaoGerencialAtas', 'projetos'];
 
 class Database {
   /** @type {Record<string, Array>} cache em memória */
@@ -158,6 +161,10 @@ class Database {
       const tempItem = { id: tempId, ...record };
       this.#data[collection].push(tempItem);
 
+      if (!AUDIT_SKIP.has(collection)) {
+        this.addAudit('Criar', collection, tempId, this.#auditDetail(record));
+      }
+
       this.#apiPost(collection, record).then(saved => {
         const idx = this.#data[collection].findIndex(r => r.id === tempId);
         if (idx !== -1) this.#data[collection][idx] = saved;
@@ -174,6 +181,9 @@ class Database {
     const item = { id: this.#nextId(collection), ...record };
     this.#data[collection].push(item);
     this.#persistToStorage();
+    if (!AUDIT_SKIP.has(collection)) {
+      this.addAudit('Criar', collection, item.id, this.#auditDetail(record));
+    }
     return item;
   }
 
@@ -205,6 +215,11 @@ class Database {
       this.#persistToStorage();
     }
 
+    if (!AUDIT_SKIP.has(collection)) {
+      const { senha: _s, ...safePatch } = patch;
+      this.addAudit('Editar', collection, id, JSON.stringify(safePatch));
+    }
+
     return { ...arr[idx] };
   }
 
@@ -217,6 +232,8 @@ class Database {
     const arr = this.#data[collection] ?? [];
     const idx = arr.findIndex(r => r.id === id);
     if (idx === -1) throw new Error(`Registro ${id} não encontrado em "${collection}"`);
+
+    const auditInfo = AUDIT_SKIP.has(collection) ? '' : this.#auditDetail(arr[idx]);
     arr.splice(idx, 1);
 
     if (this.#mode === 'neon') {
@@ -226,6 +243,10 @@ class Database {
       });
     } else {
       this.#persistToStorage();
+    }
+
+    if (!AUDIT_SKIP.has(collection)) {
+      this.addAudit('Excluir', collection, id, auditInfo);
     }
   }
 
@@ -479,6 +500,7 @@ class Database {
       })(),
       solicitacoes: [],
       trilha: [],
+      atividades: [],
       reservatorio: [],
       residuos: [],
       microbiologico: [],
@@ -518,12 +540,26 @@ class Database {
     });
   }
 
-  /** Retorna o usuário da sessão atual (sessionStorage). */
-  getSessionUser() {
-    try { return sessionStorage.getItem('sgq_usuario') || ''; } catch { return ''; }
+  /** Extrai campos-chave de um registro para a trilha (remove senha). */
+  #auditDetail(obj) {
+    if (!obj || typeof obj !== 'object') return '';
+    const { senha, ...safe } = obj;
+    const KEYS = ['numero', 'nome', 'descricao', 'titulo', 'status', 'acao'];
+    const snap = {};
+    for (const k of KEYS) if (safe[k] !== undefined) snap[k] = safe[k];
+    return Object.keys(snap).length ? JSON.stringify(snap) : '';
   }
 
-  /** Define o usuário da sessão atual. */
+  /** Retorna o usuário da sessão atual a partir da sessão ativa. */
+  getSessionUser() {
+    try {
+      const s = JSON.parse(localStorage.getItem('sgq_session') || 'null');
+      if (!s || (s.expires && Date.now() > s.expires)) return 'Sistema';
+      return s.perfil ? `${s.nome} [${s.perfil}]` : s.nome;
+    } catch { return 'Sistema'; }
+  }
+
+  /** Define o usuário da sessão atual (legado — mantido para compatibilidade). */
   setSessionUser(nome) {
     try {
       if (nome) sessionStorage.setItem('sgq_usuario', nome);

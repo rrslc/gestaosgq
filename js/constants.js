@@ -105,6 +105,7 @@ export const ROUTES = Object.freeze({
   REVISAO_GER:       'revisaoGerencial',
   PROJ_GERENCIAL:    'projetosGerencial',
   PROJ_ABERTURA:     'projetosAbertura',
+  TRILHA:            'trilha',
 });
 
 export const PILL_MAP = Object.freeze({

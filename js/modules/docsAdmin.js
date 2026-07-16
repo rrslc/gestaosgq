@@ -185,19 +185,23 @@ function renderTable(docs, statuses, filterKey) {
 
 // ── Campos do formulário ──────────────────────────────────────────────────────
 
-const FIELDS = [
-  { id: 'descricao',             label: 'Documento',                                    type: 'text',     required: true, span: 2 },
-  { id: 'orgao',                 label: 'Órgão',                                        type: 'text',     required: true },
-  { id: 'legislacaoBase',        label: 'Base Legal',                                   type: 'text' },
-  { id: 'dataEmissao',           label: 'Data de Emissão',                              type: 'date' },
-  { id: 'dataValidade',          label: 'Data de Validade',                             type: 'date' },
-  { id: 'prazoAntecedenciaDias', label: 'Prazo de Antecedência (dias)',                 type: 'number',   min: 0 },
-  { id: 'renovacaoPeriodo',      label: 'Período de Renovação',                         type: 'select',   options: PERIODOS },
-  { id: 'renovacaoAutomatica',   label: 'Renovação Automática',                         type: 'select',   options: ['Não', 'Sim'] },
-  { id: 'link',                  label: 'Link do Portal',                               type: 'text',     span: 2 },
-  { id: 'observacao',            label: 'Observações',                                  type: 'textarea', span: 2 },
-  { id: 'checklistRenovacao',    label: 'Checklist de Renovação (um passo por linha)',  type: 'textarea', span: 2 },
-];
+function buildFields() {
+  const equipe = db.get('equipe').map(m => m.nome);
+  return [
+    { id: 'descricao',             label: 'Documento',                                    type: 'text',     required: true, span: 2 },
+    { id: 'orgao',                 label: 'Órgão',                                        type: 'text',     required: true },
+    { id: 'legislacaoBase',        label: 'Base Legal',                                   type: 'text' },
+    { id: 'responsavel',           label: 'Responsável pela Renovação',                   type: 'select',   options: ['', ...equipe] },
+    { id: 'dataEmissao',           label: 'Data de Emissão',                              type: 'date' },
+    { id: 'dataValidade',          label: 'Data de Validade',                             type: 'date' },
+    { id: 'prazoAntecedenciaDias', label: 'Prazo de Antecedência (dias)',                 type: 'number',   min: 0 },
+    { id: 'renovacaoPeriodo',      label: 'Período de Renovação',                         type: 'select',   options: PERIODOS },
+    { id: 'renovacaoAutomatica',   label: 'Renovação Automática',                         type: 'select',   options: ['Não', 'Sim'] },
+    { id: 'link',                  label: 'Link do Portal',                               type: 'text',     span: 2 },
+    { id: 'observacao',            label: 'Observações',                                  type: 'textarea', span: 2 },
+    { id: 'checklistRenovacao',    label: 'Checklist de Renovação (um passo por linha)',  type: 'textarea', span: 2 },
+  ];
+}
 
 function toFormData(doc) {
   return {
@@ -254,6 +258,10 @@ function openViewModal(doc, status) {
             <strong>${doc.orgao || '—'}</strong>
           </div>
           <div>
+            <div style="color:var(--muted);font-size:0.71rem;margin-bottom:2px">Responsável pela Renovação</div>
+            <strong>${doc.responsavel || '—'}</strong>
+          </div>
+          <div>
             <div style="color:var(--muted);font-size:0.71rem;margin-bottom:2px">Emissão</div>
             <strong>${formatDate(doc.dataEmissao)}</strong>
           </div>
@@ -304,6 +312,49 @@ function openViewModal(doc, status) {
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 }
 
+// ── Sincronização com Atividades ──────────────────────────────────────────────
+
+const ATIVI_DONE  = new Set(['Concluída', 'Cancelada']);
+const ATIVI_TRIGGER = new Set(['Vencido', 'Atrasado', 'Crítico', 'Atenção', 'Alerta']);
+const ATIVI_PRIO  = { Vencido: 'Alta', Atrasado: 'Alta', Crítico: 'Alta', Atenção: 'Alta', Alerta: 'Média' };
+
+function syncAtividades(docs, statuses) {
+  const allAtivs = db.get('atividades');
+
+  docs.forEach((doc, i) => {
+    const status   = statuses[i];
+    const linked   = allAtivs.filter(a => a.origem === 'docsAdmin' && a.docId === doc.id);
+    const active   = linked.find(a => !ATIVI_DONE.has(a.status));
+
+    if (ATIVI_TRIGGER.has(status)) {
+      if (!active) {
+        const prazo = prazoSolicitacaoISO(doc);
+        db.add('atividades', {
+          titulo:      `Renovação: ${doc.descricao}`,
+          tipo:        'Regulatório',
+          prioridade:  ATIVI_PRIO[status] || 'Alta',
+          responsavel: doc.responsavel || '',
+          prazo:       prazo || doc.dataValidade || '',
+          status:      'Planejada',
+          dataInicio:  '',
+          descricao:   `${doc.orgao} · Validade: ${doc.dataValidade || 'N/A'} · Renovar até: ${prazo || doc.dataValidade || 'N/A'}`,
+          observacoes: Array.isArray(doc.checklistRenovacao) ? doc.checklistRenovacao.join('\n') : '',
+          origem:      'docsAdmin',
+          docId:       doc.id,
+        });
+      }
+    } else if (active && active.status === 'Planejada') {
+      db.update('atividades', active.id, { status: 'Cancelada' });
+    }
+  });
+}
+
+function cancelLinkedAtividades(docId) {
+  db.get('atividades')
+    .filter(a => a.origem === 'docsAdmin' && a.docId === docId && !ATIVI_DONE.has(a.status))
+    .forEach(a => db.update('atividades', a.id, { status: 'Cancelada' }));
+}
+
 // ── Render principal ──────────────────────────────────────────────────────────
 
 let _filter = 'all';
@@ -350,6 +401,8 @@ function renderMain(container) {
       Referências: CONAMA 237/97 Art. 18 · RDC 665/2022 · RDC 848/2024 · VISA Municipal
     </div>`;
 
+  syncAtividades(docs, statuses);
+
   // Painel de alertas — toggle
   const alertsHeader  = container.querySelector('#alerts-header');
   const alertsBody    = container.querySelector('#alerts-body');
@@ -384,7 +437,7 @@ function initEvents(container) {
     if (action === 'new') {
       openModal({
         title: 'Novo Documento Administrativo',
-        fields: FIELDS,
+        fields: buildFields(),
         data: { prazoAntecedenciaDias: 60, renovacaoAutomatica: 'Não', renovacaoPeriodo: '1 ano' },
         onSave: raw => {
           db.add(COLLECTION, fromFormData(raw));
@@ -400,7 +453,7 @@ function initEvents(container) {
       if (!doc) return;
       openModal({
         title: 'Editar Documento',
-        fields: FIELDS,
+        fields: buildFields(),
         data: toFormData(doc),
         onSave: raw => {
           db.update(COLLECTION, id, fromFormData(raw));
@@ -421,6 +474,7 @@ function initEvents(container) {
     if (action === 'delete' && id !== null) {
       const ok = await showConfirm('Excluir este documento? Esta ação não pode ser desfeita.');
       if (!ok) return;
+      cancelLinkedAtividades(id);
       db.remove(COLLECTION, id);
       toast('Documento excluído.');
       renderMain(container);

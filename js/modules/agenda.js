@@ -93,6 +93,8 @@ const ATIV_LABELS = {
   f5_termoLiberacao:    'Termo de Liberação',
 };
 
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
 // ── Urgência ──────────────────────────────────────────────────────────────────
 
 function urgenciaNivel(prazoStr) {
@@ -457,6 +459,93 @@ function renderFonteChips(filtroFonte) {
 
 let _filtroMembro = '';
 let _filtroFonte  = '';
+let _view         = 'lista'; // 'lista' | 'calendario'
+let _calYear      = new Date().getFullYear();
+let _calMonth     = new Date().getMonth();
+
+// ── Vista Calendário ──────────────────────────────────────────────────────────
+
+function renderCalView(filtroMembro, filtroFonte) {
+  const items = getAtividades(filtroMembro, filtroFonte);
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const todayISO = hoje.toISOString().slice(0, 10);
+
+  const byDate = {};
+  items.forEach(it => {
+    if (!it.prazo) return;
+    if (!byDate[it.prazo]) byDate[it.prazo] = [];
+    byDate[it.prazo].push(it);
+  });
+
+  const semPrazo = items.filter(it => !it.prazo);
+
+  const mesLabel = MONTHS_PT[_calMonth] + ' ' + _calYear;
+  const firstDow = new Date(_calYear, _calMonth, 1).getDay();
+  const totalDays = new Date(_calYear, _calMonth + 1, 0).getDate();
+
+  const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const hdr = WEEKDAYS.map(w =>
+    `<div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--muted);padding:5px 2px">${w}</div>`
+  ).join('');
+
+  let cells = '';
+  for (let i = 0; i < firstDow; i++) cells += `<div style="min-height:80px"></div>`;
+
+  for (let d = 1; d <= totalDays; d++) {
+    const iso = `${_calYear}-${String(_calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dayItems = byDate[iso] || [];
+    const isToday  = iso === todayISO;
+    const isPast   = iso < todayISO;
+    const hasVenc  = isPast && dayItems.some(i => urgenciaNivel(i.prazo) === 0);
+
+    const shown = dayItems.slice(0, 3);
+    const extra = dayItems.length - shown.length;
+
+    const evHtml = shown.map(it => {
+      const meta = FONTES[it.fonte] || { cor: '#6b7280', sigla: it.fonte };
+      return `<div data-action="ir" data-route="${it.route}"
+                   title="${it.fonte}: ${it.descricao}\n${it.responsavel}"
+                   style="font-size:0.6rem;padding:1px 4px;border-radius:3px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:${meta.cor}18;color:${meta.cor};border:1px solid ${meta.cor}40">
+               ${meta.sigla}: ${it.codigo}
+             </div>`;
+    }).join('');
+
+    cells += `
+      <div style="min-height:80px;padding:4px;border:1px solid var(--border);border-radius:5px;display:flex;flex-direction:column;gap:1px;
+                  background:${isToday ? '#eff6ff' : 'var(--bg)'};
+                  ${isToday ? 'outline:2px solid var(--accent);outline-offset:-2px;' : ''}">
+        <div style="font-size:0.72rem;font-weight:${isToday ? '700' : '500'};color:${isToday ? 'var(--accent)' : hasVenc ? '#dc2626' : 'var(--text)'}">
+          ${d}${hasVenc ? ' ⚠' : ''}
+        </div>
+        ${evHtml}
+        ${extra > 0 ? `<div style="font-size:0.58rem;color:var(--muted);margin-top:1px">+${extra} mais</div>` : ''}
+      </div>`;
+  }
+
+  const semPrazoHtml = semPrazo.length ? `
+    <div style="margin-top:18px">
+      <div style="font-size:0.71rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Sem prazo definido (${semPrazo.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${semPrazo.map(it => {
+          const meta = FONTES[it.fonte] || { cor: '#6b7280', sigla: it.fonte };
+          return `<span data-action="ir" data-route="${it.route}" title="${it.descricao}"
+                        style="cursor:pointer;font-size:0.68rem;padding:2px 8px;border-radius:4px;background:${meta.cor}14;color:${meta.cor};border:1px solid ${meta.cor}30">
+                    ${meta.sigla}: ${it.codigo}
+                  </span>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <button class="btn btn-secondary btn-sm" data-cal-nav="-1">← Anterior</button>
+      <span style="font-weight:700;font-size:1rem;text-transform:capitalize">${mesLabel}</span>
+      <button class="btn btn-secondary btn-sm" data-cal-nav="1">Próximo →</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px">${hdr}</div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">${cells}</div>
+    ${semPrazoHtml}`;
+}
 
 function rebuild(container) {
   const equipe = db.get('equipe');
@@ -474,7 +563,15 @@ function rebuild(container) {
     ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:4px">Filtros:</span>${tags.join('')}`
     : '<span style="font-size:0.79rem;color:var(--muted)">Todos os módulos · todos os responsáveis</span>';
 
-  container.querySelector('#ag-grupos').innerHTML = renderGrupos(_filtroMembro, _filtroFonte);
+  container.querySelectorAll('[data-view-btn]').forEach(btn => {
+    const active = btn.dataset.viewBtn === _view;
+    btn.className = `btn btn-sm ${active ? 'btn-primary' : 'btn-secondary'}`;
+    btn.style.borderRadius = '5px';
+  });
+
+  container.querySelector('#ag-grupos').innerHTML = _view === 'lista'
+    ? renderGrupos(_filtroMembro, _filtroFonte)
+    : renderCalView(_filtroMembro, _filtroFonte);
 }
 
 // ── Módulo ────────────────────────────────────────────────────────────────────
@@ -486,7 +583,11 @@ export default {
 
     container.innerHTML = `
       <div class="page-header">
-        <h2>Agenda GQ — Calendário Unificado</h2>
+        <h2>Agenda GQ</h2>
+        <div style="display:flex;gap:3px;border:1px solid var(--border);border-radius:8px;padding:3px;background:var(--surface)">
+          <button class="btn btn-primary btn-sm" data-view-btn="lista" style="border-radius:5px">☰ Lista</button>
+          <button class="btn btn-secondary btn-sm" data-view-btn="calendario" style="border-radius:5px">📆 Calendário</button>
+        </div>
       </div>
 
       <div id="ag-kpis">${renderKpis(allItems)}</div>
@@ -513,6 +614,24 @@ export default {
 
   init(container) {
     container.addEventListener('click', e => {
+      // Vista toggle
+      const viewBtn = e.target.closest('[data-view-btn]');
+      if (viewBtn) {
+        _view = viewBtn.dataset.viewBtn;
+        rebuild(container);
+        return;
+      }
+
+      // Navegação de mês no calendário
+      const calNav = e.target.closest('[data-cal-nav]');
+      if (calNav) {
+        _calMonth += Number(calNav.dataset.calNav);
+        if (_calMonth < 0)  { _calMonth = 11; _calYear--; }
+        if (_calMonth > 11) { _calMonth = 0;  _calYear++; }
+        container.querySelector('#ag-grupos').innerHTML = renderCalView(_filtroMembro, _filtroFonte);
+        return;
+      }
+
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
       const { action } = btn.dataset;
@@ -520,7 +639,7 @@ export default {
       if (action === 'limpar-membro') { _filtroMembro = '';                rebuild(container); }
       if (action === 'fonte')         { _filtroFonte  = btn.dataset.fonte; rebuild(container); }
       if (action === 'limpar-fonte')  { _filtroFonte  = '';                rebuild(container); }
-      if (action === 'ir')            { window.location.hash = '#' + btn.dataset.route; }
+      if (action === 'ir')            { window.location.hash = btn.dataset.route; }
     });
   },
 };

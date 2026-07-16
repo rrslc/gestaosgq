@@ -323,10 +323,15 @@ function renderFluxoProcesso() {
   `;
 }
 
-function kpiCard(value, label, color, highlight) {
-  return `<div style="padding:12px;background:var(--surface);border:1px solid ${highlight ? color : 'var(--border)'};border-left:3px solid ${color};border-radius:8px;text-align:center">
-    <div style="font-size:1.6rem;font-weight:700;color:${color};line-height:1.1">${value}</div>
-    <div style="font-size:0.71rem;color:var(--muted);margin-top:4px">${label}</div>
+function kpiCard(value, label, color, highlight = false, sub = '') {
+  const empty = value === 0;
+  const border = highlight && value > 0
+    ? `border:1px solid ${color}50;box-shadow:0 0 0 2px ${color}14`
+    : 'border:1px solid var(--border)';
+  return `<div style="padding:16px 10px 13px;background:var(--surface);${border};border-radius:10px;text-align:center">
+    <div style="font-size:1.75rem;font-weight:800;color:${empty ? 'var(--muted)' : color};line-height:1;font-variant-numeric:tabular-nums">${value}</div>
+    <div style="font-size:0.7rem;color:var(--muted);margin-top:5px;line-height:1.3">${label}</div>
+    ${sub ? `<div style="font-size:0.65rem;margin-top:3px;color:${color};font-weight:600;opacity:${empty?0.35:0.8}">${sub}</div>` : ''}
   </div>`;
 }
 
@@ -400,24 +405,53 @@ function renderPainel() {
     </div>
   ` : emptyState('Nenhuma RNC registrada.');
 
+  // Tempo médio de resolução
+  const fechadas = all.filter(r => r.dataAbertura && r.dataFechamento);
+  const tmr = fechadas.length
+    ? Math.round(fechadas.reduce((s, r) => {
+        const ini = new Date(r.dataAbertura + 'T00:00:00');
+        const fim = new Date(r.dataFechamento + 'T00:00:00');
+        return s + (fim - ini) / 86400000;
+      }, 0) / fechadas.length)
+    : null;
+
+  const totalAll = PIPELINE.reduce((s, p) => s + p.n, 0);
+
   return `
     ${renderAcompanhamento()}
-    <div style="display:flex;gap:0;margin-bottom:20px;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
-      ${PIPELINE.map((p, i) => `
-        <div style="flex:1;padding:12px 8px;text-align:center;background:var(--surface);${i > 0 ? 'border-left:1px solid var(--border)' : ''}">
-          <div style="font-size:1.3rem;font-weight:700;color:${p.color}">${p.n}</div>
-          <div style="font-size:0.7rem;color:var(--muted);margin-top:2px;line-height:1.3">${p.key}</div>
-        </div>
-      `).join('')}
+
+    <!-- Pipeline -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:18px">
+      <div style="padding:12px 16px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Pipeline — RNCs por etapa</span>
+        <span style="font-size:0.72rem;color:var(--muted)">${totalAll} total</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr)">
+        ${PIPELINE.map((p, i) => {
+          const pct = totalAll ? Math.round(p.n / totalAll * 100) : 0;
+          const active = p.n > 0;
+          return `<div style="padding:14px 10px 13px;text-align:center;${i > 0 ? 'border-left:1px solid var(--border)' : ''};position:relative">
+            ${i < PIPELINE.length - 1 ? `<div style="position:absolute;right:0;top:50%;transform:translateY(-50%);font-size:0.6rem;color:var(--border);line-height:1;pointer-events:none;z-index:1">▶</div>` : ''}
+            <div style="font-size:1.75rem;font-weight:800;color:${active ? p.color : 'var(--border)'};line-height:1;margin-bottom:8px;font-variant-numeric:tabular-nums">${p.n}</div>
+            <div style="height:3px;border-radius:2px;background:var(--border);margin:0 4px 8px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${p.color};border-radius:2px"></div>
+            </div>
+            <div style="font-size:0.67rem;color:${active ? 'var(--fg)' : 'var(--muted)'};line-height:1.3;font-weight:${active ? '600' : '400'}">${p.key}</div>
+          </div>`;
+        }).join('')}
+      </div>
     </div>
+
+    <!-- KPIs -->
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px">
-      ${kpiCard(kpis.total,     'Total',       'var(--blue)')}
-      ${kpiCard(kpis.abertas,   'Abertas',     'var(--red)')}
-      ${kpiCard(kpis.andamento, 'Em Andamento','var(--amber)')}
-      ${kpiCard(kpis.emAtraso,  'Em Atraso',   'var(--red)',  kpis.emAtraso > 0)}
-      ${kpiCard(kpis.encerradas,'Encerradas',  'var(--green)')}
-      ${kpiCard(kpis.comCapa,   'Geram CAPA',  'var(--amber)',kpis.comCapa > 0)}
+      ${kpiCard(kpis.total,     'Total de RNCs',  'var(--blue)')}
+      ${kpiCard(kpis.abertas,   'Aguardando GQ',  'var(--red)')}
+      ${kpiCard(kpis.andamento, 'Em Andamento',   'var(--amber)')}
+      ${kpiCard(kpis.emAtraso,  'Em Atraso',      'var(--red)',   true,  kpis.emAtraso > 0 ? '⚠ requer atenção' : '')}
+      ${kpiCard(kpis.encerradas,'Encerradas',     'var(--green)', false, tmr !== null ? `TMR: ${tmr}d` : '')}
+      ${kpiCard(kpis.comCapa,   'Geram CAPA',     'var(--amber)', true,  kpis.comCapa > 0 ? 'verificar CAPAs' : '')}
     </div>
+
     <div class="card">
       <div style="font-weight:600;margin-bottom:12px;font-size:0.9rem">Todas as RNCs</div>
       ${tableHtml}

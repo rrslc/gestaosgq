@@ -55,8 +55,11 @@ class Router {
     // Fechar todos os modais antes de trocar de rota
     closeAllModals();
 
-    // Render and init module
-    this.#container.innerHTML = '';
+    // Substituir container por clone limpo para remover listeners acumulados
+    const fresh = this.#container.cloneNode(false);
+    this.#container.parentNode.replaceChild(fresh, this.#container);
+    this.#container = fresh;
+
     this.#container.classList.remove('fade-in');
     // Force reflow
     void this.#container.offsetWidth;

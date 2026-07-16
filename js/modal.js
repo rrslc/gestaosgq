@@ -3,6 +3,7 @@
  */
 
 import { selectOptions } from './utils.js';
+import { db } from './db.js';
 
 let overlay = null;
 
@@ -34,7 +35,7 @@ function collectFormData(fields) {
   const errors = [];
   for (const f of fields) {
     if (f.type === 'heading') continue;
-    if (f.type === 'acoes-table') {
+    if (f.type === 'acoes-table' || f.type === 'plano-acao-table') {
       const el = document.getElementById('field-' + f.id);
       try { data[f.id] = JSON.parse(el?.value || '[]'); } catch { data[f.id] = []; }
       continue;
@@ -81,11 +82,15 @@ function buildField(field, data) {
       const b  = 'border:1px solid var(--border);padding:2px';
       const si = `width:100%;border:none;background:transparent;padding:3px 5px;font-size:0.82rem${ro ? ';color:var(--muted)' : ''}`;
       const sit = ['', 'Pendente', 'Em andamento', 'Concluída'];
+      const nomes = db.get('equipe').map(m => m.nome);
       const mkRow = (r, i) => `<tr>
         <td style="${b};text-align:center;font-size:0.78rem;color:var(--muted)">${i + 1}</td>
-        <td style="${b}"><input type="text"  data-row="${i}" data-col="descricao"   value="${(r.descricao||'').replace(/"/g,'&quot;')}"   style="${si}" placeholder="Descreva a ação..." ${ro?'readonly':''}></td>
-        <td style="${b}"><input type="text"  data-row="${i}" data-col="responsavel" value="${(r.responsavel||'').replace(/"/g,'&quot;')}" style="${si}" ${ro?'readonly':''}></td>
-        <td style="${b}"><input type="date"  data-row="${i}" data-col="prazo"       value="${r.prazo||''}"        style="${si}" ${ro?'readonly':''}></td>
+        <td style="${b}"><input type="text" data-row="${i}" data-col="descricao" value="${(r.descricao||'').replace(/"/g,'&quot;')}" style="${si}" placeholder="Descreva a ação..." ${ro?'readonly':''}></td>
+        <td style="${b}"><select data-row="${i}" data-col="responsavel" style="width:100%;border:none;background:transparent;padding:3px 2px;font-size:0.82rem${ro?';pointer-events:none;color:var(--muted)':''}">
+          <option value="">—</option>
+          ${nomes.map(n => `<option value="${n}"${r.responsavel===n?' selected':''}>${n}</option>`).join('')}
+        </select></td>
+        <td style="${b}"><input type="date" data-row="${i}" data-col="prazo" value="${r.prazo||''}" style="${si}" ${ro?'readonly':''}></td>
         <td style="${b}"><select data-row="${i}" data-col="situacao" style="width:100%;border:none;background:transparent;padding:3px 2px;font-size:0.82rem${ro?';pointer-events:none;color:var(--muted)':''}">
           ${sit.map(v => `<option value="${v}"${(r.situacao||'')=== v?' selected':''}>${v||'—'}</option>`).join('')}
         </select></td>
@@ -108,6 +113,51 @@ function buildField(field, data) {
               </tbody>
             </table>
             ${!ro ? `<button type="button" data-add-row style="margin-top:6px;font-size:0.72rem;color:var(--blue,#3b82f6);background:none;border:1px solid currentColor;border-radius:4px;padding:2px 9px;cursor:pointer">＋ linha</button>` : ''}
+          </div>
+        </div>`;
+    }
+    case 'plano-acao-table': {
+      let rows;
+      try { rows = val ? (Array.isArray(val) ? val : JSON.parse(val)) : []; } catch { rows = []; }
+      while (rows.length < 3) rows.push({});
+      const ro = !!field.readonly;
+      const b  = 'border:1px solid var(--border);padding:2px';
+      const si = `width:100%;border:none;background:transparent;padding:3px 5px;font-size:0.82rem${ro ? ';color:var(--muted)' : ''}`;
+      const nomes = db.get('equipe').map(m => m.nome);
+      const sel = (row, i, col) => `<select data-row="${i}" data-col="${col}" style="width:100%;border:none;background:transparent;padding:3px 2px;font-size:0.82rem${ro?';pointer-events:none;color:var(--muted)':''}">
+        <option value="">—</option>${nomes.map(n => `<option value="${n}"${row[col]===n?' selected':''}>${n}</option>`).join('')}
+      </select>`;
+      const mkRow = (r, i) => `<tr>
+        <td style="${b};text-align:center;font-size:0.78rem;color:var(--muted)">${i + 1}</td>
+        <td style="${b}"><input type="text" data-row="${i}" data-col="descricao" value="${(r.descricao||'').replace(/"/g,'&quot;')}" style="${si}" placeholder="Descrição da ação..." ${ro?'readonly':''}></td>
+        <td style="${b}">${sel(r,i,'responsavel')}</td>
+        <td style="${b}"><input type="date" data-row="${i}" data-col="prazo" value="${r.prazo||''}" style="${si}" ${ro?'readonly':''}></td>
+        <td style="${b}"><input type="date" data-row="${i}" data-col="dataRealizada" value="${r.dataRealizada||''}" style="${si}" ${ro?'readonly':''}></td>
+        <td style="${b}"><input type="text" data-row="${i}" data-col="evidencia" value="${(r.evidencia||'').replace(/"/g,'&quot;')}" style="${si}" placeholder="Evidência / justificativa..." ${ro?'readonly':''}></td>
+        <td style="${b}">${sel(r,i,'verificadoPor')}</td>
+        <td style="${b}"><input type="date" data-row="${i}" data-col="dataVerificacao" value="${r.dataVerificacao||''}" style="${si}" ${ro?'readonly':''}></td>
+      </tr>`;
+      return `
+        <div class="form-group span-2">
+          <label>${field.label}${field.required ? ' <span style="color:var(--red)">*</span>' : ''}</label>
+          <input type="hidden" id="field-${field.id}">
+          <div data-plano-acao-table="field-${field.id}" style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;min-width:700px">
+              <thead><tr style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.04em;background:var(--surface,var(--bg))">
+                <th style="width:24px;${b};text-align:center;color:var(--muted);font-weight:600">Nº</th>
+                <th style="${b};padding:5px 8px;font-weight:600">Descrição</th>
+                <th style="width:110px;${b};padding:5px 8px;font-weight:600">Responsável</th>
+                <th style="width:90px;${b};padding:5px 8px;font-weight:600">Prazo</th>
+                <th style="width:90px;${b};padding:5px 8px;font-weight:600">Data Realizada</th>
+                <th style="${b};padding:5px 8px;font-weight:600">Evidência / Justificativa</th>
+                <th style="width:110px;${b};padding:5px 8px;font-weight:600">Verificado por</th>
+                <th style="width:90px;${b};padding:5px 8px;font-weight:600">Data da Verificação</th>
+              </tr></thead>
+              <tbody id="field-${field.id}-tbody">
+                ${rows.map((r, i) => mkRow(r, i)).join('')}
+              </tbody>
+            </table>
+            ${!ro ? `<button type="button" data-add-plano-row style="margin-top:6px;font-size:0.72rem;color:var(--blue,#3b82f6);background:none;border:1px solid currentColor;border-radius:4px;padding:2px 9px;cursor:pointer">＋ linha</button>` : ''}
           </div>
         </div>`;
     }
@@ -219,6 +269,44 @@ export function openModal({ title, fields, data = {}, onSave, setup }) {
         <td style="${b}"><select data-row="${i}" data-col="situacao" style="width:100%;border:none;background:transparent;padding:3px 2px;font-size:0.82rem">
           <option value="">—</option><option>Pendente</option><option>Em andamento</option><option>Concluída</option>
         </select></td>`;
+      tbody.appendChild(tr);
+      sync();
+    });
+  });
+
+  o.querySelectorAll('[data-plano-acao-table]').forEach(wrap => {
+    const hidId  = wrap.dataset.planoAcaoTable;
+    const hidden = document.getElementById(hidId);
+    const sync = () => {
+      const map = {};
+      wrap.querySelectorAll('[data-row][data-col]').forEach(el => {
+        const i = el.dataset.row;
+        if (!map[i]) map[i] = {};
+        map[i][el.dataset.col] = el.value;
+      });
+      hidden.value = JSON.stringify(Object.values(map));
+    };
+    sync();
+    wrap.addEventListener('input',  sync);
+    wrap.addEventListener('change', sync);
+    wrap.querySelector('[data-add-plano-row]')?.addEventListener('click', () => {
+      const tbody = wrap.querySelector('tbody');
+      const i     = tbody.rows.length;
+      const bdr   = 'border:1px solid var(--border);padding:2px';
+      const s     = 'width:100%;border:none;background:transparent;padding:3px 5px;font-size:0.82rem';
+      const ss    = 'width:100%;border:none;background:transparent;padding:3px 2px;font-size:0.82rem';
+      const nomes = db.get('equipe').map(m => m.nome);
+      const opts  = `<option value="">—</option>${nomes.map(n => `<option value="${n}">${n}</option>`).join('')}`;
+      const tr    = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="${bdr};text-align:center;font-size:0.78rem;color:var(--muted)">${i + 1}</td>
+        <td style="${bdr}"><input type="text" data-row="${i}" data-col="descricao" style="${s}" placeholder="Descrição da ação..."></td>
+        <td style="${bdr}"><select data-row="${i}" data-col="responsavel" style="${ss}">${opts}</select></td>
+        <td style="${bdr}"><input type="date" data-row="${i}" data-col="prazo" style="${s}"></td>
+        <td style="${bdr}"><input type="date" data-row="${i}" data-col="dataRealizada" style="${s}"></td>
+        <td style="${bdr}"><input type="text" data-row="${i}" data-col="evidencia" style="${s}" placeholder="Evidência..."></td>
+        <td style="${bdr}"><select data-row="${i}" data-col="verificadoPor" style="${ss}">${opts}</select></td>
+        <td style="${bdr}"><input type="date" data-row="${i}" data-col="dataVerificacao" style="${s}"></td>`;
       tbody.appendChild(tr);
       sync();
     });

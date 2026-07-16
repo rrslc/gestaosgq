@@ -20,17 +20,21 @@ const CARGOS = [
 
 const CORES = ['#2d5be3', '#00897b', '#7c3aed', '#f59e0b', '#dc2626', '#00b4d8', '#0d1b4b'];
 
-// Mapa de migração do modelo antigo de perfis para o novo
+// Mapa de migração de formatos legados → perfis atuais por área
 const PERFIL_LEGADO = {
-  'GQ Administrador': { perfil: 'Adm',      licenca: 'Manager' },
-  'Gestor GQ':        { perfil: 'Adm',      licenca: 'Manager' },
-  'Garantia da Qualidade': { perfil: 'GQ Apoio', licenca: 'Manager' },
-  'Elaborador':       { perfil: 'GQ Apoio', licenca: 'Manager' },
-  'Revisor':          { perfil: 'Executor',  licenca: 'Manager' },
-  'Aprovador':        { perfil: 'Executor',  licenca: 'Manager' },
-  'Executor':         { perfil: 'Executor',  licenca: 'Manager' },
-  'Resp. por Impressão': { perfil: 'Executor', licenca: 'View' },
-  'Consulta':         { perfil: 'Executor',  licenca: 'View'    },
+  // Formato v1 (antes de Adm/GQ Apoio/Executor)
+  'GQ Administrador':   { perfil: 'GQ Administrador', licenca: 'Manager' },
+  'Gestor GQ':          { perfil: 'GQ Administrador', licenca: 'Manager' },
+  'Garantia da Qualidade': { perfil: 'GQ Analista',   licenca: 'Manager' },
+  'Elaborador':         { perfil: 'GQ Analista',      licenca: 'Manager' },
+  'Revisor':            { perfil: 'GQ Analista',      licenca: 'Manager' },
+  'Aprovador':          { perfil: 'GQ Analista',      licenca: 'Manager' },
+  'Resp. por Impressão':{ perfil: 'Controle de Qualidade', licenca: 'View' },
+  'Consulta':           { perfil: 'Controle de Qualidade', licenca: 'View' },
+  // Formato v2 (Adm / GQ Apoio / Executor)
+  'Adm':      { perfil: 'GQ Administrador', licenca: 'Manager' },
+  'GQ Apoio': { perfil: 'GQ Analista',      licenca: 'Manager' },
+  'Executor': { perfil: 'Controle de Qualidade', licenca: 'Manager' },
 };
 
 const FIELDS = [
@@ -46,7 +50,7 @@ const FIELDS = [
 ];
 
 // Migra membros com perfil no formato legado (array de strings antigas)
-function migrateLegacyPerfil() {
+export function migrateLegacyPerfil() {
   db.get('equipe').forEach(m => {
     if (!Array.isArray(m.perfil) && m.perfil && PERFIS.includes(m.perfil)) return; // já migrado
     const legadoKey = Array.isArray(m.perfil) ? m.perfil[0] : m.perfil;
@@ -141,6 +145,7 @@ export default {
 
       if (action === 'new') {
         openModal({ title: 'Nova Colaboradora', fields: FIELDS, data: { cor: CORES[db.get('equipe').length % CORES.length] }, onSave: data => {
+          if (data.senha && data.senha.length < 8) throw new Error('A senha deve ter no mínimo 8 caracteres (requisito CFR Part 11).');
           db.add('equipe', data);
           toast('Colaboradora adicionada!');
           container.querySelector('#team-cards').innerHTML = renderCards();
@@ -151,6 +156,7 @@ export default {
         const record = db.getById('equipe', numId);
         if (!record) return;
         openModal({ title: 'Editar Colaboradora', fields: FIELDS, data: record, onSave: data => {
+          if (data.senha && data.senha.length < 8) throw new Error('A senha deve ter no mínimo 8 caracteres (requisito CFR Part 11).');
           db.update('equipe', numId, data);
           toast('Colaboradora atualizada!');
           container.querySelector('#team-cards').innerHTML = renderCards();

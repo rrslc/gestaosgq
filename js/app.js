@@ -36,7 +36,7 @@ import docsAdmin    from './modules/docsAdmin.js';
 import obrigacoes   from './modules/obrigacoes.js';
 import documentos   from './modules/documentos.js';
 import elaboracao   from './modules/elaboracao.js';
-import equipe       from './modules/equipe.js';
+import equipe, { migrateLegacyPerfil } from './modules/equipe.js';
 import cronograma   from './modules/cronograma.js';
 import calendario   from './modules/calendario.js';
 import configuracoes        from './modules/configuracoes.js';
@@ -50,6 +50,7 @@ import revisaoGerencial     from './modules/revisaoGerencial.js';
 import projetosGerencial    from './modules/projetosGerencial.js';
 import projetosAbertura     from './modules/projetosAbertura.js';
 import atividades           from './modules/atividades.js';
+import trilha               from './modules/trilha.js';
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
@@ -61,7 +62,7 @@ export const router = new Router({
   capa: { module: { render() {}, init() { router.navigate(ROUTES.CAPA_GERENCIAL); } }, title: 'CAPA', icon: '◈' },
   [ROUTES.RNC]:            { module: { render() {}, init() { router.navigate(ROUTES.RNC_GERENCIAL); } }, title: 'RNC', icon: '⚑' },
   [ROUTES.RNC_GERENCIAL]:  { module: rncGerencial,  title: 'RNC — Gerencial',        icon: '📊' },
-  [ROUTES.RNC_ABERTURA]:   { module: rncAbertura,   title: 'RNC — Fluxo de Trabalho',         icon: '⚑' },
+  [ROUTES.RNC_ABERTURA]:   { module: rncAbertura,   title: 'Registro de RNC',                 icon: '⚑' },
   [ROUTES.FORNECEDORES]: { module: fornecedores, title: 'Fornecedores',             icon: '⬡' },
   [ROUTES.TECNOVIG]:     { module: tecnovig,     title: 'Tecnovigilância',          icon: '⚕' },
   [ROUTES.VALIDACOES]:   { module: validacoes,   title: 'Validações',               icon: '✔' },
@@ -97,6 +98,7 @@ export const router = new Router({
   [ROUTES.PROJ_GERENCIAL]:     { module: projetosGerencial,    title: 'Projetos — Gerencial',       icon: '🗂' },
   [ROUTES.PROJ_ABERTURA]:      { module: projetosAbertura,     title: 'Projetos — Atividades GQ',   icon: '📐' },
   projetos: { module: { render() {}, init() { router.navigate(ROUTES.PROJ_GERENCIAL); } }, title: 'Projetos', icon: '📐' },
+  [ROUTES.TRILHA]:             { module: trilha,               title: 'Trilha de Auditoria',        icon: '📋' },
 });
 
 // ── Session / Login ───────────────────────────────────────────────────────────
@@ -122,6 +124,16 @@ function updateTopbarSession() {
   }
 }
 
+const LOCKOUT_KEY   = 'sgq_loginlock';
+const MAX_ATTEMPTS  = 5;
+const LOCKOUT_MS    = 30 * 60 * 1000; // 30 minutos
+
+function getLock() {
+  try { return JSON.parse(localStorage.getItem(LOCKOUT_KEY) || '{}'); } catch { return {}; }
+}
+function setLock(data) { localStorage.setItem(LOCKOUT_KEY, JSON.stringify(data)); }
+function clearLock()   { localStorage.removeItem(LOCKOUT_KEY); }
+
 function openLoginModal() {
   const equipe = db.get('equipe').filter(m => m.senha);
   if (!equipe.length) {
@@ -140,9 +152,33 @@ function openLoginModal() {
       if (inp) inp.type = 'password';
     },
     onSave(data) {
+      // Verificar bloqueio
+      const lock = getLock();
+      if (lock.lockedAt) {
+        const lockedUntil = new Date(lock.lockedAt).getTime() + LOCKOUT_MS;
+        if (Date.now() < lockedUntil) {
+          const rem = Math.ceil((lockedUntil - Date.now()) / 60000);
+          throw new Error(`Acesso bloqueado por tentativas incorretas. Tente novamente em ${rem} min.`);
+        }
+        clearLock();
+      }
+
       const user = equipe.find(m => m.nome === data.nome && m.senha === data.senha);
-      if (!user) throw new Error('Senha incorreta. Verifique e tente novamente.');
+      if (!user) {
+        const count = (lock.count || 0) + 1;
+        if (count >= MAX_ATTEMPTS) {
+          setLock({ count, lockedAt: new Date().toISOString() });
+          db.addAudit('Bloqueio', 'sistema', data.nome, `${count} tentativas incorretas consecutivas`);
+          throw new Error(`${MAX_ATTEMPTS} tentativas incorretas. Acesso bloqueado por 30 minutos.`);
+        }
+        setLock({ count, lockedAt: null });
+        throw new Error(`Senha incorreta. Restam ${MAX_ATTEMPTS - count} tentativa(s).`);
+      }
+
+      // Sucesso — limpa lockout, cria sessão, registra auditoria
+      clearLock();
       setSession({ id: user.id, nome: user.nome, iniciais: user.iniciais, area: user.area, perfil: user.perfil, licenca: user.licenca, cor: user.cor });
+      db.addAudit('Login', 'sistema', user.id, `${user.nome} [${user.perfil || '—'}]`);
       updateTopbarSession();
       router.navigate(router.current || ROUTES.DASHBOARD);
       toast(`Bem-vinda, ${user.nome.split(' ')[0]}!`);
@@ -153,6 +189,8 @@ function openLoginModal() {
 document.getElementById('topbar-session')?.addEventListener('click', e => {
   if (e.target.id === 'btn-login')  openLoginModal();
   if (e.target.id === 'btn-logout') {
+    const sess = getSession();
+    if (sess) db.addAudit('Logout', 'sistema', sess.id, `${sess.nome} [${sess.perfil || '—'}]`);
     clearSession();
     updateTopbarSession();
     router.navigate(router.current || ROUTES.DASHBOARD);
@@ -242,6 +280,8 @@ window.addEventListener('sgq:import-warning', () => {
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 
 db.ready.then(() => {
+  migrateLegacyPerfil();
+
   // Exibe o modo de armazenamento ativo no topbar
   const modeEl = document.getElementById('topbar-mode');
   if (modeEl) {

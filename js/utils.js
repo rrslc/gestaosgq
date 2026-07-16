@@ -13,7 +13,7 @@ export function formatDate(isoString) {
   if (!isoString) return '—';
   const [y, m, d] = isoString.split('-');
   if (!y || !m || !d) return '—';
-  return `${d}/${m}/${y}`;
+  return `${d}-${m}-${y}`;
 }
 
 /**
