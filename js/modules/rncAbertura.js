@@ -682,6 +682,17 @@ export default {
               }
             }
 
+            // Justificativa (Não Procedente) — só aparece quando Procedente = Não
+            const procedenteEl = form.querySelector('#field-procedente');
+            const justNPGroup  = form.querySelector('#field-justificativaNP')?.closest('.form-group');
+            if (procedenteEl && justNPGroup) {
+              const toggleJustNP = () => {
+                justNPGroup.style.display = procedenteEl.value === 'Não' ? '' : 'none';
+              };
+              toggleJustNP();
+              procedenteEl.addEventListener('change', toggleJustNP);
+            }
+
             // Ishikawa 6M — show/hide baseado na ferramenta selecionada
             const ferramEl2 = form.querySelector('#field-ferramentasInvestigacao');
             const ishIds = ['ishikawaMaterial','ishikawaMetodo','ishikawaMaquina','ishikawaMaoDeObra','ishikawaMeioAmbiente','ishikawaMedicao'];
