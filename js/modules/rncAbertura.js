@@ -20,7 +20,7 @@ const CLOSED    = ['Encerrada', 'Cancelada', 'Não Procedente'];
 
 const STAGE_ORDER = [
   'Aberta', 'Em Avaliação', 'Em Investigação', 'Em Disposição',
-  'Em Plano de Ação', 'Em Implementação', 'Verificação de Eficácia', 'Encerrada',
+  'Em Plano de Ação', 'Verificação de Eficácia', 'Encerrada',
 ];
 
 const PIPELINE = [
@@ -29,7 +29,6 @@ const PIPELINE = [
   { key: 'Em Investigação',         label: 'Investigação',    color: 'var(--blue)'   },
   { key: 'Em Disposição',           label: 'Disposição',      color: 'var(--orange,#ea580c)' },
   { key: 'Em Plano de Ação',        label: 'Plano de Ação',   color: 'var(--amber)'  },
-  { key: 'Em Implementação',        label: 'Implementação',   color: 'var(--cyan,#0891b2)' },
   { key: 'Verificação de Eficácia', label: 'Verif. Eficácia', color: 'var(--teal)'   },
   { key: 'Encerrada',               label: 'Encerramento',    color: 'var(--green)'  },
 ];
@@ -41,8 +40,7 @@ const NEXT_STATUS = {
   'Em Avaliação':             'Em Investigação',
   'Em Investigação':          'Em Disposição',
   'Em Disposição':            'Em Plano de Ação',
-  'Em Plano de Ação':         'Em Implementação',
-  'Em Implementação':         'Verificação de Eficácia',
+  'Em Plano de Ação':         'Verificação de Eficácia',
   'Verificação de Eficácia':  'Encerrada',
 };
 
@@ -61,7 +59,6 @@ const STAGE_OWNER = {
   'Em Investigação':          { label: 'Equipe / GQ',               color: '#3b82f6' },
   'Em Disposição':            { label: 'Garantia da Qualidade',     color: '#ea580c' },
   'Em Plano de Ação':         { label: 'GQ · Engenharia',           color: '#f59e0b' },
-  'Em Implementação':         { label: 'Responsáveis pelas Ações',  color: '#0891b2' },
   'Verificação de Eficácia':  { label: 'Garantia da Qualidade',     color: '#14b8a6' },
   'Encerrada':                { label: 'Garantia da Qualidade',     color: '#22c55e' },
 };
@@ -69,13 +66,12 @@ const STAGE_OWNER = {
 // ── Perfis e etapas GQ ───────────────────────────────────────────────────────
 
 const GQ_PERFIS  = new Set(['GQ Administrador', 'GQ Analista']);
-const GQ_STAGES  = ['Aberta', 'Em Avaliação', 'Em Investigação', 'Em Disposição', 'Em Plano de Ação', 'Em Implementação', 'Verificação de Eficácia'];
+const GQ_STAGES  = ['Aberta', 'Em Avaliação', 'Em Investigação', 'Em Disposição', 'Em Plano de Ação', 'Verificação de Eficácia'];
 const STAGE_PILL = {
   'Em Avaliação':            'purple',
   'Em Investigação':         'blue',
   'Em Disposição':           'orange',
   'Em Plano de Ação':        'amber',
-  'Em Implementação':        'teal',
   'Verificação de Eficácia': 'teal',
 };
 
@@ -96,8 +92,8 @@ function canAct(record, user = getSession()) {
 }
 
 /**
- * A aprovação do Plano de Ação (avanço de "Em Plano de Ação" → "Em
- * Implementação") é restrita ao Gerente/Coordenador da GQ, conforme
+ * A aprovação do Plano de Ação (avanço de "Em Plano de Ação" → "Verificação
+ * de Eficácia") é restrita ao Gerente/Coordenador da GQ, conforme
  * POP-GQ-008 §7.4.3.2. Demais etapas seguem a regra geral de canAct.
  */
 function canApproveStage(record, user) {
@@ -452,33 +448,25 @@ function buildFields(record = null) {
       h('ETAPA 5 — PLANO DE AÇÃO', 'Em Plano de Ação'),
       record?.planoRevisao ? { id: 'planoRevisao', label: '⚠ Motivo da reprovação anterior', type: 'textarea', required: false, span: 2, readonly: true } : null,
       f('Em Plano de Ação', { id: 'planoCorretivoAcoes',     label: 'Plano de Ação Corretivo',               type: 'plano-acao-table', required: false, span: 2 }),
-      f('Em Plano de Ação', { id: 'necessitaCapa',           label: 'Necessita CAPA?',                       type: 'select',        required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] }),
       f('Em Plano de Ação', { id: 'prazoFinalizacao',        label: 'Prazo de Finalização do Plano',         type: 'date',          required: false, span: 1 }),
     );
   }
 
   if (cur >= 5) {
     fields.push(
-      h('ETAPA 6 — IMPLEMENTAÇÃO', 'Em Implementação'),
-      f('Em Implementação', { id: 'implementacaoResponsaveis', label: 'Responsáveis pela Implementação',  type: 'text',     required: false, span: 2 }),
-      f('Em Implementação', { id: 'dataConclusaoImplementacao', label: 'Data de Conclusão da Implementação', type: 'date',  required: false, span: 1 }),
-      f('Em Implementação', { id: 'implementacaoObservacoes',  label: 'Observações da Implementação',      type: 'textarea', required: false, span: 2 }),
+      h('ETAPA 6 — VERIFICAÇÃO DE EFICÁCIA', 'Verificação de Eficácia'),
+      f('Verificação de Eficácia', { id: 'periodoVerificacao',    label: 'Período de Verificação',   type: 'select',   required: false, span: 1, options: PERIOD_VER }),
+      f('Verificação de Eficácia', { id: 'dataInicioVerificacao', label: 'Início da Verificação',    type: 'date',     required: false, span: 1 }),
+      f('Verificação de Eficácia', { id: 'resultadoVerificacao',  label: 'Resultado da Verificação', type: 'textarea', required: false, span: 2 }),
+      f('Verificação de Eficácia', { id: 'foiEficaz',             label: 'Foi Eficaz?',              type: 'select',   required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] }),
+      // A necessidade de CAPA só é avaliada após a Verificação de Eficácia (POP-GQ-008 §7.4.5).
+      f('Verificação de Eficácia', { id: 'necessitaCapa',         label: 'Necessita CAPA?',           type: 'select',   required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] }),
     );
   }
 
   if (cur >= 6) {
     fields.push(
-      h('ETAPA 7 — VERIFICAÇÃO DE EFICÁCIA', 'Verificação de Eficácia'),
-      f('Verificação de Eficácia', { id: 'periodoVerificacao',    label: 'Período de Verificação',   type: 'select',   required: false, span: 1, options: PERIOD_VER }),
-      f('Verificação de Eficácia', { id: 'dataInicioVerificacao', label: 'Início da Verificação',    type: 'date',     required: false, span: 1 }),
-      f('Verificação de Eficácia', { id: 'resultadoVerificacao',  label: 'Resultado da Verificação', type: 'textarea', required: false, span: 2 }),
-      f('Verificação de Eficácia', { id: 'foiEficaz',             label: 'Foi Eficaz?',              type: 'select',   required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] }),
-    );
-  }
-
-  if (cur >= 7) {
-    fields.push(
-      h('ETAPA 8 — ENCERRAMENTO', 'Encerrada'),
+      h('ETAPA 7 — ENCERRAMENTO', 'Encerrada'),
       f('Encerrada', { id: 'alteracaoDocumentos', label: 'Houve alteração de docs. do SGQ?',    type: 'select',   required: false, span: 1, options: ['Sim', 'Não'] }),
       f('Encerrada', { id: 'codigosDocumentos',   label: 'Códigos dos documentos alterados',     type: 'text',     required: false, span: 2 }),
       f('Encerrada', { id: 'impactoMSB',          label: 'Houve impacto das ações para a MSB?', type: 'select',   required: false, span: 1, options: ['Sim', 'Não'] }),
