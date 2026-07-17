@@ -16,36 +16,52 @@ const RISK_LVL  = ['Baixa', 'Média', 'Alta'];
 const PERIOD_VER = ['3 meses', '6 meses', '9 meses', '12 meses'];
 const CLOSED    = ['Encerrada', 'Cancelada', 'Não Procedente'];
 
-// ── Workflow stages ──────────────────────────────────────────────────────────
+// ── Workflow stages (conforme fluxograma POP-GQ-008) ─────────────────────────
 
 const STAGE_ORDER = [
-  'Aberta', 'Em Avaliação', 'Em Investigação',
-  'Em Plano de Ação', 'Verificação de Eficácia', 'Encerrada',
+  'Aberta', 'Em Avaliação', 'Em Investigação', 'Em Disposição',
+  'Em Plano de Ação', 'Em Implementação', 'Verificação de Eficácia', 'Encerrada',
 ];
 
 const PIPELINE = [
   { key: 'Aberta',                  label: 'Abertura',        color: 'var(--red)'    },
   { key: 'Em Avaliação',            label: 'Avaliação GQ',    color: 'var(--purple)' },
   { key: 'Em Investigação',         label: 'Investigação',    color: 'var(--blue)'   },
+  { key: 'Em Disposição',           label: 'Disposição',      color: 'var(--orange,#ea580c)' },
   { key: 'Em Plano de Ação',        label: 'Plano de Ação',   color: 'var(--amber)'  },
+  { key: 'Em Implementação',        label: 'Implementação',   color: 'var(--cyan,#0891b2)' },
   { key: 'Verificação de Eficácia', label: 'Verif. Eficácia', color: 'var(--teal)'   },
   { key: 'Encerrada',               label: 'Encerramento',    color: 'var(--green)'  },
 ];
 
+// Próxima etapa "padrão". A saída de "Em Avaliação" é dinâmica (ver nextStatusFor):
+// NC Menor pula a Investigação e vai direto para Disposição (bypass do fluxograma).
 const NEXT_STATUS = {
   'Aberta':                   'Em Avaliação',
   'Em Avaliação':             'Em Investigação',
-  'Em Investigação':          'Em Plano de Ação',
-  'Em Plano de Ação':         'Verificação de Eficácia',
+  'Em Investigação':          'Em Disposição',
+  'Em Disposição':            'Em Plano de Ação',
+  'Em Plano de Ação':         'Em Implementação',
+  'Em Implementação':         'Verificação de Eficácia',
   'Verificação de Eficácia':  'Encerrada',
 };
+
+/** Próxima etapa considerando o bypass de NC Menor (pula Investigação). */
+function nextStatusFor(record) {
+  if (record.status === 'Em Avaliação' && record.classificacao === 'Menor') {
+    return 'Em Disposição';
+  }
+  return NEXT_STATUS[record.status];
+}
 
 // Matriz de responsabilidade por etapa (POP-GQ-008)
 const STAGE_OWNER = {
   'Aberta':                   { label: 'Área de Origem',            color: '#3b82f6' },
   'Em Avaliação':             { label: 'Garantia da Qualidade',     color: '#9333ea' },
   'Em Investigação':          { label: 'Equipe / GQ',               color: '#3b82f6' },
+  'Em Disposição':            { label: 'Garantia da Qualidade',     color: '#ea580c' },
   'Em Plano de Ação':         { label: 'GQ · Engenharia',           color: '#f59e0b' },
+  'Em Implementação':         { label: 'Responsáveis pelas Ações',  color: '#0891b2' },
   'Verificação de Eficácia':  { label: 'Garantia da Qualidade',     color: '#14b8a6' },
   'Encerrada':                { label: 'Garantia da Qualidade',     color: '#22c55e' },
 };
@@ -53,11 +69,13 @@ const STAGE_OWNER = {
 // ── Perfis e etapas GQ ───────────────────────────────────────────────────────
 
 const GQ_PERFIS  = new Set(['GQ Administrador', 'GQ Analista']);
-const GQ_STAGES  = ['Aberta', 'Em Avaliação', 'Em Investigação', 'Em Plano de Ação', 'Verificação de Eficácia'];
+const GQ_STAGES  = ['Aberta', 'Em Avaliação', 'Em Investigação', 'Em Disposição', 'Em Plano de Ação', 'Em Implementação', 'Verificação de Eficácia'];
 const STAGE_PILL = {
   'Em Avaliação':            'purple',
   'Em Investigação':         'blue',
+  'Em Disposição':           'orange',
   'Em Plano de Ação':        'amber',
+  'Em Implementação':        'teal',
   'Verificação de Eficácia': 'teal',
 };
 
@@ -78,9 +96,9 @@ function canAct(record, user = getSession()) {
 }
 
 /**
- * A aprovação do Plano de Ação (avanço de "Em Plano de Ação" → "Verificação de
- * Eficácia") é restrita ao Gerente/Coordenador da GQ, conforme POP-GQ-008 §7.4.3.2.
- * Demais etapas seguem a regra geral de canAct.
+ * A aprovação do Plano de Ação (avanço de "Em Plano de Ação" → "Em
+ * Implementação") é restrita ao Gerente/Coordenador da GQ, conforme
+ * POP-GQ-008 §7.4.3.2. Demais etapas seguem a regra geral de canAct.
  */
 function canApproveStage(record, user) {
   if (record?.status === 'Em Plano de Ação') return user?.perfil === 'GQ Administrador';
@@ -182,7 +200,7 @@ function renderMinhaFila() {
       const stage    = PIPELINE.find(p => p.key === r.status);
       const cor      = stage?.color ?? 'var(--border)';
       const own      = STAGE_OWNER[r.status];
-      const nxt      = NEXT_STATUS[r.status];
+      const nxt      = nextStatusFor(r);
       const act      = canAct(r, user);
       const emAtraso = r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje;
       const dias     = r.dataAbertura
@@ -193,8 +211,10 @@ function renderMinhaFila() {
         const pillColor = STAGE_PILL[r.status] ?? 'gray';
         const nxtLabel  = PIPELINE.find(p => p.key === nxt)?.label ?? nxt;
         const canAdv    = canAdvance(r, user);
-        const showNaoProcedente = act && r.status === 'Em Avaliação';
-        const showAbrirCapa     = act && !r.capaAberta && !CLOSED.includes(r.status);
+        const showNaoProcedente  = act && r.status === 'Em Avaliação';
+        const showAjustes        = act && r.status === 'Em Avaliação';
+        const showReprovarPlano  = r.status === 'Em Plano de Ação' && user?.perfil === 'GQ Administrador';
+        const showAbrirCapa      = act && !r.capaAberta && !CLOSED.includes(r.status);
         return `<div style="border:1px solid var(--border);border-top:3px solid ${cor};border-radius:8px;padding:14px;background:var(--surface);display:flex;flex-direction:column;gap:10px">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
             <div>
@@ -212,8 +232,10 @@ function renderMinhaFila() {
             <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}">✏ Editar</button>
             ${canAdv && nxt ? `<button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nxt}" style="flex:1">→ ${nxtLabel}</button>` : ''}
           </div>
-          ${(showNaoProcedente || showAbrirCapa) ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${(showNaoProcedente || showAjustes || showReprovarPlano || showAbrirCapa) ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${showAjustes ? `<button class="btn btn-secondary btn-sm" data-action="solicitar-ajustes" data-id="${r.id}" style="border-color:var(--amber,#f59e0b);color:var(--amber,#f59e0b)">↩ Solicitar Ajustes</button>` : ''}
             ${showNaoProcedente ? `<button class="btn btn-secondary btn-sm" data-action="nao-procedente" data-id="${r.id}" style="border-color:var(--red,#ef4444);color:var(--red,#ef4444)">✕ Não Procedente</button>` : ''}
+            ${showReprovarPlano ? `<button class="btn btn-secondary btn-sm" data-action="reprovar-plano" data-id="${r.id}" style="border-color:var(--red,#ef4444);color:var(--red,#ef4444)">✕ Reprovar Plano</button>` : ''}
             ${showAbrirCapa ? `<button class="btn btn-secondary btn-sm" data-action="abrir-capa" data-id="${r.id}" style="border-color:var(--purple,#9333ea);color:var(--purple,#9333ea)">📋 Abrir CAPA</button>` : ''}
           </div>` : ''}
         </div>`;
@@ -290,12 +312,16 @@ function renderTable(items) {
         const ownColor = own?.color ?? '#94a3b8';
         const risco    = r.classificacaoRisco
           ? `<span class="pill ${RISK_PILL[r.classificacaoRisco] ?? 'pill-gray'}">${r.classificacaoRisco}</span>` : '—';
-        const nxt      = NEXT_STATUS[r.status];
+        const nxt      = nextStatusFor(r);
         const act      = canAct(r, user);
         const canAdv   = canAdvance(r, user);
         const extras   = [];
         if (isGQU && act && r.status === 'Em Avaliação') {
+          extras.push(`<button class="btn btn-secondary btn-sm" data-action="solicitar-ajustes" data-id="${r.id}" title="Solicitar Ajustes" style="border-color:var(--amber,#f59e0b);color:var(--amber,#f59e0b)">↩</button>`);
           extras.push(`<button class="btn btn-secondary btn-sm" data-action="nao-procedente" data-id="${r.id}" title="Marcar Não Procedente" style="border-color:var(--red,#ef4444);color:var(--red,#ef4444)">✕</button>`);
+        }
+        if (isGQU && r.status === 'Em Plano de Ação' && user?.perfil === 'GQ Administrador') {
+          extras.push(`<button class="btn btn-secondary btn-sm" data-action="reprovar-plano" data-id="${r.id}" title="Reprovar Plano" style="border-color:var(--red,#ef4444);color:var(--red,#ef4444)">✕</button>`);
         }
         if (isGQU && act && !r.capaAberta && !CLOSED.includes(r.status)) {
           extras.push(`<button class="btn btn-secondary btn-sm" data-action="abrir-capa" data-id="${r.id}" title="Abrir CAPA" style="border-color:var(--purple,#9333ea);color:var(--purple,#9333ea)">📋</button>`);
@@ -343,6 +369,7 @@ function buildFields(record = null) {
   }
 
   const base = [
+    record?.motivoAjuste ? { id: 'motivoAjuste', label: '⚠ Ajustes solicitados pela GQ', type: 'textarea', required: false, span: 2, readonly: true } : null,
     f('Aberta', { id: 'numero',              label: '1.1  Nº RNC',                                              type: 'text',        required: true,  span: 1, readonly: true }),
     f('Aberta', { id: 'dataAbertura',        label: '1.2  Data de Abertura',                                    type: 'date',        required: true,  span: 1 }),
     f('Aberta', { id: 'responsavel',         label: '1.3  Responsável pela Abertura',                           type: 'select',      required: true,  span: 1, options: resp.length ? resp : ['—'] }),
@@ -366,7 +393,7 @@ function buildFields(record = null) {
       readonly: isTerminal || cur >= STAGE_ORDER.indexOf('Verificação de Eficácia') },
   ];
 
-  if (!record) return base;
+  if (!record) return base.filter(Boolean);
 
   const fields = [h('ETAPA 1 — ABERTURA', 'Aberta'), ...base];
 
@@ -411,21 +438,37 @@ function buildFields(record = null) {
 
   if (cur >= 3) {
     fields.push(
-      h('ETAPA 4 — PLANO DE AÇÃO', 'Em Plano de Ação'),
-      f('Em Plano de Ação', { id: 'disposicao',              label: 'Disposição (SGQ)',                       type: 'select',        required: false, span: 2, options: DISPOSICOES_NC }),
-      f('Em Plano de Ação', { id: 'numFormularioRetrabalho', label: 'Nº Formulário de Retrabalho',            type: 'text',          required: false, span: 1 }),
-      f('Em Plano de Ação', { id: 'disposicaoJustificativa', label: 'Justificativa (Não aplicável)',          type: 'text',          required: false, span: 2 }),
-      f('Em Plano de Ação', { id: 'disposicaoAprovadaPor',   label: 'Disposição aprovada por',               type: 'select',        required: false, span: 1, options: resp.length ? resp : ['—'] }),
-      f('Em Plano de Ação', { id: 'dataAprovacaoDisposicao', label: 'Data de Aprovação da Disposição',       type: 'date',          required: false, span: 1 }),
+      h('ETAPA 4 — DISPOSIÇÃO', 'Em Disposição'),
+      f('Em Disposição', { id: 'disposicao',              label: 'Disposição (SGQ)',                       type: 'select',        required: false, span: 2, options: DISPOSICOES_NC }),
+      f('Em Disposição', { id: 'numFormularioRetrabalho', label: 'Nº Formulário de Retrabalho',            type: 'text',          required: false, span: 1 }),
+      f('Em Disposição', { id: 'disposicaoJustificativa', label: 'Justificativa (Não aplicável)',          type: 'text',          required: false, span: 2 }),
+      f('Em Disposição', { id: 'disposicaoAprovadaPor',   label: 'Disposição aprovada por',               type: 'select',        required: false, span: 1, options: resp.length ? resp : ['—'] }),
+      f('Em Disposição', { id: 'dataAprovacaoDisposicao', label: 'Data de Aprovação da Disposição',       type: 'date',          required: false, span: 1 }),
+    );
+  }
+
+  if (cur >= 4) {
+    fields.push(
+      h('ETAPA 5 — PLANO DE AÇÃO', 'Em Plano de Ação'),
+      record?.planoRevisao ? { id: 'planoRevisao', label: '⚠ Motivo da reprovação anterior', type: 'textarea', required: false, span: 2, readonly: true } : null,
       f('Em Plano de Ação', { id: 'planoCorretivoAcoes',     label: 'Plano de Ação Corretivo',               type: 'plano-acao-table', required: false, span: 2 }),
       f('Em Plano de Ação', { id: 'necessitaCapa',           label: 'Necessita CAPA?',                       type: 'select',        required: false, span: 1, options: ['Sim', 'Não', 'Em Avaliação'] }),
       f('Em Plano de Ação', { id: 'prazoFinalizacao',        label: 'Prazo de Finalização do Plano',         type: 'date',          required: false, span: 1 }),
     );
   }
 
-  if (cur >= 4) {
+  if (cur >= 5) {
     fields.push(
-      h('ETAPA 5 — VERIFICAÇÃO DE EFICÁCIA', 'Verificação de Eficácia'),
+      h('ETAPA 6 — IMPLEMENTAÇÃO', 'Em Implementação'),
+      f('Em Implementação', { id: 'implementacaoResponsaveis', label: 'Responsáveis pela Implementação',  type: 'text',     required: false, span: 2 }),
+      f('Em Implementação', { id: 'dataConclusaoImplementacao', label: 'Data de Conclusão da Implementação', type: 'date',  required: false, span: 1 }),
+      f('Em Implementação', { id: 'implementacaoObservacoes',  label: 'Observações da Implementação',      type: 'textarea', required: false, span: 2 }),
+    );
+  }
+
+  if (cur >= 6) {
+    fields.push(
+      h('ETAPA 7 — VERIFICAÇÃO DE EFICÁCIA', 'Verificação de Eficácia'),
       f('Verificação de Eficácia', { id: 'periodoVerificacao',    label: 'Período de Verificação',   type: 'select',   required: false, span: 1, options: PERIOD_VER }),
       f('Verificação de Eficácia', { id: 'dataInicioVerificacao', label: 'Início da Verificação',    type: 'date',     required: false, span: 1 }),
       f('Verificação de Eficácia', { id: 'resultadoVerificacao',  label: 'Resultado da Verificação', type: 'textarea', required: false, span: 2 }),
@@ -433,9 +476,9 @@ function buildFields(record = null) {
     );
   }
 
-  if (cur >= 5) {
+  if (cur >= 7) {
     fields.push(
-      h('ETAPA 6 — ENCERRAMENTO', 'Encerrada'),
+      h('ETAPA 8 — ENCERRAMENTO', 'Encerrada'),
       f('Encerrada', { id: 'alteracaoDocumentos', label: 'Houve alteração de docs. do SGQ?',    type: 'select',   required: false, span: 1, options: ['Sim', 'Não'] }),
       f('Encerrada', { id: 'codigosDocumentos',   label: 'Códigos dos documentos alterados',     type: 'text',     required: false, span: 2 }),
       f('Encerrada', { id: 'impactoMSB',          label: 'Houve impacto das ações para a MSB?', type: 'select',   required: false, span: 1, options: ['Sim', 'Não'] }),
@@ -444,7 +487,7 @@ function buildFields(record = null) {
     );
   }
 
-  return fields;
+  return fields.filter(Boolean);
 }
 
 // ── Refresh ───────────────────────────────────────────────────────────────────
@@ -746,6 +789,38 @@ export default {
           db.update('rnc', numId, { status: 'Não Procedente', dataFechamento: today() });
           toast('RNC encerrada como Não Procedente.');
           refresh(container);
+        });
+        return;
+      }
+
+      if (action === 'solicitar-ajustes') {
+        const record = db.getById('rnc', numId);
+        if (!record || !canAct(record, user)) { toast('Sem permissão para esta ação.', 'error'); return; }
+        openModal({
+          title: `Solicitar Ajustes — ${record.numero}`,
+          fields: [{ id: 'motivo', label: 'O que precisa ser ajustado ou complementado pela área?', type: 'textarea', required: true, span: 2 }],
+          data: {},
+          onSave: data => {
+            db.update('rnc', numId, { status: 'Aberta', motivoAjuste: data.motivo });
+            toast(`${record.numero} devolvida à área para ajustes.`);
+            refresh(container);
+          },
+        });
+        return;
+      }
+
+      if (action === 'reprovar-plano') {
+        const record = db.getById('rnc', numId);
+        if (!record || user?.perfil !== 'GQ Administrador') { toast('Apenas o GQ Administrador pode reprovar o Plano de Ação.', 'error'); return; }
+        openModal({
+          title: `Reprovar Plano de Ação — ${record.numero}`,
+          fields: [{ id: 'motivo', label: 'Motivo da reprovação (o que precisa ser revisado)', type: 'textarea', required: true, span: 2 }],
+          data: {},
+          onSave: data => {
+            db.update('rnc', numId, { planoRevisao: data.motivo });
+            toast(`Plano de Ação de ${record.numero} devolvido para revisão.`);
+            refresh(container);
+          },
         });
         return;
       }
