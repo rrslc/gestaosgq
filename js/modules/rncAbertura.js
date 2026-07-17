@@ -359,7 +359,11 @@ function buildFields(record = null) {
     f('Aberta', { id: 'abrangencia',       label: '2.  Abrangência  (marque todas as aplicáveis)',             type: 'checkboxgroup', required: false, span: 2,
       options: ['Outro(s) Produto(s)', 'Outro(s) Lote(s)', 'Outra(s) Máquina(s)', 'Outro(s) Dispositivo(s) de Medição', 'Outro(s) Documento(s)', 'Não se aplica', 'Outro(s)'] }),
     f('Aberta', { id: 'abrangenciaEspecificar', label: '    Especificar Abrangência',                           type: 'text',        required: false, span: 2 }),
-    f('Aberta', { id: 'acoesImediatas',    label: '3.  Ações de Contenção / Imediatas',                         type: 'acoes-table', required: false, span: 2 }),
+    // Exceção à trava por etapa: a conclusão da contenção (Data Realizada/Evidência)
+    // costuma vir depois do envio à GQ, então o campo segue editável até a RNC
+    // entrar em Verificação de Eficácia, quando então passa a ser somente leitura.
+    { id: 'acoesImediatas', label: '3.  Ações de Contenção / Imediatas', type: 'acoes-table', required: false, span: 2,
+      readonly: isTerminal || cur >= STAGE_ORDER.indexOf('Verificação de Eficácia') },
   ];
 
   if (!record) return base;
@@ -575,9 +579,20 @@ export default {
         const record = db.getById('rnc', numId);
         if (!record) return;
         const auth = canAct(record, user);
+        // Área que abriu a RNC mantém acesso apenas à tabela de Ações de Contenção
+        // após o envio à GQ, até a Verificação de Eficácia (POP-GQ-008 §3).
+        const canEditContencao = auth || (
+          user && !GQ_PERFIS.has(user.perfil) &&
+          can(user, 'rncAbertura', A.EDIT) &&
+          !CLOSED.includes(record.status) &&
+          stageIdx(record.status) < STAGE_ORDER.indexOf('Verificação de Eficácia')
+        );
+        const rawFields = buildFields(record);
         openModal({
-          title: `${auth ? 'Editar' : '👁 Visualizar'} RNC ${record.numero} — ${record.status}`,
-          fields: auth ? buildFields(record) : buildFields(record).map(f => f.type !== 'heading' ? { ...f, readonly: true } : f),
+          title: `${auth ? 'Editar' : canEditContencao ? '✏ Editar (Ações de Contenção)' : '👁 Visualizar'} RNC ${record.numero} — ${record.status}`,
+          fields: auth ? rawFields : rawFields.map(f =>
+            f.type === 'heading' || (f.id === 'acoesImediatas' && canEditContencao) ? f : { ...f, readonly: true }
+          ),
           data: record,
           setup(form) {
             // Inject stepper
@@ -590,7 +605,9 @@ export default {
             if (!auth && !CLOSED.includes(record.status)) {
               const notice = document.createElement('div');
               notice.style.cssText = 'padding:10px 14px;background:#f59e0b18;border:1px solid #f59e0b40;border-radius:6px;margin-bottom:14px;font-size:0.8rem;color:#92400e';
-              notice.innerHTML = `🔒 <strong>Somente leitura.</strong> Esta etapa pertence a: <strong>${ownerLabel(record)}</strong>`;
+              notice.innerHTML = canEditContencao
+                ? `🔓 <strong>Edição parcial liberada.</strong> Esta etapa pertence a <strong>${ownerLabel(record)}</strong> — você ainda pode atualizar a tabela "3. Ações de Contenção / Imediatas" (Data Realizada / Evidência).`
+                : `🔒 <strong>Somente leitura.</strong> Esta etapa pertence a: <strong>${ownerLabel(record)}</strong>`;
               form.insertBefore(notice, form.children[1]);
             }
 
@@ -666,7 +683,14 @@ export default {
             }
           },
           onSave: data => {
-            if (!auth) return;
+            if (!auth && !canEditContencao) return;
+            if (!auth) {
+              // Área sem permissão de edição geral: persiste apenas a tabela de contenção
+              db.update('rnc', numId, { acoesImediatas: data.acoesImediatas });
+              toast('Ações de contenção atualizadas!');
+              refresh(container);
+              return;
+            }
             const risco = calcRisco(data.probabilidade, data.severidade);
             db.update('rnc', numId, { ...data, classificacaoRisco: risco || data.classificacaoRisco });
             toast('RNC atualizada!');
