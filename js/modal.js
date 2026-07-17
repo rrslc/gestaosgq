@@ -91,6 +91,8 @@ function buildField(field, data) {
           ${nomes.map(n => `<option value="${n}"${r.responsavel===n?' selected':''}>${n}</option>`).join('')}
         </select></td>
         <td style="${b}"><input type="date" data-row="${i}" data-col="prazo" value="${r.prazo||''}" style="${si}" ${ro?'readonly':''}></td>
+        <td style="${b}"><input type="date" data-row="${i}" data-col="dataRealizada" value="${r.dataRealizada||''}" style="${si}" ${ro?'readonly':''}></td>
+        <td style="${b}"><input type="text" data-row="${i}" data-col="evidencia" value="${(r.evidencia||'').replace(/"/g,'&quot;')}" style="${si}" placeholder="Evidência..." ${ro?'readonly':''}></td>
         <td style="${b}"><select data-row="${i}" data-col="situacao" style="width:100%;border:none;background:transparent;padding:3px 2px;font-size:0.82rem${ro?';pointer-events:none;color:var(--muted)':''}">
           ${sit.map(v => `<option value="${v}"${(r.situacao||'')=== v?' selected':''}>${v||'—'}</option>`).join('')}
         </select></td>
@@ -100,13 +102,15 @@ function buildField(field, data) {
           <label>${field.label}${field.required ? ' <span style="color:var(--red)">*</span>' : ''}</label>
           <input type="hidden" id="field-${field.id}">
           <div data-acoes-table="field-${field.id}" style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse;min-width:480px">
+            <table style="width:100%;border-collapse:collapse;min-width:700px">
               <thead><tr style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.04em;background:var(--surface,var(--bg))">
                 <th style="width:24px;${b};text-align:center;color:var(--muted);font-weight:600">Nº</th>
                 <th style="${b};padding:5px 8px;font-weight:600">Ação / Descrição</th>
                 <th style="width:130px;${b};padding:5px 8px;font-weight:600">Responsável</th>
-                <th style="width:108px;${b};padding:5px 8px;font-weight:600">Prazo</th>
-                <th style="width:108px;${b};padding:5px 8px;font-weight:600">Situação</th>
+                <th style="width:100px;${b};padding:5px 8px;font-weight:600">Data Prevista</th>
+                <th style="width:100px;${b};padding:5px 8px;font-weight:600">Data Realizada</th>
+                <th style="${b};padding:5px 8px;font-weight:600">Evidência</th>
+                <th style="width:100px;${b};padding:5px 8px;font-weight:600">Situação</th>
               </tr></thead>
               <tbody id="field-${field.id}-tbody">
                 ${rows.map((r, i) => mkRow(r, i)).join('')}
@@ -266,6 +270,8 @@ export function openModal({ title, fields, data = {}, onSave, setup }) {
         <td style="${b}"><input type="text"  data-row="${i}" data-col="descricao"   style="${s}" placeholder="Descreva a ação..."></td>
         <td style="${b}"><input type="text"  data-row="${i}" data-col="responsavel" style="${s}"></td>
         <td style="${b}"><input type="date"  data-row="${i}" data-col="prazo"       style="${s}"></td>
+        <td style="${b}"><input type="date"  data-row="${i}" data-col="dataRealizada" style="${s}"></td>
+        <td style="${b}"><input type="text"  data-row="${i}" data-col="evidencia"   style="${s}" placeholder="Evidência..."></td>
         <td style="${b}"><select data-row="${i}" data-col="situacao" style="width:100%;border:none;background:transparent;padding:3px 2px;font-size:0.82rem">
           <option value="">—</option><option>Pendente</option><option>Em andamento</option><option>Concluída</option>
         </select></td>`;

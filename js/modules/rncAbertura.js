@@ -45,7 +45,7 @@ const STAGE_OWNER = {
   'Aberta':                   { label: 'Área de Origem',            color: '#3b82f6' },
   'Em Avaliação':             { label: 'Garantia da Qualidade',     color: '#9333ea' },
   'Em Investigação':          { label: 'Equipe / GQ',               color: '#3b82f6' },
-  'Em Plano de Ação':         { label: 'GQ · Melhoria Contínua',    color: '#f59e0b' },
+  'Em Plano de Ação':         { label: 'GQ · Engenharia',           color: '#f59e0b' },
   'Verificação de Eficácia':  { label: 'Garantia da Qualidade',     color: '#14b8a6' },
   'Encerrada':                { label: 'Garantia da Qualidade',     color: '#22c55e' },
 };
@@ -75,6 +75,20 @@ function canAct(record, user = getSession()) {
   if (user.perfil === 'GQ Administrador' || user.perfil === 'GQ Analista') return true;
   // Demais perfis: só podem interagir com RNCs ainda abertas (etapa de origem)
   return record?.status === 'Aberta';
+}
+
+/**
+ * A aprovação do Plano de Ação (avanço de "Em Plano de Ação" → "Verificação de
+ * Eficácia") é restrita ao Gerente/Coordenador da GQ, conforme POP-GQ-008 §7.4.3.2.
+ * Demais etapas seguem a regra geral de canAct.
+ */
+function canApproveStage(record, user) {
+  if (record?.status === 'Em Plano de Ação') return user?.perfil === 'GQ Administrador';
+  return true;
+}
+
+function canAdvance(record, user = getSession()) {
+  return canAct(record, user) && canApproveStage(record, user);
 }
 
 function ownerLabel(record) {
@@ -178,6 +192,9 @@ function renderMinhaFila() {
       if (isGQ) {
         const pillColor = STAGE_PILL[r.status] ?? 'gray';
         const nxtLabel  = PIPELINE.find(p => p.key === nxt)?.label ?? nxt;
+        const canAdv    = canAdvance(r, user);
+        const showNaoProcedente = act && r.status === 'Em Avaliação';
+        const showAbrirCapa     = act && !r.capaAberta && !CLOSED.includes(r.status);
         return `<div style="border:1px solid var(--border);border-top:3px solid ${cor};border-radius:8px;padding:14px;background:var(--surface);display:flex;flex-direction:column;gap:10px">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
             <div>
@@ -191,10 +208,14 @@ function renderMinhaFila() {
             <span style="font-size:0.72rem;color:var(--muted)">${own?.label ?? r.status}</span>
             ${emAtraso ? `<span style="font-size:0.67rem;color:var(--red);font-weight:700">⚠ atraso</span>` : (dias ? `<span style="font-size:0.7rem;color:var(--muted)">${dias}</span>` : '')}
           </div>
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}">✏ Editar</button>
-            ${act && nxt ? `<button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nxt}" style="flex:1">→ ${nxtLabel}</button>` : ''}
+            ${canAdv && nxt ? `<button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nxt}" style="flex:1">→ ${nxtLabel}</button>` : ''}
           </div>
+          ${(showNaoProcedente || showAbrirCapa) ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${showNaoProcedente ? `<button class="btn btn-secondary btn-sm" data-action="nao-procedente" data-id="${r.id}" style="border-color:var(--red,#ef4444);color:var(--red,#ef4444)">✕ Não Procedente</button>` : ''}
+            ${showAbrirCapa ? `<button class="btn btn-secondary btn-sm" data-action="abrir-capa" data-id="${r.id}" style="border-color:var(--purple,#9333ea);color:var(--purple,#9333ea)">📋 Abrir CAPA</button>` : ''}
+          </div>` : ''}
         </div>`;
       }
 
@@ -244,7 +265,8 @@ function renderPipelineBar(items) {
 
 function renderTable(items) {
   if (!items.length) return emptyState('Nenhuma RNC encontrada.');
-  const user = getSession();
+  const user  = getSession();
+  const isGQU = user && GQ_PERFIS.has(user.perfil);
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 
   function diasAberto(r) {
@@ -270,11 +292,19 @@ function renderTable(items) {
           ? `<span class="pill ${RISK_PILL[r.classificacaoRisco] ?? 'pill-gray'}">${r.classificacaoRisco}</span>` : '—';
         const nxt      = NEXT_STATUS[r.status];
         const act      = canAct(r, user);
-        const actBtn   = act && nxt
-          ? `<div class="td-actions"><button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" title="Editar">✏</button><button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nxt}" title="Avançar para ${nxt}">→</button></div>`
-          : act
-            ? `<button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" title="Editar">✏</button>`
-            : `<button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" title="Visualizar">👁</button>`;
+        const canAdv   = canAdvance(r, user);
+        const extras   = [];
+        if (isGQU && act && r.status === 'Em Avaliação') {
+          extras.push(`<button class="btn btn-secondary btn-sm" data-action="nao-procedente" data-id="${r.id}" title="Marcar Não Procedente" style="border-color:var(--red,#ef4444);color:var(--red,#ef4444)">✕</button>`);
+        }
+        if (isGQU && act && !r.capaAberta && !CLOSED.includes(r.status)) {
+          extras.push(`<button class="btn btn-secondary btn-sm" data-action="abrir-capa" data-id="${r.id}" title="Abrir CAPA" style="border-color:var(--purple,#9333ea);color:var(--purple,#9333ea)">📋</button>`);
+        }
+        const actBtn   = `<div class="td-actions">
+          ${canAdv && nxt ? `<button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nxt}" title="Avançar para ${nxt}">→</button>` : ''}
+          <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" title="${act ? 'Editar' : 'Visualizar'}">${act ? '✏' : '👁'}</button>
+          ${extras.join('')}
+        </div>`;
         return `<tr>
           <td><strong>${r.numero}</strong></td>
           <td style="white-space:nowrap;font-size:0.8rem">${r.tipo || '—'}</td>
@@ -326,7 +356,7 @@ function buildFields(record = null) {
     f('Aberta', { id: 'numeroREC',         label: 'Nº REC  (Reclamação de Cliente)',                            type: 'text',        required: false, span: 1 }),
     f('Aberta', { id: 'especificar',       label: 'Especificar  (Processos / Docs / Outros)',                   type: 'text',        required: false, span: 2 }),
     f('Aberta', { id: 'descricao',         label: '1.6  Descrição da Ocorrência / Identificação do Problema',  type: 'textarea',    required: true,  span: 2 }),
-    f('Aberta', { id: 'abrangencia',       label: '2.  Abrangência',                                           type: 'select',      required: false, span: 2,
+    f('Aberta', { id: 'abrangencia',       label: '2.  Abrangência  (marque todas as aplicáveis)',             type: 'checkboxgroup', required: false, span: 2,
       options: ['Outro(s) Produto(s)', 'Outro(s) Lote(s)', 'Outra(s) Máquina(s)', 'Outro(s) Dispositivo(s) de Medição', 'Outro(s) Documento(s)', 'Não se aplica', 'Outro(s)'] }),
     f('Aberta', { id: 'abrangenciaEspecificar', label: '    Especificar Abrangência',                           type: 'text',        required: false, span: 2 }),
     f('Aberta', { id: 'acoesImediatas',    label: '3.  Ações de Contenção / Imediatas',                         type: 'acoes-table', required: false, span: 2 }),
@@ -378,7 +408,7 @@ function buildFields(record = null) {
   if (cur >= 3) {
     fields.push(
       h('ETAPA 4 — PLANO DE AÇÃO', 'Em Plano de Ação'),
-      f('Em Plano de Ação', { id: 'disposicao',              label: 'Disposição (SGQ)',                       type: 'checkboxgroup', required: false, span: 2, options: DISPOSICOES_NC }),
+      f('Em Plano de Ação', { id: 'disposicao',              label: 'Disposição (SGQ)',                       type: 'select',        required: false, span: 2, options: DISPOSICOES_NC }),
       f('Em Plano de Ação', { id: 'numFormularioRetrabalho', label: 'Nº Formulário de Retrabalho',            type: 'text',          required: false, span: 1 }),
       f('Em Plano de Ação', { id: 'disposicaoJustificativa', label: 'Justificativa (Não aplicável)',          type: 'text',          required: false, span: 2 }),
       f('Em Plano de Ação', { id: 'disposicaoAprovadaPor',   label: 'Disposição aprovada por',               type: 'select',        required: false, span: 1, options: resp.length ? resp : ['—'] }),
@@ -585,6 +615,25 @@ export default {
                 const el = form.querySelector(`#field-porque${i + 1}`);
                 if (el) el.placeholder = ph;
               });
+
+              // CAPA obrigatória para NC Crítica (POP-GQ-008 §7.3.1)
+              const capaEl = form.querySelector('#field-necessitaCapa');
+              if (clasEl && capaEl) {
+                const checkCapaWarning = () => {
+                  form.querySelector('#capa-warning')?.remove();
+                  if (clasEl.value === 'Crítica' && capaEl.value !== 'Sim') {
+                    const warn = document.createElement('div');
+                    warn.id = 'capa-warning';
+                    warn.style.cssText = 'grid-column:1/-1;padding:8px 12px;background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;font-size:0.78rem;color:#991b1b';
+                    warn.innerHTML = '⚠ <strong>RNC Crítica exige abertura obrigatória de CAPA</strong> (POP-GQ-008 §7.3.1).';
+                    capaEl.closest('.form-group')?.insertAdjacentElement('afterend', warn);
+                  }
+                };
+                if (clasEl.value === 'Crítica' && !capaEl.value) capaEl.value = 'Sim';
+                checkCapaWarning();
+                clasEl.addEventListener('change', checkCapaWarning);
+                capaEl.addEventListener('change', checkCapaWarning);
+              }
             }
 
             // Ishikawa 6M — show/hide baseado na ferramenta selecionada
@@ -630,7 +679,13 @@ export default {
       if (action === 'advance') {
         const record = db.getById('rnc', numId);
         if (!record) return;
-        if (!canAct(record, user)) { toast('Sem permissão para avançar esta etapa.', 'error'); return; }
+        if (!canAdvance(record, user)) {
+          const msg = record.status === 'Em Plano de Ação'
+            ? 'Apenas o GQ Administrador pode aprovar o Plano de Ação (POP-GQ-008 §7.4.3.2).'
+            : 'Sem permissão para avançar esta etapa.';
+          toast(msg, 'error');
+          return;
+        }
         const nextOwner = STAGE_OWNER[next];
         showConfirm(`Encaminhar "${record.numero}" para "${next}"?\n\nPróximo responsável: ${nextOwner?.label ?? next}`).then(ok => {
           if (!ok) return;
@@ -675,7 +730,7 @@ export default {
 
       if (action === 'abrir-capa') {
         const record = db.getById('rnc', numId);
-        if (!record) return;
+        if (!record || !canAct(record, user)) { toast('Sem permissão para esta ação.', 'error'); return; }
         showConfirm(`Abrir uma CAPA a partir de ${record.numero}?`).then(async ok => {
           if (!ok) return;
           window._capaFromRNC = { origem: 'RNC/CAPA', descricao: `[RNC ${record.numero}] ${record.descricao}`, area: record.area || '' };
