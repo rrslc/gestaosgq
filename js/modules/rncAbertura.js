@@ -633,23 +633,21 @@ export default {
                 if (el) el.placeholder = ph;
               });
 
-              // CAPA obrigatória para NC Crítica (POP-GQ-008 §7.3.1)
-              const capaEl = form.querySelector('#field-necessitaCapa');
-              if (clasEl && capaEl) {
+              // CAPA obrigatória quando a Verificação de Eficácia não for eficaz (POP-GQ-008 §7.4.5)
+              const eficazEl = form.querySelector('#field-foiEficaz');
+              if (eficazEl) {
                 const checkCapaWarning = () => {
                   form.querySelector('#capa-warning')?.remove();
-                  if (clasEl.value === 'Crítica' && capaEl.value !== 'Sim') {
+                  if (eficazEl.value === 'Não') {
                     const warn = document.createElement('div');
                     warn.id = 'capa-warning';
                     warn.style.cssText = 'grid-column:1/-1;padding:8px 12px;background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;font-size:0.78rem;color:#991b1b';
-                    warn.innerHTML = '⚠ <strong>RNC Crítica exige abertura obrigatória de CAPA</strong> (POP-GQ-008 §7.3.1).';
-                    capaEl.closest('.form-group')?.insertAdjacentElement('afterend', warn);
+                    warn.innerHTML = '⚠ <strong>Ações ineficazes exigem abertura de CAPA</strong>, refazendo o ciclo de investigação conforme POP-GQ-009 (POP-GQ-008 §7.4.5). Use o botão "📋 Abrir CAPA" na fila ou na tabela de RNCs.';
+                    eficazEl.closest('.form-group')?.insertAdjacentElement('afterend', warn);
                   }
                 };
-                if (clasEl.value === 'Crítica' && !capaEl.value) capaEl.value = 'Sim';
                 checkCapaWarning();
-                clasEl.addEventListener('change', checkCapaWarning);
-                capaEl.addEventListener('change', checkCapaWarning);
+                eficazEl.addEventListener('change', checkCapaWarning);
               }
             }
 
