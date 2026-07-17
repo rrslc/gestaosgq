@@ -325,6 +325,7 @@ function renderTable(items) {
         const actBtn   = `<div class="td-actions">
           ${canAdv && nxt ? `<button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nxt}" title="Avançar para ${nxt}">→</button>` : ''}
           <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" title="${act ? 'Editar' : 'Visualizar'}">${act ? '✏' : '👁'}</button>
+          <button class="btn btn-secondary btn-sm" data-action="print-rnc" data-id="${r.id}" title="Gerar PDF (arquivamento físico)">🖨</button>
           ${extras.join('')}
         </div>`;
         return `<tr>
@@ -343,6 +344,151 @@ function renderTable(items) {
       }).join('')}
     </tbody>
   </table></div>`;
+}
+
+// ── Impressão / PDF (arquivamento físico) ──────────────────────────────────────
+
+/** Abre uma janela com o HTML fornecido e aciona a impressão (gera PDF via "Salvar como PDF"). */
+function printHtmlDocument(html) {
+  const win = window.open('', '_blank');
+  if (!win) { toast('Permita pop-ups para gerar o PDF.', 'warning'); return; }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  const doPrint = () => { try { win.focus(); win.print(); } catch { /* noop */ } };
+  win.addEventListener('load', doPrint);
+  setTimeout(doPrint, 400); // reforço caso o evento load não dispare
+}
+
+const PRINT_STYLE = `
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #111; margin: 0; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 14px; }
+  header h1 { font-size: 15px; margin: 0 0 2px; }
+  header .meta { text-align: right; font-size: 10px; color: #444; line-height: 1.5; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #999; padding: 4px 6px; text-align: left; font-size: 9.5px; vertical-align: top; }
+  th { background: #f1f5f9; }
+`;
+
+function buildRncListPrintHtml(items) {
+  const cfg  = db.getConfig();
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const esc  = s => String(s ?? '').replace(/</g, '&lt;');
+
+  const rows = items.map(r => {
+    const dias = r.dataAbertura ? Math.round((hoje - new Date(r.dataAbertura + 'T00:00:00')) / 86400000) : null;
+    return `<tr>
+      <td>${esc(r.numero)}</td><td>${esc(r.tipo) || '—'}</td><td>${esc(r.descricao)}</td>
+      <td>${esc(r.area) || '—'}</td><td>${esc(r.classificacaoRisco) || '—'}</td><td>${esc(r.responsavel) || '—'}</td>
+      <td>${r.dataAbertura ? formatDate(r.dataAbertura) : '—'}</td><td>${dias != null ? dias + 'd' : '—'}</td>
+      <td>${esc(r.encerradoStatus || r.status)}</td>
+    </tr>`;
+  }).join('');
+
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório de RNCs</title>
+    <style>@page { size: A4 landscape; margin: 15mm; } ${PRINT_STYLE}</style>
+  </head><body>
+    <header>
+      <div><h1>${esc(cfg.empresa) || 'MSB Medical System do Brasil'}</h1>
+        <div style="font-size:10px;color:#444">CNPJ: ${esc(cfg.cnpj) || '—'} · AFE: ${esc(cfg.afe) || '—'}</div>
+      </div>
+      <div class="meta">
+        <strong>Relatório de Registros de Não Conformidade (RNC)</strong><br>
+        ${items.length} registro${items.length !== 1 ? 's' : ''} · Impresso em ${new Date().toLocaleString('pt-BR')}
+      </div>
+    </header>
+    <table>
+      <thead><tr><th>Número</th><th>Tipo</th><th>Descrição</th><th>Área</th><th>Risco</th><th>Responsável</th><th>Abertura</th><th>T. Aberto</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </body></html>`;
+}
+
+function fmtPrintValue(f, record) {
+  const val = record[f.id];
+  if (f.type === 'checkboxgroup') {
+    const arr = Array.isArray(val) ? val : (val ? String(val).split(',').map(s => s.trim()) : []);
+    return arr.length ? arr.join(', ') : '—';
+  }
+  if (f.type === 'date') return val ? formatDate(val) : '—';
+  if (val === undefined || val === null || val === '') return '—';
+  return String(val).replace(/</g, '&lt;').replace(/\n/g, '<br>');
+}
+
+function renderPrintTable(type, rows) {
+  if (!Array.isArray(rows) || !rows.some(r => Object.values(r || {}).some(Boolean))) {
+    return '<p style="color:#666;font-size:9.5px">Nenhum item registrado.</p>';
+  }
+  const d = v => v ? formatDate(v) : '—';
+  if (type === 'acoes-table') {
+    return `<table><thead><tr><th>Nº</th><th>Descrição</th><th>Responsável</th><th>Prazo</th><th>Data Realizada</th><th>Evidência</th><th>Situação</th></tr></thead>
+      <tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.descricao || '—'}</td><td>${r.responsavel || '—'}</td><td>${d(r.prazo)}</td><td>${d(r.dataRealizada)}</td><td>${r.evidencia || '—'}</td><td>${r.situacao || '—'}</td></tr>`).join('')}</tbody></table>`;
+  }
+  if (type === 'plano-acao-table') {
+    return `<table><thead><tr><th>Nº</th><th>Descrição</th><th>Responsável</th><th>Prazo</th><th>Data Realizada</th><th>Evidência/Justificativa</th><th>Verificado por</th><th>Data Verif.</th></tr></thead>
+      <tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.descricao || '—'}</td><td>${r.responsavel || '—'}</td><td>${d(r.prazo)}</td><td>${d(r.dataRealizada)}</td><td>${r.evidencia || '—'}</td><td>${r.verificadoPor || '—'}</td><td>${d(r.dataVerificacao)}</td></tr>`).join('')}</tbody></table>`;
+  }
+  return '';
+}
+
+function buildRncPrintHtml(record) {
+  const cfg    = db.getConfig();
+  const fields = buildFields(record);
+  let sectionsHtml = '';
+  let curFields    = [];
+  let curTitle     = '';
+
+  function flush() {
+    if (!curTitle && !curFields.length) return;
+    sectionsHtml += `<div class="section">
+      ${curTitle ? `<h2>${curTitle}</h2>` : ''}
+      <div class="field-grid">${curFields.join('')}</div>
+    </div>`;
+    curFields = [];
+  }
+
+  fields.forEach(f => {
+    if (f.type === 'heading') { flush(); curTitle = f.label; return; }
+    if (f.type === 'acoes-table' || f.type === 'plano-acao-table') {
+      curFields.push(`<div class="field-full"><label>${f.label}</label>${renderPrintTable(f.type, record[f.id])}</div>`);
+      return;
+    }
+    curFields.push(`<div class="field${f.span === 2 ? '-full' : ''}"><label>${f.label}</label><div class="value">${fmtPrintValue(f, record)}</div></div>`);
+  });
+  flush();
+
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${record.numero} — RNC</title>
+    <style>
+      @page { size: A4; margin: 18mm 15mm; }
+      ${PRINT_STYLE}
+      .section { margin-bottom: 14px; page-break-inside: avoid; }
+      .section h2 { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; background: #f1f5f9; padding: 4px 8px; margin: 0 0 8px; border-left: 4px solid #2d5be3; }
+      .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+      .field, .field-full { border-bottom: 1px solid #ddd; padding-bottom: 3px; }
+      .field-full { grid-column: 1 / -1; }
+      .field label, .field-full label { display: block; font-size: 8.5px; text-transform: uppercase; color: #666; letter-spacing: .03em; }
+      .value { font-size: 10.5px; margin-top: 1px; white-space: pre-wrap; }
+      .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 36px; }
+      .sig-line { border-top: 1px solid #111; padding-top: 4px; font-size: 9.5px; text-align: center; margin-top: 36px; }
+    </style>
+  </head><body>
+    <header>
+      <div><h1>${cfg.empresa || 'MSB Medical System do Brasil'}</h1>
+        <div style="font-size:10px;color:#444">CNPJ: ${cfg.cnpj || '—'} · AFE: ${cfg.afe || '—'}</div>
+      </div>
+      <div class="meta">
+        <strong>Relatório de Não Conformidade — RNC</strong><br>
+        ${record.numero}<br>
+        Impresso em ${new Date().toLocaleString('pt-BR')}
+      </div>
+    </header>
+    ${sectionsHtml}
+    <div class="signatures">
+      <div class="sig-line">Responsável pela Abertura</div>
+      <div class="sig-line">Garantia da Qualidade</div>
+    </div>
+  </body></html>`;
 }
 
 // ── Build form fields ─────────────────────────────────────────────────────────
@@ -480,7 +626,7 @@ function buildFields(record = null) {
 
 // ── Refresh ───────────────────────────────────────────────────────────────────
 
-function refresh(container) {
+function getFilteredItems(container) {
   const search = container.querySelector('[data-filter="search"]')?.value?.toLowerCase() ?? '';
   const status = container.querySelector('[data-filter="status"]')?.value ?? '';
   const tipo   = container.querySelector('[data-filter="tipo"]')?.value ?? '';
@@ -494,7 +640,11 @@ function refresh(container) {
   if (status) items = items.filter(r => r.status === status);
   if (tipo)   items = items.filter(r => r.tipo === tipo);
   if (area)   items = items.filter(r => r.area === area);
+  return items;
+}
 
+function refresh(container) {
+  const items = getFilteredItems(container);
   const el = id => container.querySelector(id);
   if (el('#rnc-pipeline'))   el('#rnc-pipeline').innerHTML   = renderPipelineBar(db.get('rnc'));
   if (el('#rnc-queue-wrap')) el('#rnc-queue-wrap').innerHTML = renderMinhaFila();
@@ -555,6 +705,7 @@ export default {
             <option value="">Todas as áreas</option>
             ${AREAS.map(a => `<option value="${a}">${a}</option>`).join('')}
           </select>
+          <button class="btn btn-secondary btn-sm" data-action="print-list" style="white-space:nowrap">🖨 Exportar Lista (PDF)</button>
         </div>
         <div class="card">
           <div id="rnc-table-wrap">${renderTable(allRnc)}</div>
@@ -587,6 +738,18 @@ export default {
       const { action, id, next } = btn.dataset;
       const numId = id !== undefined ? Number(id) : null;
       const user  = getSession();
+
+      if (action === 'print-list') {
+        printHtmlDocument(buildRncListPrintHtml(getFilteredItems(container)));
+        return;
+      }
+
+      if (action === 'print-rnc') {
+        const record = db.getById('rnc', numId);
+        if (!record) return;
+        printHtmlDocument(buildRncPrintHtml(record));
+        return;
+      }
 
       if (action === 'new') {
         if (!can(user, 'rncAbertura', A.CREATE)) return;
