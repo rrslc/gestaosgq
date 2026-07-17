@@ -863,7 +863,8 @@ function openPlanAnualModal(container) {
 
 // ── Vista Catálogo ─────────────────────────────────────────────────────────────
 
-function renderCatalog(atividades) {
+function renderCatalog(atividades, session) {
+  const isAdmin = session?.perfil === 'GQ Administrador';
   const usosMap = {};
   atividades.forEach(r => { if (r.templateRef) usosMap[r.templateRef] = (usosMap[r.templateRef] || 0) + 1; });
 
@@ -910,7 +911,7 @@ function renderCatalog(atividades) {
             ${rastreio}
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;margin-top:2px">
-            <button class="btn btn-primary btn-sm" data-action="plan" data-tid="${t.id}" style="white-space:nowrap">+ Planejar</button>
+            ${isAdmin ? `<button class="btn btn-primary btn-sm" data-action="plan" data-tid="${t.id}" style="white-space:nowrap">+ Planejar</button>` : ''}
             ${t.route ? `<button class="btn btn-secondary btn-sm" data-action="open-route" data-route="${t.route}" style="white-space:nowrap;font-size:0.72rem">→ Abrir registro</button>` : ''}
           </div>
         </div>`;
@@ -923,13 +924,16 @@ function renderCatalog(atividades) {
       </div>`;
   }).join('');
 
+  const infoText = isAdmin
+    ? 'Clique em <strong>+ Planejar</strong> para criar uma atividade individual, ou use <strong>Planejar Ano Completo</strong> para gerar o planejamento do ano de uma vez.'
+    : 'Catálogo de referência das atividades obrigatórias do SGQ. Use <strong>+ Nova Atividade</strong> para adicionar atividades à sua agenda individual.';
+
   return `
     <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <div style="flex:1;padding:10px 14px;background:#eff6ff;border-radius:7px;border:1px solid #bfdbfe;font-size:0.78rem;color:#1e40af;line-height:1.5">
-        &#128218; <strong>Catálogo de atividades obrigatórias do SGQ.</strong>
-        Clique em <strong>+ Planejar</strong> para criar uma atividade individual, ou use <strong>Planejar Ano Completo</strong> para gerar o planejamento do ano de uma vez.
+        &#128218; <strong>Catálogo de atividades obrigatórias do SGQ.</strong> ${infoText}
       </div>
-      <button class="btn btn-primary" data-action="plan-anual" style="white-space:nowrap;flex-shrink:0">&#128198; Planejar Ano Completo</button>
+      ${isAdmin ? `<button class="btn btn-primary" data-action="plan-anual" style="white-space:nowrap;flex-shrink:0">&#128198; Planejar Ano Completo</button>` : ''}
     </div>
     ${html}`;
 }
@@ -980,7 +984,7 @@ function refresh(container) {
   } else if (_view === 'calendario') {
     container.querySelector('#atv-content').innerHTML = renderCalendar(allVisible, planMonth);
   } else if (_view === 'catalogo') {
-    container.querySelector('#atv-content').innerHTML = renderCatalog(db.get('atividades'));
+    container.querySelector('#atv-content').innerHTML = renderCatalog(db.get('atividades'), session);
   }
 }
 
@@ -1059,6 +1063,12 @@ export default {
       const needsEdit = ['new', 'plan-anual', 'plan', 'delete'].includes(action);
       if (needsEdit && !can(session, 'atividades', A.EDIT)) {
         toast(!session ? 'Sessão expirada. Clique em Sair e faça login novamente.' : 'Sem permissão para esta ação.', 'warning');
+        return;
+      }
+
+      // Planejamento do catálogo exclusivo para GQ Administrador
+      if (['plan-anual', 'plan'].includes(action) && session?.perfil !== 'GQ Administrador') {
+        toast('Planejamento do catálogo restrito ao GQ Administrador.', 'warning');
         return;
       }
 
