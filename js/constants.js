@@ -22,6 +22,28 @@ export const STATUS = Object.freeze({
   ATIV:   ['Pendente', 'Em Andamento', 'Concluído', 'N/A'],
 });
 
+/** Áreas reais da MSB Brasil (usadas em formulários de abertura RNC/CAPA/GCM/Auditoria). */
+export const AREAS_MSB = Object.freeze([
+  'Garantia da Qualidade',
+  'Controle da Qualidade',
+  'Engenharia',
+  'Produção',
+  'Industrial',
+  'Manutenção',
+  'Planejamento',
+  'Logística',
+  'Comercial',
+  'Operações de Vendas',
+  'Vendas',
+  'Administrativo',
+  'Contábil',
+  'Financeiro',
+  'Recursos Humanos',
+  'Tecnologia da Informação',
+  'Diretoria',
+  'Outros',
+]);
+
 export const ORIGENS_CAPA = Object.freeze([
   'Produto', 'Auditorias', 'Reclamação', 'Processo', 'RNC/CAPA', 'Outros',
 ]);

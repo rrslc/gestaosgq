@@ -6,11 +6,11 @@ import { db } from '../db.js';
 import { formatDate, statusPill, emptyState, selectOptions, today } from '../utils.js';
 import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
-import { STATUS, ORIGENS_CAPA } from '../constants.js';
+import { STATUS, ORIGENS_CAPA, AREAS_MSB } from '../constants.js';
 import { getSession } from '../session.js';
 import { can, A } from '../permissions.js';
 
-const AREAS       = ['GQ', 'Produção', 'P&D', 'Regulatório', 'Logística', 'Compras', 'RH', 'TI', 'Fábrica', 'Outros'];
+const AREAS       = AREAS_MSB;
 const RISK_LEVEL  = ['Baixa', 'Média', 'Alta'];
 const PERIOD_VER  = ['3 meses', '6 meses', '9 meses', '12 meses'];
 const FERRAMENTAS = ['5 Porquês', 'Diagrama de Ishikawa', 'Análise de Pareto', 'FTA', 'FMEA', 'Brainstorming', 'Outra'];

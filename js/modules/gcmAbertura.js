@@ -6,9 +6,9 @@ import { db } from '../db.js';
 import { formatDate, statusPill, emptyState, selectOptions, today } from '../utils.js';
 import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
-import { STATUS, CATEGORIAS_GCM, IMPACTOS } from '../constants.js';
+import { STATUS, CATEGORIAS_GCM, IMPACTOS, AREAS_MSB } from '../constants.js';
 
-const AREAS = ['GQ', 'Produção', 'P&D', 'Regulatório', 'Logística', 'Compras', 'RH', 'TI', 'Fábrica', 'Outros'];
+const AREAS = AREAS_MSB;
 
 const PIPELINE = [
   { key: 'Aberta',         label: 'Aberta',         color: 'var(--red)'    },

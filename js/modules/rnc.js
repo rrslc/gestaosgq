@@ -6,9 +6,9 @@ import { db } from '../db.js';
 import { formatDate, statusPill, emptyState, selectOptions, today } from '../utils.js';
 import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
-import { STATUS, CLASSIFICACOES_RNC, ORIGENS_RNC } from '../constants.js';
+import { STATUS, CLASSIFICACOES_RNC, ORIGENS_RNC, AREAS_MSB } from '../constants.js';
 
-const AREAS = ['GQ', 'Produção', 'P&D', 'Regulatório', 'Logística', 'Compras', 'RH', 'TI', 'Fábrica', 'Outros'];
+const AREAS = AREAS_MSB;
 
 const NEXT_STATUS = {
   'Aberta':                  'Em Análise',

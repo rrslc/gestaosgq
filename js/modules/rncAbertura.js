@@ -7,11 +7,11 @@ import { db } from '../db.js';
 import { formatDate, deadlineCell, statusPill, emptyState, selectOptions, today } from '../utils.js';
 import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
-import { STATUS, TIPOS_NC, FERRAMENTAS_INVEST, DISPOSICOES_NC } from '../constants.js';
+import { STATUS, TIPOS_NC, FERRAMENTAS_INVEST, DISPOSICOES_NC, AREAS_MSB } from '../constants.js';
 import { getSession } from '../session.js';
 import { can, A } from '../permissions.js';
 
-const AREAS     = ['GQ', 'Produção', 'P&D', 'Regulatório', 'Logística', 'Compras', 'RH', 'TI', 'Fábrica', 'Outros'];
+const AREAS     = AREAS_MSB;
 const RISK_LVL  = ['Baixa', 'Média', 'Alta'];
 const PERIOD_VER = ['3 meses', '6 meses', '9 meses', '12 meses'];
 const CLOSED    = ['Encerrada', 'Cancelada', 'Não Procedente'];

@@ -7,6 +7,7 @@ import { progressBar, emptyState, statusPill } from '../utils.js';
 import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
 import { PERFIS, LICENCAS } from '../permissions.js';
+import { AREAS_MSB } from '../constants.js';
 
 const CARGOS = [
   // Garantia da Qualidade
@@ -50,25 +51,7 @@ const CARGOS = [
   'Auxiliar de Serviços Gerais',
 ];
 
-const AREAS = [
-  'Garantia da Qualidade',
-  'Controle da Qualidade',
-  'Engenharia',
-  'Produção',
-  'Industrial',
-  'Manutenção',
-  'Planejamento',
-  'Logística',
-  'Comercial',
-  'Operações de Vendas',
-  'Vendas',
-  'Administrativo',
-  'Contábil',
-  'Financeiro',
-  'Recursos Humanos',
-  'Tecnologia da Informação',
-  'Diretoria',
-];
+const AREAS = AREAS_MSB;
 
 const CORES = ['#2d5be3', '#00897b', '#7c3aed', '#f59e0b', '#dc2626', '#00b4d8', '#0d1b4b'];
 

@@ -2,8 +2,9 @@ import { db } from '../db.js';
 import { formatDate, statusPill, emptyState, selectOptions, today } from '../utils.js';
 import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
+import { AREAS_MSB } from '../constants.js';
 
-const AREAS_AUDIT = ['GQ', 'Produção', 'P&D', 'Regulatório', 'Logística', 'Compras', 'RH', 'TI', 'Fábrica', 'Outros'];
+const AREAS_AUDIT = AREAS_MSB;
 const TIPOS_AUDIT = ['Interna SGQ', 'Interna Processo', 'Certificação', 'Regulatória ANVISA', 'Auditoria em Fornecedor'];
 const CLOSED      = ['Concluída', 'Cancelada'];
 
