@@ -13,6 +13,11 @@ class Router {
   #container;
   /** @type {HTMLElement} */
   #titleEl;
+  /** @type {Function|null} */
+  #guard = null;
+
+  /** Define um guard chamado antes de qualquer navegação. Retornar false cancela a rota. */
+  setGuard(fn) { this.#guard = fn; }
 
   /**
    * @param {Object} routes — { [name]: { module, title, icon } }
@@ -38,6 +43,7 @@ class Router {
       console.warn(`[Router] Rota desconhecida: ${routeName}`);
       return;
     }
+    if (this.#guard && !this.#guard(routeName)) return;
 
     this.#current = routeName;
     window.location.hash = routeName;

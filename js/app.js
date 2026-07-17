@@ -101,6 +101,31 @@ export const router = new Router({
   [ROUTES.TRILHA]:             { module: trilha,               title: 'Trilha de Auditoria',        icon: '📋' },
 });
 
+// ── Controle de acesso por perfil ─────────────────────────────────────────────
+
+const GQ_PERFIS_APP       = new Set(['GQ Administrador', 'GQ Analista']);
+const AREA_ALLOWED_ROUTES = new Set(['dashboard', 'capaAbertura', 'rncAbertura', 'gcmAbertura', 'elaboracao']);
+
+function isGQUser(session) {
+  return !session || GQ_PERFIS_APP.has(session.perfil);
+}
+
+function updateSidebarAccess(session) {
+  const gq = isGQUser(session);
+  document.querySelectorAll('#sidebar .nav-item[data-route]').forEach(item => {
+    item.style.display = (gq || AREA_ALLOWED_ROUTES.has(item.dataset.route)) ? '' : 'none';
+  });
+  document.querySelectorAll('#sidebar .nav-section').forEach(section => {
+    let next = section.nextElementSibling;
+    let hasVisible = false;
+    while (next && !next.classList.contains('nav-section')) {
+      if (next.classList.contains('nav-item') && next.style.display !== 'none') hasVisible = true;
+      next = next.nextElementSibling;
+    }
+    section.style.display = hasVisible ? '' : 'none';
+  });
+}
+
 // ── Session / Login ───────────────────────────────────────────────────────────
 
 function updateTopbarSession() {
@@ -122,6 +147,7 @@ function updateTopbarSession() {
   } else {
     el.innerHTML = `<button id="btn-login" class="btn btn-secondary btn-sm">🔐 Entrar</button>`;
   }
+  updateSidebarAccess(session);
 }
 
 const LOCKOUT_KEY   = 'sgq_loginlock';
@@ -278,6 +304,17 @@ window.addEventListener('sgq:import-warning', () => {
 });
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
+
+// Guard de rotas: usuários de área só podem acessar rotas permitidas
+router.setGuard(routeName => {
+  const session = getSession();
+  if (!isGQUser(session) && !AREA_ALLOWED_ROUTES.has(routeName)) {
+    toast('Acesso restrito à equipe de Garantia da Qualidade.', 'warning');
+    router.navigate(ROUTES.DASHBOARD);
+    return false;
+  }
+  return true;
+});
 
 db.ready.then(() => {
   migrateLegacyPerfil();
