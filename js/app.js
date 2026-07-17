@@ -23,7 +23,7 @@ import gcm          from './modules/gcm.js';
 import gcmGerencial from './modules/gcmGerencial.js';
 import gcmAbertura  from './modules/gcmAbertura.js';
 import rncGerencial from './modules/rncGerencial.js';
-import rncAbertura  from './modules/rncAbertura.js';
+import rncAbertura, { migrateLegacyRncStatus } from './modules/rncAbertura.js';
 import risco        from './modules/risco.js';
 import monitoramento, { setTargetArea } from './modules/monitoramento.js';
 
@@ -362,6 +362,7 @@ router.setGuard(routeName => {
 
 db.ready.then(() => {
   migrateLegacyPerfil();
+  migrateLegacyRncStatus();
 
   // Exibe o modo de armazenamento ativo no topbar
   const modeEl = document.getElementById('topbar-mode');

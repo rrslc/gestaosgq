@@ -16,6 +16,18 @@ const RISK_LVL  = ['Baixa', 'Média', 'Alta'];
 const PERIOD_VER = ['3 meses', '6 meses', '9 meses', '12 meses'];
 const CLOSED    = ['Encerrada', 'Cancelada', 'Não Procedente'];
 
+/**
+ * Migra RNCs presas em "Em Implementação" — etapa que existiu brevemente no
+ * fluxo e foi removida por não constar no POP-GQ-008. Registros que chegaram
+ * a avançar para ela (aprovação do Plano de Ação já concluída) seguem para
+ * Verificação de Eficácia, próxima etapa real do procedimento.
+ */
+export function migrateLegacyRncStatus() {
+  db.get('rnc')
+    .filter(r => r.status === 'Em Implementação')
+    .forEach(r => db.update('rnc', r.id, { status: 'Verificação de Eficácia' }));
+}
+
 // ── Workflow stages (conforme fluxograma POP-GQ-008) ─────────────────────────
 
 const STAGE_ORDER = [
@@ -584,8 +596,9 @@ function buildFields(record = null) {
       f('Em Disposição', { id: 'disposicao',              label: 'Disposição (SGQ)',                       type: 'select',        required: false, span: 2, options: DISPOSICOES_NC }),
       f('Em Disposição', { id: 'numFormularioRetrabalho', label: 'Nº Formulário de Retrabalho',            type: 'text',          required: false, span: 1 }),
       f('Em Disposição', { id: 'disposicaoJustificativa', label: 'Justificativa (Não aplicável)',          type: 'text',          required: false, span: 2 }),
-      f('Em Disposição', { id: 'disposicaoAprovadaPor',   label: 'Disposição aprovada por',               type: 'select',        required: false, span: 1, options: resp.length ? resp : ['—'] }),
-      f('Em Disposição', { id: 'dataAprovacaoDisposicao', label: 'Data de Aprovação da Disposição',       type: 'date',          required: false, span: 1 }),
+      // Preenchidos automaticamente com usuário logado e data atual (ver setup() do modal) — não editáveis manualmente.
+      f('Em Disposição', { id: 'disposicaoAprovadaPor',   label: 'Disposição aprovada por',               type: 'text',          required: false, span: 1, readonly: true }),
+      f('Em Disposição', { id: 'dataAprovacaoDisposicao', label: 'Data de Aprovação da Disposição',       type: 'date',          required: false, span: 1, readonly: true }),
     );
   }
 
@@ -854,6 +867,21 @@ export default {
               };
               toggleJustNP();
               procedenteEl.addEventListener('change', toggleJustNP);
+            }
+
+            // Disposição — aprovador e data preenchidos automaticamente ao definir a disposição
+            const disposicaoEl = form.querySelector('#field-disposicao');
+            const aprovadoPorEl = form.querySelector('#field-disposicaoAprovadaPor');
+            const dataAprovEl   = form.querySelector('#field-dataAprovacaoDisposicao');
+            if (auth && disposicaoEl && aprovadoPorEl && dataAprovEl) {
+              // Só carimba numa alteração ativa do campo — não na simples abertura do
+              // registro, para não atribuir uma decisão já registrada a quem só visualiza.
+              disposicaoEl.addEventListener('change', () => {
+                if (disposicaoEl.value) {
+                  aprovadoPorEl.value = user?.nome ?? '';
+                  dataAprovEl.value = today();
+                }
+              });
             }
 
             // Ishikawa 6M — show/hide baseado na ferramenta selecionada
