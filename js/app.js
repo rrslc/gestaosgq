@@ -103,17 +103,28 @@ export const router = new Router({
 
 // ── Controle de acesso por perfil ─────────────────────────────────────────────
 
-const GQ_PERFIS_APP       = new Set(['GQ Administrador', 'GQ Analista']);
-const AREA_ALLOWED_ROUTES = new Set(['dashboard', 'capaAbertura', 'rncAbertura', 'gcmAbertura', 'elaboracao']);
+// GQ Administrador: vê tudo
+// GQ Analista: vê tudo exceto Sistema e Planejamento Estratégico
+// Área: vê apenas abertura/registro de CAPA, RNC, GCM e Elaboração de Docs
+const AREA_ALLOWED_ROUTES  = new Set(['dashboard', 'capaAbertura', 'rncAbertura', 'gcmAbertura', 'elaboracao']);
+const ADMIN_ONLY_ROUTES    = new Set(['equipe', 'permissoes', 'trilha', 'configuracoes', 'revisaoGerencial', 'cronograma']);
 
 function isGQUser(session) {
-  return !session || GQ_PERFIS_APP.has(session.perfil);
+  return !session || session.perfil === 'GQ Administrador' || session.perfil === 'GQ Analista';
+}
+function isGQAdmin(session) {
+  return !session || session.perfil === 'GQ Administrador';
 }
 
 function updateSidebarAccess(session) {
-  const gq = isGQUser(session);
+  const gq    = isGQUser(session);
+  const admin = isGQAdmin(session);
   document.querySelectorAll('#sidebar .nav-item[data-route]').forEach(item => {
-    item.style.display = (gq || AREA_ALLOWED_ROUTES.has(item.dataset.route)) ? '' : 'none';
+    const route = item.dataset.route;
+    const visible = admin
+      || (gq && !ADMIN_ONLY_ROUTES.has(route))
+      || AREA_ALLOWED_ROUTES.has(route);
+    item.style.display = visible ? '' : 'none';
   });
   document.querySelectorAll('#sidebar .nav-section').forEach(section => {
     let next = section.nextElementSibling;
@@ -308,6 +319,11 @@ window.addEventListener('sgq:import-warning', () => {
 // Guard de rotas: usuários de área só podem acessar rotas permitidas
 router.setGuard(routeName => {
   const session = getSession();
+  if (ADMIN_ONLY_ROUTES.has(routeName) && !isGQAdmin(session)) {
+    toast('Acesso restrito ao GQ Administrador.', 'warning');
+    router.navigate(ROUTES.DASHBOARD);
+    return false;
+  }
   if (!isGQUser(session) && !AREA_ALLOWED_ROUTES.has(routeName)) {
     toast('Acesso restrito à equipe de Garantia da Qualidade.', 'warning');
     router.navigate(ROUTES.DASHBOARD);
