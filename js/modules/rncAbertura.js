@@ -53,7 +53,7 @@ const STAGE_OWNER = {
 // ── Perfis e etapas GQ ───────────────────────────────────────────────────────
 
 const GQ_PERFIS  = new Set(['GQ Administrador', 'GQ Analista']);
-const GQ_STAGES  = ['Em Avaliação', 'Em Investigação', 'Em Plano de Ação', 'Verificação de Eficácia'];
+const GQ_STAGES  = ['Aberta', 'Em Avaliação', 'Em Investigação', 'Em Plano de Ação', 'Verificação de Eficácia'];
 const STAGE_PILL = {
   'Em Avaliação':            'purple',
   'Em Investigação':         'blue',
