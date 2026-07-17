@@ -334,6 +334,7 @@ const CATALOGO = [
 // Módulo state (persiste enquanto a rota está ativa)
 let _view = 'lista';
 let _planMonth = null;
+let _onlyMine = false;
 
 function getPlanMonth() {
   if (!_planMonth) {
@@ -365,7 +366,9 @@ function canEdit(record, session = getSession()) {
 }
 
 function visibleItems(session) {
-  return db.get('atividades');
+  const all = db.get('atividades');
+  if (_onlyMine && session?.nome) return all.filter(r => r.responsavel === session.nome);
+  return all;
 }
 
 function sortByPriorityAndDeadline(items) {
@@ -962,6 +965,13 @@ function refresh(container) {
     btn.style.borderRadius = '5px';
   });
 
+  // Toggle "Minhas Atividades"
+  const mineBtn = container.querySelector('[data-action="toggle-mine"]');
+  if (mineBtn) {
+    mineBtn.className = `btn ${_onlyMine ? 'btn-primary' : 'btn-secondary'} btn-sm`;
+    mineBtn.style.borderRadius = '5px';
+  }
+
   // Toolbar visível apenas na vista lista
   const toolbar = container.querySelector('.toolbar');
   if (toolbar) toolbar.style.display = _view === 'lista' ? '' : 'none';
@@ -1007,6 +1017,7 @@ export default {
             <button class="btn btn-secondary btn-sm" data-view-btn="calendario" style="border-radius:5px">&#128198; Calendário</button>
             <button class="btn btn-secondary btn-sm" data-view-btn="catalogo" style="border-radius:5px">&#128218; Catálogo</button>
           </div>
+          ${session?.nome ? `<button class="btn ${_onlyMine ? 'btn-primary' : 'btn-secondary'} btn-sm" data-action="toggle-mine" style="border-radius:5px">&#128100; Minhas Atividades</button>` : ''}
           ${canCreate ? `<button class="btn btn-primary" data-action="new">+ Nova Atividade</button>` : ''}
         </div>
       </div>
@@ -1058,6 +1069,12 @@ export default {
       const { action, id, tid } = btn.dataset;
       const numId   = id !== undefined ? Number(id) : null;
       const session = getSession();
+
+      if (action === 'toggle-mine') {
+        _onlyMine = !_onlyMine;
+        refresh(container);
+        return;
+      }
 
       // Sessão expirada ou sem permissão → aviso claro
       const needsEdit = ['new', 'plan-anual', 'plan', 'delete'].includes(action);

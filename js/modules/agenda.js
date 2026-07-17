@@ -5,6 +5,7 @@
 import { db } from '../db.js';
 import { statusPill, formatDate } from '../utils.js';
 import { ROUTES } from '../constants.js';
+import { getSession } from '../session.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,7 @@ const FONTES = {
   'Documento':   { cor: '#6d28d9', sigla: 'Doc',    label: 'Documentos'      },
   'Doc Admin':   { cor: '#92400e', sigla: 'DocA',   label: 'Docs. Adm.'      },
   'Projeto':     { cor: '#1e40af', sigla: 'Proj',   label: 'Projetos GQ'     },
+  'Atividade':   { cor: '#0d9488', sigla: 'Ativ',   label: 'Atividades SGQ'  },
 };
 
 function fonteBadge(fonte) {
@@ -333,6 +335,18 @@ function getAtividades(filtroMembro, filtroFonte) {
       });
     });
 
+  // ── Atividades do catálogo/planejamento SGQ (pendentes)
+  db.get('atividades')
+    .filter(a => a.status !== 'Concluída' && a.status !== 'Cancelada')
+    .forEach(a => push({
+      fonte: 'Atividade', codigo: a.templateRef || ('ATV-' + a.id),
+      descricao: a.titulo || '—',
+      prazo: a.prazo || null,
+      status: a.status,
+      responsavel: a.responsavel || '—',
+      route: 'atividades',
+    }));
+
   return items;
 }
 
@@ -547,6 +561,15 @@ function renderCalView(filtroMembro, filtroFonte) {
     ${semPrazoHtml}`;
 }
 
+function renderFiltroAtivo() {
+  const tags = [];
+  if (_filtroMembro) tags.push(`<button class="btn btn-secondary btn-sm" data-action="limpar-membro">✕ ${_filtroMembro}</button>`);
+  if (_filtroFonte)  tags.push(`<button class="btn btn-secondary btn-sm" data-action="limpar-fonte">✕ ${FONTES[_filtroFonte]?.label || _filtroFonte}</button>`);
+  return tags.length
+    ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:4px">Filtros:</span>${tags.join('')}`
+    : '<span style="font-size:0.79rem;color:var(--muted)">Todos os módulos · todos os responsáveis</span>';
+}
+
 function rebuild(container) {
   const equipe = db.get('equipe');
   const allItems = getAtividades(_filtroMembro, _filtroFonte);
@@ -554,14 +577,7 @@ function rebuild(container) {
   container.querySelector('#ag-cards').innerHTML       = renderCards(equipe, _filtroMembro);
   container.querySelector('#ag-fonte-chips').innerHTML = renderFonteChips(_filtroFonte);
   container.querySelector('#ag-kpis').innerHTML        = renderKpis(allItems);
-
-  const tags = [];
-  if (_filtroMembro) tags.push(`<button class="btn btn-secondary btn-sm" data-action="limpar-membro">✕ ${_filtroMembro}</button>`);
-  if (_filtroFonte)  tags.push(`<button class="btn btn-secondary btn-sm" data-action="limpar-fonte">✕ ${FONTES[_filtroFonte]?.label || _filtroFonte}</button>`);
-
-  container.querySelector('#ag-filtro-ativo').innerHTML = tags.length
-    ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:4px">Filtros:</span>${tags.join('')}`
-    : '<span style="font-size:0.79rem;color:var(--muted)">Todos os módulos · todos os responsáveis</span>';
+  container.querySelector('#ag-filtro-ativo').innerHTML = renderFiltroAtivo();
 
   container.querySelectorAll('[data-view-btn]').forEach(btn => {
     const active = btn.dataset.viewBtn === _view;
@@ -578,15 +594,24 @@ function rebuild(container) {
 
 export default {
   render(container) {
+    const session = getSession();
+    // Analistas veem por padrão a própria agenda; podem trocar/limpar o filtro livremente depois.
+    if (session?.perfil === 'GQ Analista' && db.get('equipe').some(m => m.nome === session.nome)) {
+      _filtroMembro = session.nome;
+    }
+
     const equipe   = db.get('equipe');
-    const allItems = getAtividades('', '');
+    const allItems = getAtividades(_filtroMembro, _filtroFonte);
 
     container.innerHTML = `
       <div class="page-header">
         <h2>Agenda GQ</h2>
-        <div style="display:flex;gap:3px;border:1px solid var(--border);border-radius:8px;padding:3px;background:var(--surface)">
-          <button class="btn btn-primary btn-sm" data-view-btn="lista" style="border-radius:5px">☰ Lista</button>
-          <button class="btn btn-secondary btn-sm" data-view-btn="calendario" style="border-radius:5px">📆 Calendário</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          ${session?.nome ? `<button class="btn btn-secondary btn-sm" data-action="minha-agenda" style="border-radius:5px">🙋 Minha Agenda</button>` : ''}
+          <div style="display:flex;gap:3px;border:1px solid var(--border);border-radius:8px;padding:3px;background:var(--surface)">
+            <button class="btn btn-primary btn-sm" data-view-btn="lista" style="border-radius:5px">☰ Lista</button>
+            <button class="btn btn-secondary btn-sm" data-view-btn="calendario" style="border-radius:5px">📆 Calendário</button>
+          </div>
         </div>
       </div>
 
@@ -603,9 +628,7 @@ export default {
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px">
           <strong style="font-size:0.85rem">Atividades programadas &nbsp;<span style="font-weight:400;color:var(--muted)">(${allItems.length} no total)</span></strong>
-          <div id="ag-filtro-ativo" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <span style="font-size:0.79rem;color:var(--muted)">Todos os módulos · todos os responsáveis</span>
-          </div>
+          <div id="ag-filtro-ativo" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${renderFiltroAtivo()}</div>
         </div>
         <div id="ag-grupos">${renderGrupos(_filtroMembro, _filtroFonte)}</div>
       </div>
@@ -639,6 +662,10 @@ export default {
       if (action === 'limpar-membro') { _filtroMembro = '';                rebuild(container); }
       if (action === 'fonte')         { _filtroFonte  = btn.dataset.fonte; rebuild(container); }
       if (action === 'limpar-fonte')  { _filtroFonte  = '';                rebuild(container); }
+      if (action === 'minha-agenda')  {
+        const s = getSession();
+        if (s?.nome) { _filtroMembro = s.nome; rebuild(container); }
+      }
       if (action === 'ir')            { window.location.hash = btn.dataset.route; }
     });
   },

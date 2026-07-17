@@ -105,6 +105,42 @@ function renderNext30Days() {
   `).join('');
 }
 
+function renderNext90Days() {
+  const now = new Date(); now.setHours(0,0,0,0);
+  const start = new Date(now); start.setDate(start.getDate() + 31);
+  const limit = new Date(now); limit.setDate(limit.getDate() + 90);
+  const items = [];
+
+  const addItems = (col, labelFn, dateFn, type) => {
+    db.get(col).forEach(r => {
+      const iso = dateFn(r);
+      if (!iso) return;
+      const d = new Date(iso + 'T00:00:00');
+      if (d >= start && d <= limit) items.push({ label: labelFn(r), date: iso, type });
+    });
+  };
+
+  addItems('capa', r => `${r.numero} — ${r.descricao}`, r => r.dataInicioVerificacao, 'CAPA');
+  addItems('rnc', r => `${r.numero} — ${r.descricao}`, r => r.prazoFinalizacao, 'RNC');
+  addItems('gcm', r => `${r.numero} — ${r.titulo || r.descricao}`, r => r.prazoImplementacao, 'GCM');
+  addItems('validacoes', r => `${r.numero} — ${r.descricao}`, r => r.prazo, 'VAL');
+  addItems('tecno', r => `${r.numero} — ${r.descricao}`, r => r.prazoAnvisa, 'TECNO');
+  addItems('atividades', r => r.titulo, r => r.prazo, 'ATIV');
+  addItems('obrigacoes', r => r.nome, r => r.proximoVencimento, 'OBR');
+
+  items.sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!items.length) return emptyState('Nenhum prazo entre 31 e 90 dias.');
+
+  return items.map(r => `
+    <div class="upcoming-item">
+      <span class="upcoming-type-tag">${r.type}</span>
+      <span class="upcoming-desc" title="${r.label}">${r.label}</span>
+      ${deadlineCell(r.date)}
+    </div>
+  `).join('');
+}
+
 function renderPanorama() {
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   const CAPA_CLOSED = ['Encerrada', 'Não Procedente'];
@@ -120,6 +156,7 @@ function renderPanorama() {
   const rncOpen     = rncs.filter(r => !RNC_CLOSED.includes(r.status));
   const rncAtraso   = rncOpen.filter(r => r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje).length;
   const gcmOpen     = gcms.filter(r => !GCM_CLOSED.includes(r.status));
+  const gcmAtraso   = gcmOpen.filter(r => r.prazoImplementacao && new Date(r.prazoImplementacao + 'T00:00:00') < hoje).length;
 
   const row = (label, open, atraso, color) => `
     <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
@@ -147,7 +184,7 @@ function renderPanorama() {
         <div style="font-size:0.68rem;color:var(--muted)">em aberto</div>
       </div>
       <div style="text-align:center;min-width:48px">
-        <div style="font-size:1.2rem;font-weight:700;color:var(--muted)">—</div>
+        <div style="font-size:1.2rem;font-weight:700;color:${gcmAtraso > 0 ? 'var(--red)' : 'var(--green)'}">${gcmAtraso}</div>
         <div style="font-size:0.68rem;color:var(--muted)">em atraso</div>
       </div>
     </div>
@@ -163,6 +200,14 @@ function renderWorkload() {
     ...db.get('rnc').filter(r => r.status !== 'Encerrada' && r.status !== 'Cancelada'),
     ...db.get('validacoes').filter(r => r.status !== 'Aprovada' && r.status !== 'Reprovada' && r.status !== 'Cancelada'),
     ...db.get('tecno').filter(r => r.status !== 'Concluído' && r.status !== 'Cancelado'),
+    ...db.get('gcm').filter(r => !['Concluída', 'Rejeitada', 'Cancelada'].includes(r.status)),
+    ...db.get('reclamacoes').filter(r => !['Concluída', 'Cancelada'].includes(r.status)),
+    ...db.get('obrigacoes').filter(r => r.status !== 'Suspenso'),
+    ...db.get('atividades').filter(r => r.status !== 'Concluída' && r.status !== 'Cancelada'),
+    ...db.get('auditorias').filter(r => ['Planejada', 'Em Execução'].includes(r.status))
+      .map(r => ({ ...r, responsavel: r.auditorLider || r.responsavel })),
+    ...db.get('projetos').filter(r => ['Planejamento', 'Desenvolvimento', 'Verificação', 'Validação'].includes(r.status))
+      .map(r => ({ ...r, responsavel: r.responsavelGQ })),
   ];
 
   const counts = {};
@@ -171,6 +216,14 @@ function renderWorkload() {
     const resp = item.responsavelAbertura || item.responsavel;
     if (resp && counts[resp] !== undefined) counts[resp]++;
   });
+
+  // Documentos: elaborador/revisores/aprovadores podem ser várias pessoas no mesmo campo
+  db.get('documentos')
+    .filter(d => ['Em Elaboração', 'Em Revisão', 'Em Aprovação'].includes(d.status))
+    .forEach(d => {
+      const membros = [d.elaboradores, d.revisores, d.aprovadores].filter(Boolean).join(', ');
+      equipe.forEach(m => { if (membros.includes(m.nome)) counts[m.nome]++; });
+    });
 
   const max = Math.max(...Object.values(counts), 1);
 
@@ -233,6 +286,10 @@ export default {
         <div class="card">
           <div class="card-header"><h3>Próximos 30 Dias</h3></div>
           <div class="card-body">${renderNext30Days()}</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Planejamento — 31 a 90 Dias</h3></div>
+          <div class="card-body">${renderNext90Days()}</div>
         </div>
         <div class="card">
           <div class="card-header"><h3>Workload por Colaboradora</h3></div>
