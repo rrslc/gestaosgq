@@ -899,7 +899,7 @@ export default {
       if (action === 'new') {
         showDocModal(null, data => {
           db.add('documentos', data);
-          db.addAudit('Criou', 'documentos', data.numero, `Documento "${data.titulo}" criado`);
+          db.addAudit('Criar', 'documentos', data.numero, `Documento "${data.titulo}" criado`);
           toast('Documento cadastrado!');
           switchTab(container, _tabAtual);
         });
@@ -911,7 +911,7 @@ export default {
         if (!record) return;
         showDocModal(record, data => {
           db.update('documentos', numId, data);
-          db.addAudit('Editou', 'documentos', record.numero, 'Campos atualizados');
+          db.addAudit('Editar', 'documentos', record.numero, 'Campos atualizados');
           toast('Documento atualizado!');
           switchTab(container, _tabAtual);
         });
@@ -923,7 +923,7 @@ export default {
           if (!ok) return;
           const doc = db.getById('documentos', numId);
           db.remove('documentos', numId);
-          db.addAudit('Excluiu', 'documentos', doc?.numero || numId, 'Documento removido');
+          db.addAudit('Excluir', 'documentos', doc?.numero || numId, 'Documento removido');
           toast('Documento removido.', 'warning');
           switchTab(container, _tabAtual);
         });
@@ -974,7 +974,7 @@ export default {
         };
         db.add('documentos', docData);
         db.update('solicitacoes', numId, { status: 'Aprovada' });
-        db.addAudit('Criou', 'documentos', docData.numero, `Documento criado a partir da solicitação ${solic.numSolic} de ${solic.solicitante}`);
+        db.addAudit('Criar', 'documentos', docData.numero, `Documento criado a partir da solicitação ${solic.numSolic} de ${solic.solicitante}`);
         toast(`${docData.numero} criado e em Elaboração!`);
         switchTab(container, 'solics');
       }
@@ -985,7 +985,7 @@ export default {
           if (!ok) return;
           const solic = db.getById('solicitacoes', numId);
           db.update('solicitacoes', numId, { status: 'Rejeitada' });
-          db.addAudit('Rejeitou', 'documentos', solic?.numSolic || numId, `Solicitação ${solic?.numSolic} rejeitada pela GQ`);
+          db.addAudit('Rejeitar', 'documentos', solic?.numSolic || numId, `Solicitação ${solic?.numSolic} rejeitada pela GQ`);
           toast('Solicitação rejeitada.', 'warning');
           switchTab(container, 'solics');
         });

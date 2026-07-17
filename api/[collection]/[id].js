@@ -4,11 +4,12 @@
  */
 
 const { sql, isAllowed } = require('../_lib/db');
+const { requireAuth } = require('../_lib/auth');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   const { collection, id } = req.query;
@@ -21,6 +22,8 @@ module.exports = async function handler(req, res) {
   if (!Number.isInteger(numId) || numId < 1) {
     return res.status(400).json({ error: 'ID inválido.' });
   }
+
+  if (!requireAuth(req, res)) return;
 
   try {
     if (req.method === 'PUT') {

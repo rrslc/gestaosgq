@@ -9,9 +9,13 @@
  */
 
 import { STORE_KEY } from './constants.js';
+import { getSession } from './session.js';
 
-// Collections que não geram entrada na trilha (evita recursão)
-const AUDIT_SKIP = new Set(['trilha']);
+// Collections que não geram entrada automática na trilha:
+// - 'trilha' evita recursão infinita.
+// - 'documentos' já registra manualmente em cada ação (documentos.js), com
+//   mensagens mais descritivas — o log automático duplicaria cada evento.
+const AUDIT_SKIP = new Set(['trilha', 'documentos']);
 
 const COLLECTIONS = ['equipe', 'capa', 'capaAcoes', 'rnc', 'rncAcoes', 'fornecedores', 'tecno', 'validacoes', 'gcm', 'gcmAcoes', 'risco', 'pragas', 'obrigacoes', 'documentos', 'solicitacoes', 'perfis', 'trilha', 'atividades', 'reservatorio', 'residuos', 'microbiologico', 'limpezaMensal', 'gembaWalk', 'orcamentosAnuais', 'docsAdmin', 'reclamacoes', 'auditorias', 'assistenciaTecnica', 'revisaoGerencialAtas', 'projetos'];
 
@@ -92,10 +96,16 @@ class Database {
 
   // ── API helpers ───────────────────────────────────────────────────────────
 
+  /** Cabeçalho de autorização com o token de sessão emitido por /api/login. */
+  #authHeader() {
+    const token = getSession()?.token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   async #apiPost(col, body) {
     const res = await fetch(`/api/${col}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...this.#authHeader() },
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -105,7 +115,7 @@ class Database {
   async #apiPut(col, id, body) {
     const res = await fetch(`/api/${col}/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...this.#authHeader() },
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -113,7 +123,7 @@ class Database {
   }
 
   async #apiDelete(col, id) {
-    const res = await fetch(`/api/${col}/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/${col}/${id}`, { method: 'DELETE', headers: this.#authHeader() });
     if (!res.ok) throw new Error(await res.text());
   }
 
@@ -267,12 +277,13 @@ class Database {
     if (this.#mode === 'neon') {
       fetch('/api/config', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this.#authHeader() },
         body: JSON.stringify(this.#data.config),
       }).catch(err => console.error('[DB] Falha ao salvar config:', err));
     } else {
       this.#persistToStorage();
     }
+    this.addAudit('Editar', 'configuracoes', 'empresa', JSON.stringify(patch));
   }
 
   /**

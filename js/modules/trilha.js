@@ -12,12 +12,18 @@ function formatDt(iso) {
 }
 
 const ACAO_COR = {
-  'Login':    'pill-green',
-  'Logout':   'pill-gray',
-  'Criar':    'pill-blue',
-  'Editar':   'pill-amber',
-  'Excluir':  'pill-red',
-  'Bloqueio': 'pill-red',
+  'Login':        'pill-green',
+  'Logout':       'pill-gray',
+  'Criar':        'pill-blue',
+  'Editar':       'pill-amber',
+  'Excluir':      'pill-red',
+  'Bloqueio':     'pill-red',
+  'Exportar':     'pill-blue',
+  'Importar':     'pill-amber',
+  'Solicitação':  'pill-purple',
+  'Rejeitar':     'pill-red',
+  'Revisão':      'pill-purple',
+  'Homologação':  'pill-green',
 };
 
 function pill(texto) {
@@ -190,6 +196,12 @@ export default {
               <option value="Editar">Editar</option>
               <option value="Excluir">Excluir</option>
               <option value="Bloqueio">Bloqueio</option>
+              <option value="Exportar">Exportar</option>
+              <option value="Importar">Importar</option>
+              <option value="Solicitação">Solicitação</option>
+              <option value="Rejeitar">Rejeitar</option>
+              <option value="Revisão">Revisão</option>
+              <option value="Homologação">Homologação</option>
             </select>
           </div>
           <div style="display:flex;flex-direction:column;gap:3px">

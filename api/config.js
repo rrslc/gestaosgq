@@ -4,13 +4,14 @@
  */
 
 const { sql } = require('./_lib/db');
+const { requireAuth } = require('./_lib/auth');
 
 const CONFIG_KEY = 'empresa';
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   try {
@@ -24,6 +25,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'PUT') {
+      if (!requireAuth(req, res)) return;
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
       await sql(
         `INSERT INTO sgq_config (key, value)

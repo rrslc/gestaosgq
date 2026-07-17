@@ -9,6 +9,7 @@ import { today, formatDate } from './utils.js';
 import { ROUTES } from './constants.js';
 import { openModal } from './modal.js';
 import { getSession, setSession, clearSession } from './session.js';
+import { hashPassword, looksHashed } from './crypto.js';
 
 // Modules
 import dashboard      from './modules/dashboard.js';
@@ -188,7 +189,7 @@ function openLoginModal() {
       const inp = form.querySelector('#field-senha');
       if (inp) inp.type = 'password';
     },
-    onSave(data) {
+    async onSave(data) {
       // Verificar bloqueio
       const lock = getLock();
       if (lock.lockedAt) {
@@ -200,8 +201,7 @@ function openLoginModal() {
         clearLock();
       }
 
-      const user = equipe.find(m => m.nome === data.nome && m.senha === data.senha);
-      if (!user) {
+      function registrarFalha() {
         const count = (lock.count || 0) + 1;
         if (count >= MAX_ATTEMPTS) {
           setLock({ count, lockedAt: new Date().toISOString() });
@@ -212,9 +212,35 @@ function openLoginModal() {
         throw new Error(`Senha incorreta. Restam ${MAX_ATTEMPTS - count} tentativa(s).`);
       }
 
+      let user, token;
+
+      if (db.mode === 'neon') {
+        // Produção: verificação real no servidor — a senha em texto puro nunca sai do navegador.
+        const senhaHash = await hashPassword(data.senha);
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome: data.nome, senhaHash }),
+        });
+        if (!res.ok) registrarFalha();
+        ({ user, token } = await res.json());
+      } else {
+        // Modo local (sem backend) — comparação no navegador, com migração de senha legada.
+        const candidato = equipe.find(m => m.nome === data.nome);
+        const hash = candidato ? await hashPassword(data.senha) : null;
+        user = candidato && candidato.senha === hash ? candidato : null;
+
+        if (!user && candidato && !looksHashed(candidato.senha) && candidato.senha === data.senha) {
+          db.update('equipe', candidato.id, { senha: hash });
+          user = candidato;
+        }
+
+        if (!user) registrarFalha();
+      }
+
       // Sucesso — limpa lockout, cria sessão, registra auditoria
       clearLock();
-      setSession({ id: user.id, nome: user.nome, iniciais: user.iniciais, area: user.area, perfil: user.perfil, licenca: user.licenca, cor: user.cor });
+      setSession({ id: user.id, nome: user.nome, iniciais: user.iniciais, area: user.area, perfil: user.perfil, licenca: user.licenca, cor: user.cor, token });
       db.addAudit('Login', 'sistema', user.id, `${user.nome} [${user.perfil || '—'}]`);
       updateTopbarSession();
       router.navigate(router.current || ROUTES.DASHBOARD);
@@ -265,6 +291,7 @@ document.getElementById('btn-export')?.addEventListener('click', () => {
     a.download = `sgq-backup-${today()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    db.addAudit('Exportar', 'sistema', 'backup', `Backup exportado (${a.download})`);
     toast('Backup exportado com sucesso!');
   } catch (e) {
     toast('Erro ao exportar backup: ' + e.message, 'error');
@@ -282,6 +309,7 @@ document.getElementById('btn-import')?.addEventListener('click', () => {
     reader.onload = () => {
       try {
         db.importJSON(reader.result);
+        db.addAudit('Importar', 'sistema', 'backup', `Dados restaurados a partir de "${file.name}"`);
         toast('Dados importados com sucesso! Recarregando…');
         setTimeout(() => window.location.reload(), 1000);
       } catch (e) {

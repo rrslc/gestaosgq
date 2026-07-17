@@ -4,11 +4,12 @@
  */
 
 const { sql, isAllowed } = require('./_lib/db');
+const { requireAuth } = require('./_lib/auth');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   const { collection } = req.query;
@@ -31,6 +32,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      if (!requireAuth(req, res)) return;
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
       if (!body || typeof body !== 'object') {
         return res.status(400).json({ error: 'Body inválido.' });

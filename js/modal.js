@@ -320,12 +320,12 @@ export function openModal({ title, fields, data = {}, onSave, setup }) {
 
   o.querySelector('.modal-close').addEventListener('click', closeModal);
   o.querySelector('[data-modal-action="cancel"]').addEventListener('click', closeModal);
-  o.querySelector('[data-modal-action="save"]').addEventListener('click', () => {
+  o.querySelector('[data-modal-action="save"]').addEventListener('click', async () => {
     const errBox = o.querySelector('#modal-errors');
     try {
       const formData = collectFormData(fields);
       errBox.style.display = 'none';
-      onSave(formData);
+      await onSave(formData);
       closeModal();
     } catch (e) {
       errBox.textContent = e.message;

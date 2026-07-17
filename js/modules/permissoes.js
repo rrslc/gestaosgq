@@ -8,6 +8,7 @@ import { statusPill, formatDate } from '../utils.js';
 import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
 import { PERFIS, LICENCAS } from '../permissions.js';
+import { hashPassword } from '../crypto.js';
 
 const COR_PERFIL = {
   'GQ Administrador':      '#dc2626',
@@ -236,7 +237,14 @@ function renderTrilha() {
     Nenhum evento registrado. Ações no sistema (criação, edição, aprovação) serão registradas aqui conforme CFR 21 Part 11 §11.10(e).
   </div>`;
 
-  const ACAO_COR = { 'Criou': '#059669', 'Editou': '#2563eb', 'Excluiu': '#dc2626', 'Solicitação': '#7c3aed', 'Avançou para Em Revisão': '#7c3aed', 'Avançou para Em Aprovação': '#d97706', 'Avançou para Em Homologação': '#059669', 'Homologação': '#059669' };
+  const ACAO_COR = {
+    'Criar': '#059669', 'Editar': '#2563eb', 'Excluir': '#dc2626',
+    'Login': '#059669', 'Logout': '#6b7280', 'Bloqueio': '#dc2626',
+    'Exportar': '#0891b2', 'Importar': '#d97706',
+    'Solicitação': '#7c3aed', 'Rejeitar': '#dc2626', 'Revisão': '#7c3aed',
+    'Avançou para Em Revisão': '#7c3aed', 'Avançou para Em Aprovação': '#d97706', 'Avançou para Em Homologação': '#059669',
+    'Homologação': '#059669',
+  };
 
   return `
     <div class="table-wrap">
@@ -422,16 +430,17 @@ export default {
             { id: 'area',    label: 'Área',      type: 'text',   required: false, span: 1 },
             { id: 'senha',   label: 'Senha',     type: 'text',   required: false, span: 1 },
           ],
-          data: membro,
+          // Campo de senha sempre em branco — evita reexibir/regravar o hash armazenado.
+          data: { ...membro, senha: '' },
           setup(form) {
             const s = form.querySelector('#field-senha');
             if (s) s.type = 'password';
           },
-          onSave: data => {
+          onSave: async data => {
             const updates = { perfil: data.perfil, licenca: data.licenca, email: data.email, area: data.area };
-            if (data.senha) updates.senha = data.senha;
+            if (data.senha) updates.senha = await hashPassword(data.senha);
             db.update('equipe', Number(id), updates);
-            db.addAudit('Editou', 'permissoes', membro.nome, `Perfil → ${data.perfil} · Licença → ${data.licenca}`);
+            db.addAudit('Editar', 'permissoes', membro.nome, `Perfil → ${data.perfil} · Licença → ${data.licenca}`);
             toast(`Acesso de ${membro.nome.split(' ')[0]} atualizado.`);
             rebuildContent(container);
           },

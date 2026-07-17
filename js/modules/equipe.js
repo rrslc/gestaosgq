@@ -8,6 +8,7 @@ import { openModal, showConfirm } from '../modal.js';
 import { toast } from '../toast.js';
 import { PERFIS, LICENCAS } from '../permissions.js';
 import { AREAS_MSB } from '../constants.js';
+import { hashPassword } from '../crypto.js';
 
 const CARGOS = [
   // Garantia da Qualidade
@@ -184,8 +185,9 @@ export default {
       const numId = id !== undefined ? Number(id) : null;
 
       if (action === 'new') {
-        openModal({ title: 'Nova Colaboradora', fields: FIELDS, data: { cor: CORES[db.get('equipe').length % CORES.length] }, onSave: data => {
+        openModal({ title: 'Nova Colaboradora', fields: FIELDS, data: { cor: CORES[db.get('equipe').length % CORES.length] }, onSave: async data => {
           if (data.senha && data.senha.length < 8) throw new Error('A senha deve ter no mínimo 8 caracteres (requisito CFR Part 11).');
+          if (data.senha) data.senha = await hashPassword(data.senha);
           db.add('equipe', data);
           toast('Colaboradora adicionada!');
           container.querySelector('#team-cards').innerHTML = renderCards();
@@ -195,8 +197,11 @@ export default {
       if (action === 'edit') {
         const record = db.getById('equipe', numId);
         if (!record) return;
-        openModal({ title: 'Editar Colaboradora', fields: FIELDS, data: record, onSave: data => {
+        // Campo de senha sempre em branco na edição — evita reexibir/regravar o hash armazenado.
+        openModal({ title: 'Editar Colaboradora', fields: FIELDS, data: { ...record, senha: '' }, onSave: async data => {
           if (data.senha && data.senha.length < 8) throw new Error('A senha deve ter no mínimo 8 caracteres (requisito CFR Part 11).');
+          if (data.senha) data.senha = await hashPassword(data.senha);
+          else delete data.senha; // em branco = manter a senha atual
           db.update('equipe', numId, data);
           toast('Colaboradora atualizada!');
           container.querySelector('#team-cards').innerHTML = renderCards();
