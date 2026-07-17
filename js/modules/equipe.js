@@ -9,39 +9,96 @@ import { toast } from '../toast.js';
 import { PERFIS, LICENCAS } from '../permissions.js';
 
 const CARGOS = [
+  // Garantia da Qualidade
   'Gerente da Qualidade',
-  'Analista de Qualidade',
-  'Engenheira de Processos',
-  'Especialista Regulatório',
-  'Técnica de Qualidade',
-  'Coordenadora da Qualidade',
-  'Auditora Interna',
+  'Coordenadora da Garantia da Qualidade e Assuntos Regulatórios',
+  'Analista da Garantia da Qualidade e Assuntos Regulatórios',
+  // Controle da Qualidade
+  'Supervisora do Controle de Qualidade',
+  'Inspetor da Qualidade',
+  'Assistente do Controle de Qualidade',
+  // Engenharia
+  'Coordenador de Engenharia',
+  'Analista de Engenharia',
+  'Estagiário de Engenharia',
+  // Produção
+  'Supervisora de Produção',
+  'Auxiliar de Produção',
+  // Industrial / Manutenção
+  'Gerente Industrial',
+  'Líder de Manutenção',
+  'Técnico de Manutenção',
+  // Planejamento / Logística
+  'Analista de Planejamento',
+  'Assistente de Planejamento',
+  'Assistente Logístico',
+  // Comercial / Vendas
+  'KAM',
+  'Supervisora de Vendas',
+  'Assistente Comercial',
+  // Administrativo / Financeiro / RH / TI
+  'Analista Administrativo',
+  'Analista Contábil',
+  'Analista Financeiro',
+  'Analista de Gente e Gestão',
+  'Assistente de Gente e Gestão',
+  'Assistente de Tecnologia da Informação',
+  'Jovem Aprendiz',
+  // Diretoria / Outros
+  'CEO',
+  'Diretor Industrial',
+  'Auxiliar de Serviços Gerais',
+];
+
+const AREAS = [
+  'Garantia da Qualidade',
+  'Controle da Qualidade',
+  'Engenharia',
+  'Produção',
+  'Industrial',
+  'Manutenção',
+  'Planejamento',
+  'Logística',
+  'Comercial',
+  'Operações de Vendas',
+  'Vendas',
+  'Administrativo',
+  'Contábil',
+  'Financeiro',
+  'Recursos Humanos',
+  'Tecnologia da Informação',
+  'Diretoria',
 ];
 
 const CORES = ['#2d5be3', '#00897b', '#7c3aed', '#f59e0b', '#dc2626', '#00b4d8', '#0d1b4b'];
 
-// Mapa de migração de formatos legados → perfis atuais por área
+// Mapa de migração de formatos legados → perfis atuais
 const PERFIL_LEGADO = {
-  // Formato v1 (antes de Adm/GQ Apoio/Executor)
-  'GQ Administrador':   { perfil: 'GQ Administrador', licenca: 'Manager' },
-  'Gestor GQ':          { perfil: 'GQ Administrador', licenca: 'Manager' },
-  'Garantia da Qualidade': { perfil: 'GQ Analista',   licenca: 'Manager' },
-  'Elaborador':         { perfil: 'GQ Analista',      licenca: 'Manager' },
-  'Revisor':            { perfil: 'GQ Analista',      licenca: 'Manager' },
-  'Aprovador':          { perfil: 'GQ Analista',      licenca: 'Manager' },
-  'Resp. por Impressão':{ perfil: 'Controle de Qualidade', licenca: 'View' },
-  'Consulta':           { perfil: 'Controle de Qualidade', licenca: 'View' },
-  // Formato v2 (Adm / GQ Apoio / Executor)
-  'Adm':      { perfil: 'GQ Administrador', licenca: 'Manager' },
-  'GQ Apoio': { perfil: 'GQ Analista',      licenca: 'Manager' },
-  'Executor': { perfil: 'Controle de Qualidade', licenca: 'Manager' },
+  // v1
+  'GQ Administrador':      { perfil: 'GQ Administrador',      licenca: 'Manager' },
+  'Gestor GQ':             { perfil: 'GQ Administrador',      licenca: 'Manager' },
+  'Garantia da Qualidade': { perfil: 'GQ Analista',           licenca: 'Manager' },
+  'Elaborador':            { perfil: 'GQ Analista',           licenca: 'Manager' },
+  'Revisor':               { perfil: 'GQ Analista',           licenca: 'Manager' },
+  'Aprovador':             { perfil: 'GQ Analista',           licenca: 'Manager' },
+  'Resp. por Impressão':   { perfil: 'Controle da Qualidade', licenca: 'View'    },
+  'Consulta':              { perfil: 'Controle da Qualidade', licenca: 'View'    },
+  // v2
+  'Adm':      { perfil: 'GQ Administrador',      licenca: 'Manager' },
+  'GQ Apoio': { perfil: 'GQ Analista',           licenca: 'Manager' },
+  'Executor': { perfil: 'Controle da Qualidade', licenca: 'Manager' },
+  // v3 → v4 (renomeações de perfis de área)
+  'Controle de Qualidade': { perfil: 'Controle da Qualidade', licenca: 'Manager' },
+  'Melhoria Contínua':     { perfil: 'Engenharia',            licenca: 'Manager' },
+  'PCP':                   { perfil: 'Planejamento',          licenca: 'Manager' },
+  'Gente e Gestão':        { perfil: 'Administrativo',        licenca: 'Manager' },
 };
 
 const FIELDS = [
   { id: 'nome',     label: 'Nome Completo',       type: 'text',   required: true,  span: 2 },
   { id: 'iniciais', label: 'Iniciais (ex: RC)',    type: 'text',   required: true,  span: 1 },
-  { id: 'cargo',    label: 'Cargo',                type: 'select', required: true,  span: 1, options: CARGOS },
-  { id: 'area',     label: 'Área / Setor',         type: 'text',   required: false, span: 1 },
+  { id: 'cargo',    label: 'Cargo',                type: 'select', required: false, span: 1, options: CARGOS },
+  { id: 'area',     label: 'Área / Setor',         type: 'select', required: false, span: 1, options: AREAS },
   { id: 'email',    label: 'E-mail corporativo',   type: 'text',   required: false, span: 1 },
   { id: 'perfil',   label: 'Perfil de acesso',     type: 'select', required: true,  span: 1, options: PERFIS },
   { id: 'licenca',  label: 'Licença',              type: 'select', required: true,  span: 1, options: LICENCAS },
@@ -54,7 +111,7 @@ export function migrateLegacyPerfil() {
   db.get('equipe').forEach(m => {
     if (!Array.isArray(m.perfil) && m.perfil && PERFIS.includes(m.perfil)) return; // já migrado
     const legadoKey = Array.isArray(m.perfil) ? m.perfil[0] : m.perfil;
-    const mapped = PERFIL_LEGADO[legadoKey] || { perfil: 'Executor', licenca: 'View' };
+    const mapped = PERFIL_LEGADO[legadoKey] || { perfil: 'Administrativo', licenca: 'View' };
     db.update('equipe', m.id, { perfil: mapped.perfil, licenca: mapped.licenca });
   });
 }

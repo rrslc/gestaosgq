@@ -1,11 +1,19 @@
 /**
- * @fileoverview Modelo central de permissões — 11 perfis por área MSB Brasil.
+ * @fileoverview Modelo central de permissões — perfis reais MSB Brasil.
  *
- * Perfis (um por área):
+ * Perfis (mapeados às áreas reais da empresa):
  *   GQ Administrador   — coordenação GQ; acesso total + sistema
- *   GQ Analista        — analistas GQ/AR; todos os módulos GQ
- *   Controle de Qualidade, Melhoria Contínua, Produção, Manutenção,
- *   PCP, Logística, Engenharia, Comercial, Gente e Gestão
+ *   GQ Analista        — analistas GQ/AR; todos os módulos exceto Sistema/Planejamento Est.
+ *   Controle da Qualidade — Assistente, Inspetor, Supervisora de CQ
+ *   Engenharia         — Analista, Coordenador, Estagiário de Engenharia
+ *   Produção           — Auxiliar, Supervisora de Produção
+ *   Industrial         — Gerente Industrial
+ *   Manutenção         — Técnico, Líder de Manutenção
+ *   Planejamento       — Analista e Assistente de Planejamento
+ *   Logística          — Assistente Logístico
+ *   Comercial          — KAM, Assistente Comercial, Operações de Vendas, Vendas
+ *   Diretoria          — CEO, Diretor Industrial
+ *   Administrativo     — Administrativo, Contábil, Financeiro, RH, TI
  *
  * Níveis de acesso:
  *   Gestão (3) — criar, editar, excluir, avançar fluxo
@@ -28,15 +36,16 @@ export const A = {
 export const PERFIS = [
   'GQ Administrador',
   'GQ Analista',
-  'Controle de Qualidade',
-  'Melhoria Contínua',
-  'Produção',
-  'Manutenção',
-  'PCP',
-  'Logística',
+  'Controle da Qualidade',
   'Engenharia',
+  'Produção',
+  'Industrial',
+  'Manutenção',
+  'Planejamento',
+  'Logística',
   'Comercial',
-  'Gente e Gestão',
+  'Diretoria',
+  'Administrativo',
 ];
 
 export const LICENCAS = ['Manager', 'View'];
@@ -47,15 +56,16 @@ export const LICENCAS = ['Manager', 'View'];
 const P = {
   ADM:  'GQ Administrador',
   GQA:  'GQ Analista',
-  CQ:   'Controle de Qualidade',
-  MC:   'Melhoria Contínua',
-  PROD: 'Produção',
-  MANU: 'Manutenção',
-  PCP:  'PCP',
-  LOG:  'Logística',
+  CQ:   'Controle da Qualidade',
   ENG:  'Engenharia',
+  PROD: 'Produção',
+  INDU: 'Industrial',
+  MANU: 'Manutenção',
+  PLAN: 'Planejamento',
+  LOG:  'Logística',
   COM:  'Comercial',
-  GG:   'Gente e Gestão',
+  DIR:  'Diretoria',
+  ADMI: 'Administrativo',
 };
 
 // Nível de acesso numérico
@@ -78,8 +88,9 @@ const PERM = {
   // ── Visão Geral ─────────────────────────────────────────────────────────────
   dashboard: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.MC]: L.VIEW, [P.PROD]: L.VIEW, [P.MANU]: L.VIEW,
-    [P.PCP]: L.VIEW, [P.LOG]: L.VIEW, [P.ENG]: L.VIEW, [P.COM]: L.VIEW, [P.GG]: L.VIEW,
+    [P.CQ]: L.VIEW, [P.ENG]: L.VIEW, [P.PROD]: L.VIEW, [P.INDU]: L.VIEW,
+    [P.MANU]: L.VIEW, [P.PLAN]: L.VIEW, [P.LOG]: L.VIEW,
+    [P.COM]: L.VIEW, [P.DIR]: L.VIEW, [P.ADMI]: L.VIEW,
   },
 
   // ── Gestão interna GQ ───────────────────────────────────────────────────────
@@ -96,69 +107,74 @@ const PERM = {
   // ── Dashboards (gerenciais) ─────────────────────────────────────────────────
   capaGerencial: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.MC]: L.VIEW, [P.PROD]: L.VIEW,
-    [P.MANU]: L.VIEW, [P.PCP]: L.VIEW, [P.ENG]: L.VIEW,
+    [P.CQ]: L.VIEW, [P.ENG]: L.VIEW, [P.PROD]: L.VIEW, [P.INDU]: L.VIEW,
+    [P.MANU]: L.VIEW, [P.PLAN]: L.VIEW,
   },
   rncGerencial: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.MC]: L.VIEW, [P.PROD]: L.VIEW,
-    [P.MANU]: L.VIEW, [P.PCP]: L.VIEW, [P.ENG]: L.VIEW,
+    [P.CQ]: L.VIEW, [P.ENG]: L.VIEW, [P.PROD]: L.VIEW, [P.INDU]: L.VIEW,
+    [P.MANU]: L.VIEW, [P.PLAN]: L.VIEW,
   },
   gcmGerencial: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.MC]: L.VIEW, [P.PROD]: L.VIEW,
-    [P.MANU]: L.VIEW, [P.PCP]: L.VIEW, [P.ENG]: L.VIEW,
+    [P.CQ]: L.VIEW, [P.ENG]: L.VIEW, [P.PROD]: L.VIEW, [P.INDU]: L.VIEW,
+    [P.MANU]: L.VIEW, [P.PLAN]: L.VIEW,
   },
 
   // ── Processos SGQ — todas as áreas podem abrir ──────────────────────────────
   rncAbertura: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.EXEC, [P.MC]: L.EXEC, [P.PROD]: L.EXEC, [P.MANU]: L.EXEC,
-    [P.PCP]: L.EXEC, [P.LOG]: L.EXEC, [P.ENG]: L.EXEC, [P.COM]: L.EXEC, [P.GG]: L.EXEC,
+    [P.CQ]: L.EXEC, [P.ENG]: L.EXEC, [P.PROD]: L.EXEC, [P.INDU]: L.EXEC,
+    [P.MANU]: L.EXEC, [P.PLAN]: L.EXEC, [P.LOG]: L.EXEC,
+    [P.COM]: L.EXEC, [P.DIR]: L.EXEC, [P.ADMI]: L.EXEC,
   },
   capaAbertura: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.EXEC, [P.MC]: L.EXEC, [P.PROD]: L.EXEC, [P.MANU]: L.EXEC,
-    [P.PCP]: L.EXEC, [P.LOG]: L.EXEC, [P.ENG]: L.EXEC, [P.COM]: L.EXEC, [P.GG]: L.EXEC,
+    [P.CQ]: L.EXEC, [P.ENG]: L.EXEC, [P.PROD]: L.EXEC, [P.INDU]: L.EXEC,
+    [P.MANU]: L.EXEC, [P.PLAN]: L.EXEC, [P.LOG]: L.EXEC,
+    [P.COM]: L.EXEC, [P.DIR]: L.EXEC, [P.ADMI]: L.EXEC,
   },
   gcmAbertura: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.EXEC, [P.MC]: L.EXEC, [P.PROD]: L.EXEC, [P.MANU]: L.EXEC,
-    [P.PCP]: L.EXEC, [P.LOG]: L.EXEC, [P.ENG]: L.EXEC, [P.COM]: L.EXEC, [P.GG]: L.EXEC,
+    [P.CQ]: L.EXEC, [P.ENG]: L.EXEC, [P.PROD]: L.EXEC, [P.INDU]: L.EXEC,
+    [P.MANU]: L.EXEC, [P.PLAN]: L.EXEC, [P.LOG]: L.EXEC,
+    [P.COM]: L.EXEC, [P.DIR]: L.EXEC, [P.ADMI]: L.EXEC,
   },
   elaboracao: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.EXEC, [P.MC]: L.EXEC, [P.PROD]: L.EXEC, [P.MANU]: L.EXEC,
-    [P.PCP]: L.EXEC, [P.LOG]: L.EXEC, [P.ENG]: L.EXEC, [P.COM]: L.EXEC, [P.GG]: L.EXEC,
+    [P.CQ]: L.EXEC, [P.ENG]: L.EXEC, [P.PROD]: L.EXEC, [P.INDU]: L.EXEC,
+    [P.MANU]: L.EXEC, [P.PLAN]: L.EXEC, [P.LOG]: L.EXEC,
+    [P.COM]: L.EXEC, [P.DIR]: L.EXEC, [P.ADMI]: L.EXEC,
   },
 
   // ── Auditorias ──────────────────────────────────────────────────────────────
   auditoriasPlano: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.MC]: L.VIEW, [P.PROD]: L.VIEW, [P.MANU]: L.VIEW, [P.ENG]: L.VIEW,
+    [P.CQ]: L.VIEW, [P.ENG]: L.VIEW, [P.PROD]: L.VIEW, [P.INDU]: L.VIEW, [P.MANU]: L.VIEW,
   },
   auditoriasExec: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.MC]: L.VIEW, [P.PROD]: L.VIEW, [P.MANU]: L.VIEW, [P.ENG]: L.VIEW,
+    [P.CQ]: L.VIEW, [P.ENG]: L.VIEW, [P.PROD]: L.VIEW, [P.INDU]: L.VIEW, [P.MANU]: L.VIEW,
   },
 
   // ── Análise de Risco ────────────────────────────────────────────────────────
   risco: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.MC]: L.VIEW, [P.ENG]: L.VIEW,
+    [P.CQ]: L.VIEW, [P.ENG]: L.VIEW,
   },
 
   // ── Documentos ──────────────────────────────────────────────────────────────
   documentos: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.MC]: L.VIEW, [P.PROD]: L.VIEW, [P.MANU]: L.VIEW,
-    [P.PCP]: L.VIEW, [P.LOG]: L.VIEW, [P.ENG]: L.VIEW, [P.COM]: L.VIEW, [P.GG]: L.VIEW,
+    [P.CQ]: L.VIEW, [P.ENG]: L.VIEW, [P.PROD]: L.VIEW, [P.INDU]: L.VIEW,
+    [P.MANU]: L.VIEW, [P.PLAN]: L.VIEW, [P.LOG]: L.VIEW,
+    [P.COM]: L.VIEW, [P.DIR]: L.VIEW, [P.ADMI]: L.VIEW,
   },
 
   // ── Assuntos Regulatórios ───────────────────────────────────────────────────
   obrigacoes: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.MC]: L.VIEW, [P.ENG]: L.VIEW, [P.COM]: L.VIEW,
+    [P.CQ]: L.VIEW, [P.ENG]: L.VIEW, [P.COM]: L.VIEW,
   },
   docsAdmin:            { [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE },
   reclamacoesGerencial: { [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE },
@@ -168,15 +184,15 @@ const PERM = {
   // ── Fábrica ─────────────────────────────────────────────────────────────────
   pragas: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.PROD]: L.EXEC, [P.MANU]: L.EXEC,
+    [P.CQ]: L.VIEW, [P.PROD]: L.EXEC, [P.INDU]: L.VIEW, [P.MANU]: L.EXEC,
   },
   reservatorio: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.PROD]: L.EXEC, [P.MANU]: L.EXEC,
+    [P.CQ]: L.VIEW, [P.PROD]: L.EXEC, [P.INDU]: L.VIEW, [P.MANU]: L.EXEC,
   },
   residuos: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.PROD]: L.EXEC, [P.MANU]: L.EXEC,
+    [P.CQ]: L.VIEW, [P.PROD]: L.EXEC, [P.INDU]: L.VIEW, [P.MANU]: L.EXEC,
   },
   microbiologico: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
@@ -184,13 +200,13 @@ const PERM = {
   },
   limpezaMensal: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.PROD]: L.EXEC, [P.MANU]: L.EXEC,
+    [P.CQ]: L.VIEW, [P.PROD]: L.EXEC, [P.INDU]: L.VIEW, [P.MANU]: L.EXEC,
   },
 
   // ── Técnico especializado ───────────────────────────────────────────────────
   validacoes: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.EXEC, [P.MC]: L.EXEC, [P.ENG]: L.EXEC,
+    [P.CQ]: L.EXEC, [P.ENG]: L.EXEC,
   },
   assistenciaTecnica: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
