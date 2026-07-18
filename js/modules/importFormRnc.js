@@ -62,9 +62,13 @@ function extractTable(cv, rows, cols) {
   return out;
 }
 
-function inferStatus({ dataFechamento, verificacao, plano, disposicao, investigacao, procedente, severidade }) {
+// Verificação de Eficácia é DEFINIDA (planejada) durante o Plano de Ação e só
+// EXECUTADA após a implementação das ações. Por isso, a presença de eficácia
+// planejada NÃO promove o status: enquanto houver plano (com ou sem eficácia
+// definida) e a RNC não estiver encerrada, o status é "Em Plano de Ação". A
+// entrada em "Verificação de Eficácia" é uma decisão da GQ, feita manualmente.
+function inferStatus({ dataFechamento, plano, disposicao, investigacao, procedente, severidade }) {
   if (dataFechamento) return 'Encerrada';
-  if (verificacao) return 'Verificação de Eficácia';
   if (plano) return 'Em Plano de Ação';
   if (disposicao) return 'Em Disposição';
   if (investigacao) return 'Em Investigação';
@@ -142,7 +146,7 @@ function parseNew(cv) {
     descricaoImpacto: cv('H84'),
     observacoes: obs.join('\n\n'),
     dataFechamento,
-    status: inferStatus({ dataFechamento, verificacao: planoCorretivoAcoes.length, plano: planoCorretivoAcoes.length, disposicao, procedente, severidade }),
+    status: inferStatus({ dataFechamento, plano: planoCorretivoAcoes.length, disposicao, procedente, severidade }),
   };
 }
 
@@ -226,7 +230,7 @@ function parseOld(cv) {
     impactoMSB,
     descricaoImpacto: stripLabel(cv('B65')),
     dataFechamento,
-    status: inferStatus({ dataFechamento, verificacao: eficacia.length, plano: plano.length, disposicao, investigacao: !!causaRaiz }),
+    status: inferStatus({ dataFechamento, plano: plano.length, disposicao, investigacao: !!causaRaiz }),
   };
 }
 
@@ -269,6 +273,36 @@ export function parseFormRnc(cells) {
 }
 
 // ── UI ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Cria registros de acompanhamento (rncAcoes) para as ações da RNC importada,
+ * para que apareçam no painel "Ações & Prazos" e na Agenda. Ações sem data de
+ * conclusão entram como "Pendente" (aparecem no follow-up); com data, "Concluída".
+ */
+function trackAcoes(saved, record) {
+  const linhas = [
+    ...(record.acoesImediatas || []).map(a => ({ ...a, etapa: 'Ação Imediata' })),
+    ...(record.planoCorretivoAcoes || []).map(a => ({
+      ...a,
+      etapa: (a.verificadoPor || a.dataVerificacao) ? 'Verificação de Eficácia' : 'Ação',
+    })),
+  ];
+  linhas.forEach(a => {
+    if (!a.descricao) return;
+    const concluida = a.dataRealizada || a.dataConclusao || '';
+    db.add('rncAcoes', {
+      rncId: saved.id, rncNumero: saved.numero,
+      acao: a.descricao,
+      responsavel: a.responsavel || a.verificadoPor || '',
+      prazo: a.prazo || '',
+      status: concluida ? 'Concluída' : 'Pendente',
+      etapa: a.etapa,
+      evidencia: a.evidencia || '',
+      dataConclusao: concluida,
+    });
+  });
+  return linhas.filter(a => a.descricao && !(a.dataRealizada || a.dataConclusao)).length;
+}
 
 export function openImportFormRncModal(onDone) {
   const overlay = document.createElement('div');
@@ -350,6 +384,7 @@ export function openImportFormRncModal(onDone) {
       ${linha('Ações de Contenção', record.acoesImediatas.length + ' item(ns)')}
       ${linha('Disposição', record.disposicao)}
       ${linha('Plano / Verificação', record.planoCorretivoAcoes.length + ' item(ns)')}
+      ${linha('Pendentes p/ acompanhamento', [...record.acoesImediatas, ...record.planoCorretivoAcoes].filter(a => a.descricao && !(a.dataRealizada || a.dataConclusao)).length + ' ação(ões)')}
       ${linha('Data de Fechamento', fdate(record.dataFechamento))}
       ${linha('Status', record.status)}
     `;
@@ -358,9 +393,10 @@ export function openImportFormRncModal(onDone) {
 
   goBtn.addEventListener('click', () => {
     if (!parsed) return;
-    db.add('rnc', parsed.record);
+    const saved = db.add('rnc', parsed.record);
+    const pendentes = trackAcoes(saved, parsed.record);
     close();
-    toast(`RNC ${parsed.record.numero} importada do formulário!`);
+    toast(`RNC ${parsed.record.numero} importada!${pendentes ? ` ${pendentes} ação(ões) pendente(s) no acompanhamento.` : ''}`);
     onDone?.();
   });
 }
