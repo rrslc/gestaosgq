@@ -1,3 +1,145 @@
+/* ── Portal de Login ── */
+#login-screen {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(0, 180, 216, 0.28), transparent 60%),
+    linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+  overflow-y: auto;
+}
+
+/* Enquanto não autenticado, o app fica oculto e só o portal aparece. */
+body.auth-gate #sidebar,
+body.auth-gate #main {
+  display: none;
+}
+body.auth-gate #login-screen {
+  display: flex;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(3, 10, 40, 0.45);
+  padding: 34px 30px 26px;
+  animation: login-rise 0.4s ease;
+}
+
+@keyframes login-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 26px;
+}
+
+.login-logo {
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--blue-light), var(--accent));
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 16px rgba(45, 91, 227, 0.4);
+}
+
+.login-titles h1 {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1.25;
+}
+
+.login-titles p {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+#login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.login-field label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.login-field select,
+.login-field input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--surface);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.login-field select:focus,
+.login-field input:focus {
+  outline: none;
+  border-color: var(--blue-light);
+  box-shadow: 0 0 0 3px rgba(45, 91, 227, 0.15);
+}
+
+#login-submit {
+  margin-top: 4px;
+  width: 100%;
+  padding: 11px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+#login-error {
+  display: none;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.login-footer {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
 /* ── Sidebar ── */
 #sidebar {
   position: fixed;

@@ -7,7 +7,6 @@ import { db } from './db.js';
 import { toast } from './toast.js';
 import { today, formatDate } from './utils.js';
 import { ROUTES } from './constants.js';
-import { openModal } from './modal.js';
 import { getSession, setSession, clearSession } from './session.js';
 import { hashPassword, looksHashed } from './crypto.js';
 
@@ -157,7 +156,7 @@ function updateTopbarSession() {
         <button id="btn-logout" class="btn btn-secondary btn-sm" style="white-space:nowrap">Sair</button>
       </span>`;
   } else {
-    el.innerHTML = `<button id="btn-login" class="btn btn-secondary btn-sm">🔐 Entrar</button>`;
+    el.innerHTML = '';
   }
   updateSidebarAccess(session);
 }
@@ -172,91 +171,164 @@ function getLock() {
 function setLock(data) { localStorage.setItem(LOCKOUT_KEY, JSON.stringify(data)); }
 function clearLock()   { localStorage.removeItem(LOCKOUT_KEY); }
 
-function openLoginModal() {
+/**
+ * Autentica um colaborador. Reaproveita o bloqueio por tentativas (lockout).
+ * @returns {Promise<{user: Object, token: string|undefined}>}
+ * @throws {Error} com mensagem amigável em caso de bloqueio ou senha incorreta.
+ */
+async function authenticate(nome, senha) {
   const equipe = db.get('equipe').filter(m => m.senha);
-  if (!equipe.length) {
-    toast('Nenhum usuário com senha cadastrada. Configure as senhas no módulo Equipe.', 'warning');
-    return;
+
+  const lock = getLock();
+  if (lock.lockedAt) {
+    const lockedUntil = new Date(lock.lockedAt).getTime() + LOCKOUT_MS;
+    if (Date.now() < lockedUntil) {
+      const rem = Math.ceil((lockedUntil - Date.now()) / 60000);
+      throw new Error(`Acesso bloqueado por tentativas incorretas. Tente novamente em ${rem} min.`);
+    }
+    clearLock();
   }
-  openModal({
-    title: 'Entrar no SGQ',
-    fields: [
-      { id: 'nome',  label: 'Seu nome', type: 'select', required: true,  span: 2, options: equipe.map(m => m.nome) },
-      { id: 'senha', label: 'Senha',    type: 'text',   required: true,  span: 2 },
-    ],
-    data: {},
-    setup(form) {
-      const inp = form.querySelector('#field-senha');
-      if (inp) inp.type = 'password';
-    },
-    async onSave(data) {
-      // Verificar bloqueio
-      const lock = getLock();
-      if (lock.lockedAt) {
-        const lockedUntil = new Date(lock.lockedAt).getTime() + LOCKOUT_MS;
-        if (Date.now() < lockedUntil) {
-          const rem = Math.ceil((lockedUntil - Date.now()) / 60000);
-          throw new Error(`Acesso bloqueado por tentativas incorretas. Tente novamente em ${rem} min.`);
-        }
-        clearLock();
-      }
 
-      function registrarFalha() {
-        const count = (lock.count || 0) + 1;
-        if (count >= MAX_ATTEMPTS) {
-          setLock({ count, lockedAt: new Date().toISOString() });
-          db.addAudit('Bloqueio', 'sistema', data.nome, `${count} tentativas incorretas consecutivas`);
-          throw new Error(`${MAX_ATTEMPTS} tentativas incorretas. Acesso bloqueado por 30 minutos.`);
-        }
-        setLock({ count, lockedAt: null });
-        throw new Error(`Senha incorreta. Restam ${MAX_ATTEMPTS - count} tentativa(s).`);
-      }
+  function registrarFalha() {
+    const count = (lock.count || 0) + 1;
+    if (count >= MAX_ATTEMPTS) {
+      setLock({ count, lockedAt: new Date().toISOString() });
+      db.addAudit('Bloqueio', 'sistema', nome, `${count} tentativas incorretas consecutivas`);
+      throw new Error(`${MAX_ATTEMPTS} tentativas incorretas. Acesso bloqueado por 30 minutos.`);
+    }
+    setLock({ count, lockedAt: null });
+    throw new Error(`Senha incorreta. Restam ${MAX_ATTEMPTS - count} tentativa(s).`);
+  }
 
-      let user, token;
+  let user, token;
 
-      if (db.mode === 'neon') {
-        // Produção: verificação real no servidor — a senha em texto puro nunca sai do navegador.
-        const senhaHash = await hashPassword(data.senha);
-        const res = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome: data.nome, senhaHash }),
-        });
-        if (!res.ok) registrarFalha();
-        ({ user, token } = await res.json());
-      } else {
-        // Modo local (sem backend) — comparação no navegador, com migração de senha legada.
-        const candidato = equipe.find(m => m.nome === data.nome);
-        const hash = candidato ? await hashPassword(data.senha) : null;
-        user = candidato && candidato.senha === hash ? candidato : null;
+  if (db.mode === 'neon') {
+    // Produção: verificação real no servidor — a senha em texto puro nunca sai do navegador.
+    const senhaHash = await hashPassword(senha);
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, senhaHash }),
+    });
+    if (!res.ok) registrarFalha();
+    ({ user, token } = await res.json());
+  } else {
+    // Modo local (sem backend) — comparação no navegador, com migração de senha legada.
+    const candidato = equipe.find(m => m.nome === nome);
+    const hash = candidato ? await hashPassword(senha) : null;
+    user = candidato && candidato.senha === hash ? candidato : null;
 
-        if (!user && candidato && !looksHashed(candidato.senha) && candidato.senha === data.senha) {
-          db.update('equipe', candidato.id, { senha: hash });
-          user = candidato;
-        }
+    if (!user && candidato && !looksHashed(candidato.senha) && candidato.senha === senha) {
+      db.update('equipe', candidato.id, { senha: hash });
+      user = candidato;
+    }
 
-        if (!user) registrarFalha();
-      }
+    if (!user) registrarFalha();
+  }
 
-      // Sucesso — limpa lockout, cria sessão, registra auditoria
-      clearLock();
-      setSession({ id: user.id, nome: user.nome, iniciais: user.iniciais, area: user.area, perfil: user.perfil, licenca: user.licenca, cor: user.cor, token });
-      db.addAudit('Login', 'sistema', user.id, `${user.nome} [${user.perfil || '—'}]`);
-      updateTopbarSession();
-      router.navigate(router.current || ROUTES.DASHBOARD);
-      toast(`Bem-vinda, ${user.nome.split(' ')[0]}!`);
-    },
-  });
+  clearLock();
+  return { user, token };
 }
 
+// Primeiro acesso: enquanto NENHUM colaborador tiver senha, o portal permite
+// escolher o nome e criar a senha inicial (evita travar o acesso). Assim que a
+// primeira senha é criada, o login normal passa a valer e o administrador
+// provisiona as demais senhas pelo módulo Equipe/Permissões.
+let _primeiroAcesso = false;
+
+/** Exibe o portal de login (bloqueia o acesso ao app). */
+function showLoginScreen() {
+  document.body.classList.add('auth-gate');
+
+  const nomeSel   = document.getElementById('login-nome');
+  const modeEl    = document.getElementById('login-mode');
+  const errEl     = document.getElementById('login-error');
+  const senha     = document.getElementById('login-senha');
+  const hintEl    = document.getElementById('login-hint');
+  const senhaLbl  = document.getElementById('login-senha-label');
+  const submitBtn = document.getElementById('login-submit');
+
+  const todos    = db.get('equipe');
+  const comSenha = todos.filter(m => m.senha);
+  _primeiroAcesso = comSenha.length === 0 && todos.length > 0;
+
+  const lista = _primeiroAcesso ? todos : comSenha;
+  if (nomeSel) {
+    nomeSel.innerHTML = lista.length
+      ? lista.map(m => `<option value="${m.nome}">${m.nome}</option>`).join('')
+      : '<option value="">Nenhum colaborador cadastrado</option>';
+    nomeSel.disabled = !lista.length;
+  }
+
+  if (hintEl) {
+    hintEl.style.display = _primeiroAcesso ? 'block' : 'none';
+    hintEl.textContent = _primeiroAcesso
+      ? 'Primeiro acesso: selecione seu nome e crie uma senha (mínimo 8 caracteres) para configurar o sistema.'
+      : '';
+  }
+  if (senhaLbl)  senhaLbl.textContent = _primeiroAcesso ? 'Criar senha' : 'Senha';
+  if (submitBtn) submitBtn.textContent = _primeiroAcesso ? 'Criar senha e entrar' : 'Entrar';
+  if (senha) { senha.value = ''; senha.autocomplete = _primeiroAcesso ? 'new-password' : 'current-password'; }
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  if (modeEl) modeEl.textContent = db.mode === 'neon' ? '🟢 Conectado ao servidor' : '🟡 Modo local';
+
+  setTimeout(() => nomeSel?.focus(), 60);
+}
+
+/** Esconde o portal de login e libera o app. */
+function hideLoginScreen() {
+  document.body.classList.remove('auth-gate');
+}
+
+document.getElementById('login-form')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  const nome   = document.getElementById('login-nome').value;
+  const senha  = document.getElementById('login-senha').value;
+  const errEl  = document.getElementById('login-error');
+  const btn    = document.getElementById('login-submit');
+
+  const showErr = msg => { errEl.textContent = msg; errEl.style.display = 'block'; };
+  errEl.style.display = 'none';
+
+  if (!nome)  { showErr('Selecione o colaborador.'); return; }
+  if (!senha) { showErr(_primeiroAcesso ? 'Crie uma senha.' : 'Informe a senha.'); return; }
+  if (_primeiroAcesso && senha.length < 8) { showErr('A senha deve ter no mínimo 8 caracteres.'); return; }
+
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = _primeiroAcesso ? 'Criando…' : 'Entrando…';
+  try {
+    let user, token;
+    if (_primeiroAcesso) {
+      // Bootstrap: grava a senha (hash) e cria a sessão a partir do registro local.
+      const membro = db.get('equipe').find(m => m.nome === nome);
+      if (!membro) throw new Error('Colaborador não encontrado.');
+      db.update('equipe', membro.id, { senha: await hashPassword(senha) });
+      user = membro;
+    } else {
+      ({ user, token } = await authenticate(nome, senha));
+    }
+    setSession({ id: user.id, nome: user.nome, iniciais: user.iniciais, area: user.area, perfil: user.perfil, licenca: user.licenca, cor: user.cor, token });
+    db.addAudit('Login', 'sistema', user.id, `${user.nome} [${user.perfil || '—'}]`);
+    hideLoginScreen();
+    updateTopbarSession();
+    router.navigate(router.current || ROUTES.DASHBOARD);
+    toast(_primeiroAcesso ? `Senha criada! Bem-vinda, ${user.nome.split(' ')[0]}.` : `Bem-vinda, ${user.nome.split(' ')[0]}!`);
+  } catch (err) {
+    showErr(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+});
+
 document.getElementById('topbar-session')?.addEventListener('click', e => {
-  if (e.target.id === 'btn-login')  openLoginModal();
   if (e.target.id === 'btn-logout') {
     const sess = getSession();
     if (sess) db.addAudit('Logout', 'sistema', sess.id, `${sess.nome} [${sess.perfil || '—'}]`);
     clearSession();
     updateTopbarSession();
-    router.navigate(router.current || ROUTES.DASHBOARD);
+    showLoginScreen();
     toast('Sessão encerrada.');
   }
 });
@@ -344,6 +416,9 @@ window.addEventListener('sgq:import-warning', () => {
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 
+// Decisão síncrona (evita flash do app antes do portal): sem sessão → porta de login.
+if (!getSession()) document.body.classList.add('auth-gate');
+
 // Guard de rotas: usuários de área só podem acessar rotas permitidas
 router.setGuard(routeName => {
   const session = getSession();
@@ -377,7 +452,12 @@ db.ready.then(() => {
   updateAllBadges();
   updateTopbarSession();
 
-  const initialRoute = window.location.hash.replace('#', '') || ROUTES.DASHBOARD;
-  router.navigate(initialRoute);
+  if (getSession()) {
+    const initialRoute = window.location.hash.replace('#', '') || ROUTES.DASHBOARD;
+    router.navigate(initialRoute);
+  } else {
+    // Sem sessão: portal de login obrigatório antes de acessar o app.
+    showLoginScreen();
+  }
 });
 
