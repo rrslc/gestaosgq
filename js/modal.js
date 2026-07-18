@@ -169,9 +169,13 @@ function buildField(field, data) {
       const roAttrs = field.readonly
         ? 'style="pointer-events:none;background:var(--bg);color:var(--muted);cursor:default" tabindex="-1"'
         : '';
+      // Garante que o valor atual apareça mesmo que não esteja na lista de opções
+      // (ex: responsável importado de um formulário, não cadastrado na Equipe).
+      const opts = field.options ?? [];
+      const allOpts = (val && !opts.includes(val)) ? [val, ...opts] : opts;
       input = `<select id="field-${field.id}" ${field.required ? 'required' : ''} ${roAttrs}>
         <option value="">Selecione...</option>
-        ${selectOptions(field.options ?? [], val)}
+        ${selectOptions(allOpts, val)}
       </select>`;
       break;
     }

@@ -9,7 +9,6 @@ import { toast } from '../toast.js';
 import { ETAPAS_ACAO } from '../constants.js';
 import { getSession } from '../session.js';
 import { can, A } from '../permissions.js';
-import { openImportAcoesModal } from './importPlanilha.js';
 
 const ACAO_STATUS = ['Pendente', 'Em Andamento', 'Concluída'];
 
@@ -693,10 +692,7 @@ function renderAcoesPrazos() {
     <div class="card" style="margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <span style="font-weight:600;font-size:0.9rem">Ações</span>
-        ${canManageAcoes(session) ? `<div style="display:flex;gap:6px">
-          <button class="btn btn-secondary btn-sm" data-action="import-acoes">⬆ Importar Planilha</button>
-          <button class="btn btn-primary btn-sm" data-action="new-acao">+ Nova Ação</button>
-        </div>` : ''}
+        ${canManageAcoes(session) ? `<button class="btn btn-primary btn-sm" data-action="new-acao">+ Nova Ação</button>` : ''}
       </div>
       ${renderFiltrosBar(allAcoes)}
       <div id="acoes-table-wrap">${renderAcoesTableBody(allAcoes, session)}</div>
@@ -784,14 +780,6 @@ export default {
       if (action === 'limpar-filtros') {
         acaoFiltros = { busca: '', status: '', responsavel: '', rnc: '', etapa: '' };
         container.querySelector('#tab-acoesPrazos').innerHTML = renderAcoesPrazos();
-        return;
-      }
-
-      if (action === 'import-acoes') {
-        if (!canManageAcoes()) return;
-        openImportAcoesModal(() => {
-          container.querySelector('#tab-acoesPrazos').innerHTML = renderAcoesPrazos();
-        });
         return;
       }
 
