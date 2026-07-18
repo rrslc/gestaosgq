@@ -10,7 +10,7 @@ import { toast } from '../toast.js';
 import { STATUS, TIPOS_NC, FERRAMENTAS_INVEST, DISPOSICOES_NC, AREAS_MSB } from '../constants.js';
 import { getSession } from '../session.js';
 import { can, A } from '../permissions.js';
-import { openImportRncModal } from './importPlanilha.js';
+import { openImportFormRncModal } from './importFormRnc.js';
 
 const AREAS     = AREAS_MSB;
 const RISK_LVL  = ['Baixa', 'Média', 'Alta'];
@@ -720,7 +720,7 @@ export default {
             ${AREAS.map(a => `<option value="${a}">${a}</option>`).join('')}
           </select>
           <button class="btn btn-secondary btn-sm" data-action="print-list" style="white-space:nowrap">🖨 Exportar Lista (PDF)</button>
-          ${can(getSession(), 'rncAbertura', A.CREATE) ? `<button class="btn btn-secondary btn-sm" data-action="import-rnc" style="white-space:nowrap">⬆ Importar Planilha</button>` : ''}
+          ${can(getSession(), 'rncAbertura', A.CREATE) ? `<button class="btn btn-secondary btn-sm" data-action="import-rnc" style="white-space:nowrap">⬆ Importar Formulário</button>` : ''}
         </div>
         <div class="card">
           <div id="rnc-table-wrap">${renderTable(allRnc)}</div>
@@ -761,7 +761,7 @@ export default {
 
       if (action === 'import-rnc') {
         if (!can(user, 'rncAbertura', A.CREATE)) { toast('Sem permissão para importar.', 'error'); return; }
-        openImportRncModal(() => refresh(container));
+        openImportFormRncModal(() => refresh(container));
         return;
       }
 
