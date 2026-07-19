@@ -13,6 +13,7 @@ import { toast } from '../toast.js';
 import { STATUS, ORIGENS_CAPA, FERRAMENTAS_INVEST, AREAS_MSB } from '../constants.js';
 import { getSession } from '../session.js';
 import { can, A } from '../permissions.js';
+import { openImportFormCapaModal } from './importFormCapa.js';
 
 const AREAS      = AREAS_MSB;
 const RISK_LVL   = ['Baixa', 'Média', 'Alta'];
@@ -73,6 +74,12 @@ const STAGE_OWNER = {
 // ── Perfis e etapas GQ ────────────────────────────────────────────────────────
 
 const GQ_PERFIS  = new Set(['GQ Administrador', 'GQ Analista']);
+
+/** Importar Formulário é exclusivo da Garantia da Qualidade. */
+function canImportForm(user = getSession()) {
+  return !!user && GQ_PERFIS.has(user.perfil) && can(user, 'capaAbertura', A.CREATE);
+}
+
 const GQ_STAGES  = ['Aberta', 'Em Avaliação', 'Em Investigação', 'Em Plano de Ação', 'Verificação de Eficácia'];
 const STAGE_PILL = {
   'Em Avaliação':            'purple',
@@ -684,6 +691,7 @@ export default {
             ${AREAS.map(a => `<option value="${a}">${a}</option>`).join('')}
           </select>
           <button class="btn btn-secondary btn-sm" data-action="print-list" style="white-space:nowrap">🖨 Exportar Lista (PDF)</button>
+          ${canImportForm() ? `<button class="btn btn-secondary btn-sm" data-action="import-capa" style="white-space:nowrap">⬆ Importar Formulário</button>` : ''}
         </div>
         <div class="card">
           <div id="capa-table-wrap">${renderTable(allCapa)}</div>
@@ -725,6 +733,12 @@ export default {
 
       if (action === 'print-list') {
         printHtmlDocument(buildCapaListPrintHtml(getFilteredItems(container)));
+        return;
+      }
+
+      if (action === 'import-capa') {
+        if (!canImportForm(user)) { toast('Importação de formulário é exclusiva da Garantia da Qualidade.', 'error'); return; }
+        openImportFormCapaModal(() => refresh(container));
         return;
       }
 
