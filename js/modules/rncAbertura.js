@@ -79,6 +79,12 @@ const STAGE_OWNER = {
 // ── Perfis e etapas GQ ───────────────────────────────────────────────────────
 
 const GQ_PERFIS  = new Set(['GQ Administrador', 'GQ Analista']);
+
+/** Importar Formulário é exclusivo da Garantia da Qualidade. */
+function canImportForm(user = getSession()) {
+  return !!user && GQ_PERFIS.has(user.perfil) && can(user, 'rncAbertura', A.CREATE);
+}
+
 const GQ_STAGES  = ['Aberta', 'Em Avaliação', 'Em Investigação', 'Em Disposição', 'Em Plano de Ação', 'Verificação de Eficácia'];
 const STAGE_PILL = {
   'Em Avaliação':            'purple',
@@ -720,7 +726,7 @@ export default {
             ${AREAS.map(a => `<option value="${a}">${a}</option>`).join('')}
           </select>
           <button class="btn btn-secondary btn-sm" data-action="print-list" style="white-space:nowrap">🖨 Exportar Lista (PDF)</button>
-          ${can(getSession(), 'rncAbertura', A.CREATE) ? `<button class="btn btn-secondary btn-sm" data-action="import-rnc" style="white-space:nowrap">⬆ Importar Formulário</button>` : ''}
+          ${canImportForm() ? `<button class="btn btn-secondary btn-sm" data-action="import-rnc" style="white-space:nowrap">⬆ Importar Formulário</button>` : ''}
         </div>
         <div class="card">
           <div id="rnc-table-wrap">${renderTable(allRnc)}</div>
@@ -760,7 +766,7 @@ export default {
       }
 
       if (action === 'import-rnc') {
-        if (!can(user, 'rncAbertura', A.CREATE)) { toast('Sem permissão para importar.', 'error'); return; }
+        if (!canImportForm(user)) { toast('Importação de formulário é exclusiva da Garantia da Qualidade.', 'error'); return; }
         openImportFormRncModal(() => refresh(container));
         return;
       }
