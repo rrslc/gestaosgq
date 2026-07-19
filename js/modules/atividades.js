@@ -670,14 +670,11 @@ function openPlanAnualModal(container) {
   const defaultMonth = new Date().toISOString().slice(0, 7);
 
   function qtdForPeriod(periodicidade, horizonte) {
-    switch (periodicidade) {
-      case 'Mensal':     return horizonte;
-      case 'Bimestral':  return Math.ceil(horizonte / 2);
-      case 'Trimestral': return Math.ceil(horizonte / 3);
-      case 'Semestral':  return Math.ceil(horizonte / 6);
-      case 'Anual':      return Math.ceil(horizonte / 12);
-      default:           return 1;
-    }
+    // Ocorrências por ano de cada periodicidade (Trimestral = 3, conforme prática da GQ).
+    const porAno = { 'Mensal': 12, 'Bimestral': 6, 'Trimestral': 3, 'Semestral': 2, 'Anual': 1 };
+    const taxa = porAno[periodicidade];
+    if (taxa === undefined) return 1; // Sob demanda e outras: uma entrada
+    return Math.max(1, Math.round(taxa * horizonte / 12));
   }
 
   const tableRows = CATALOGO.map(t => {
@@ -807,6 +804,8 @@ function openPlanAnualModal(container) {
   });
   overlay.querySelectorAll('.plan-chk').forEach(c => c.addEventListener('change', updateSummary));
 
+  updateQtd();
+
   overlay.querySelector('#plan-apply-global').addEventListener('click', () => {
     const resp = overlay.querySelector('#plan-resp-global').value;
     const mes  = overlay.querySelector('#plan-mes-global').value;
@@ -825,14 +824,11 @@ function openPlanAnualModal(container) {
       const mesBase     = row.querySelector('.plan-mes').value;
       if (!mesBase) return;
 
-      const endDate = new Date(mesBase + '-01T00:00:00');
-      endDate.setMonth(endDate.getMonth() + h);
-      const endISO  = endDate.toISOString().slice(0, 10);
       const qtd     = qtdForPeriod(t.periodicidade, h);
       let current   = mesBase + '-01';
       let generated = 0;
 
-      while (current <= endISO && generated < 60) {
+      while (generated < qtd) {
         const d      = new Date(current + 'T00:00:00');
         const suffix = qtd > 1
           ? ' — ' + d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
