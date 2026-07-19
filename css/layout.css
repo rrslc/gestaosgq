@@ -1,4 +1,10 @@
-/* ── Portal de Login ── */
+/* ── Portal de Login (identidade MSB) ── */
+:root {
+  --msb: #56a4bb;
+  --msb-dark: #3e8299;
+  --msb-gray: #818286;
+}
+
 #login-screen {
   display: none;
   position: fixed;
@@ -7,9 +13,10 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
+  font-family: 'Roboto', 'Segoe UI', system-ui, sans-serif;
   background:
-    radial-gradient(1200px 600px at 15% -10%, rgba(0, 180, 216, 0.28), transparent 60%),
-    linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+    radial-gradient(1000px 520px at 80% -10%, rgba(255, 255, 255, 0.35), transparent 60%),
+    linear-gradient(135deg, #7cc0d4 0%, var(--msb) 55%, var(--msb-dark) 100%);
   overflow-y: auto;
 }
 
@@ -27,7 +34,7 @@ body.auth-gate #login-screen {
   max-width: 380px;
   background: var(--surface);
   border-radius: 16px;
-  box-shadow: 0 24px 60px rgba(3, 10, 40, 0.45);
+  box-shadow: 0 24px 60px rgba(20, 60, 75, 0.35);
   padding: 34px 30px 26px;
   animation: login-rise 0.4s ease;
 }
@@ -38,39 +45,50 @@ body.auth-gate #login-screen {
 }
 
 .login-brand {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 26px;
+  text-align: center;
+  margin-bottom: 18px;
 }
 
-.login-logo {
-  width: 54px;
-  height: 54px;
-  flex-shrink: 0;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--blue-light), var(--accent));
-  color: #fff;
-  font-weight: 800;
-  font-size: 1.1rem;
-  letter-spacing: 0.03em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 6px 16px rgba(45, 91, 227, 0.4);
-}
-
-.login-titles h1 {
-  font-size: 1.02rem;
+.login-logo-mark {
+  font-family: 'Roboto', 'Segoe UI', system-ui, sans-serif;
   font-weight: 700;
-  color: var(--navy);
-  line-height: 1.25;
+  font-size: 2.6rem;
+  line-height: 1;
+  color: var(--msb);
+  letter-spacing: -0.02em;
 }
 
-.login-titles p {
-  font-size: 0.78rem;
-  color: var(--muted);
-  margin-top: 2px;
+.login-logo-mark span {
+  font-size: 1.35em;
+  font-weight: 800;
+  vertical-align: -0.06em;
+}
+
+.login-logo-mark sup {
+  font-size: 0.32em;
+  font-weight: 600;
+  top: -1.4em;
+  margin-left: 1px;
+}
+
+.login-logo-sub {
+  font-size: 0.72rem;
+  color: var(--msb-gray);
+  margin-top: 4px;
+  letter-spacing: 0.02em;
+}
+
+.login-eyebrow {
+  text-align: center;
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--msb);
+  padding: 12px 0 20px;
+  margin-bottom: 6px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 #login-form {
@@ -88,7 +106,7 @@ body.auth-gate #login-screen {
 .login-field label {
   font-size: 0.74rem;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--msb-gray);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -100,6 +118,7 @@ body.auth-gate #login-screen {
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 0.9rem;
+  font-family: inherit;
   color: var(--text);
   background: var(--surface);
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -108,8 +127,8 @@ body.auth-gate #login-screen {
 .login-field select:focus,
 .login-field input:focus {
   outline: none;
-  border-color: var(--blue-light);
-  box-shadow: 0 0 0 3px rgba(45, 91, 227, 0.15);
+  border-color: var(--msb);
+  box-shadow: 0 0 0 3px rgba(86, 164, 187, 0.2);
 }
 
 #login-submit {
@@ -118,6 +137,34 @@ body.auth-gate #login-screen {
   padding: 11px;
   font-size: 0.92rem;
   font-weight: 600;
+  font-family: inherit;
+  color: #fff;
+  background: var(--msb);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#login-submit:hover:not(:disabled) {
+  background: var(--msb-dark);
+}
+
+#login-submit:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+#login-hint {
+  display: none;
+  padding: 9px 12px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  background: rgba(86, 164, 187, 0.1);
+  border: 1px solid rgba(86, 164, 187, 0.3);
+  color: var(--msb-dark);
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 #login-error {
@@ -137,7 +184,7 @@ body.auth-gate #login-screen {
   border-top: 1px solid var(--border);
   text-align: center;
   font-size: 0.72rem;
-  color: var(--muted);
+  color: var(--msb-gray);
 }
 
 /* ── Sidebar ── */
