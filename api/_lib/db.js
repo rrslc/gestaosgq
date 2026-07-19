@@ -11,11 +11,16 @@ if (!process.env.DATABASE_URL) {
 
 const sql = neon(process.env.DATABASE_URL);
 
-/** Collections permitidas (whitelist contra SQL injection). */
+/**
+ * Collections permitidas (whitelist contra SQL injection).
+ * Deve espelhar COLLECTIONS em js/db.js — qualquer coleção ausente aqui
+ * não persiste no modo Neon (GET retorna 404, POST falha).
+ */
 const ALLOWED_COLLECTIONS = new Set([
-  'equipe', 'capa', 'rnc', 'fornecedores',
-  'tecno', 'validacoes', 'gcm', 'risco', 'pragas', 'obrigacoes', 'documentos', 'solicitacoes', 'perfis', 'trilha',
-  'reservatorio', 'residuos', 'microbiologico', 'limpezaMensal', 'gembaWalk', 'orcamentosAnuais', 'docsAdmin', 'capaAcoes', 'gcmAcoes', 'rncAcoes',
+  'equipe', 'capa', 'capaAcoes', 'rnc', 'rncAcoes', 'fornecedores',
+  'tecno', 'validacoes', 'gcm', 'gcmAcoes', 'risco', 'pragas', 'obrigacoes', 'documentos', 'solicitacoes', 'perfis', 'trilha',
+  'atividades', 'reservatorio', 'residuos', 'microbiologico', 'limpezaMensal', 'gembaWalk', 'orcamentosAnuais', 'docsAdmin',
+  'reclamacoes', 'auditorias', 'assistenciaTecnica', 'revisaoGerencialAtas', 'projetos',
 ]);
 
 /**
