@@ -237,7 +237,7 @@ const CATALOGO = [
   {
     id: 'REG-04', categoria: 'Regulatório',
     titulo: 'Verificação e renovação de licenças e documentos regulatórios',
-    tipo: 'Regulatório', periodicidade: 'Anual', prioridade: 'Alta',
+    tipo: 'Regulatório', periodicidade: 'Mensal', prioridade: 'Alta',
     referencia: 'OBR-2026-003/005/009 / ANVISA',
     descricao: 'Monitorar vencimentos e protocolar renovações de AFE, CLF, CBPF, Alvará Sanitário e demais licenças conforme cronograma.',
   },
