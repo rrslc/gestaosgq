@@ -124,7 +124,7 @@ const CATALOGO = [
   {
     id: 'MON-06', categoria: 'Monitoramento e Análise',
     titulo: 'Análise de ficha de retrabalho',
-    tipo: 'Análise', periodicidade: 'Mensal', prioridade: 'Alta',
+    tipo: 'Análise', periodicidade: 'Sob demanda', prioridade: 'Alta',
     referencia: 'ISO 13485 §8.3',
     descricao: 'Análise das fichas de retrabalho emitidas no período: causas raiz, lotes afetados, conformidade do produto reprocessado e necessidade de abertura de RNC ou CAPA.',
   },
