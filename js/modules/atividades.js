@@ -351,6 +351,7 @@ function buildFields() {
     { id: 'titulo',      label: 'Título da Atividade',  type: 'text',     required: true,  span: 2 },
     { id: 'responsavel', label: 'Responsável',           type: 'select',   required: true,  span: 1, options: equipe.length ? equipe : ['—'] },
     { id: 'tipo',        label: 'Tipo',                  type: 'select',   required: true,  span: 1, options: TIPOS },
+    { id: 'periodicidade', label: 'Periodicidade',       type: 'select',   required: false, span: 1, options: ['Sob demanda', 'Mensal', 'Bimestral', 'Trimestral', 'Semestral', 'Anual'] },
     { id: 'prioridade',  label: 'Prioridade',            type: 'select',   required: false, span: 1, options: PRIORIDADES },
     { id: 'status',      label: 'Status',                type: 'select',   required: true,  span: 1, options: STATUS_LIST },
     { id: 'dataInicio',  label: 'Data de Início',           type: 'date',     required: false, span: 1 },
@@ -381,6 +382,46 @@ function sortByPriorityAndDeadline(items) {
     if (a.prazo && b.prazo) return a.prazo.localeCompare(b.prazo);
     return a.prazo ? -1 : 1;
   });
+}
+
+// ── Recorrência automática ──────────────────────────────────────────────────────
+
+const RECORRENTES = new Set(['Mensal', 'Bimestral', 'Trimestral', 'Semestral', 'Anual']);
+
+/** Periodicidade efetiva: a própria da atividade ou herdada do catálogo. */
+function periodicidadeDe(r) {
+  if (r.periodicidade) return r.periodicidade;
+  if (r.templateRef) return CATALOGO.find(c => c.id === r.templateRef)?.periodicidade || null;
+  return null;
+}
+
+/**
+ * Ao concluir uma atividade recorrente, gera a próxima ocorrência (mesmo
+ * responsável/título, prazo no próximo período via nextDate). Retorna a data
+ * gerada, ou null se não recorre / já existe. Não duplica se a próxima já
+ * estiver em aberto (ex.: gerada antes pelo planejamento anual).
+ */
+function gerarProximaOcorrencia(record, prevStatus) {
+  if (record.status !== 'Concluída' || prevStatus === 'Concluída') return null;
+  const peri = periodicidadeDe(record);
+  if (!peri || !RECORRENTES.has(peri)) return null;
+  const proximo = nextDate(record.prazo || record.ultimoEnvio || today(), peri);
+  if (!proximo) return null;
+
+  const jaExiste = db.get('atividades').some(a =>
+    a.titulo === record.titulo && a.responsavel === record.responsavel &&
+    a.prazo === proximo && !STATUS_DONE.has(a.status)
+  );
+  if (jaExiste) return null;
+
+  db.add('atividades', {
+    titulo: record.titulo, tipo: record.tipo, prioridade: record.prioridade,
+    responsavel: record.responsavel, status: 'Planejada',
+    dataInicio: '', prazo: proximo, ultimoEnvio: '',
+    descricao: record.descricao || '', observacoes: '',
+    templateRef: record.templateRef || '', periodicidade: peri, origem: 'Recorrência',
+  });
+  return proximo;
 }
 
 // ── KPI ────────────────────────────────────────────────────────────────────────
@@ -837,7 +878,7 @@ function openPlanAnualModal(container) {
           titulo: t.titulo + suffix, tipo: t.tipo, prioridade: t.prioridade,
           responsavel, prazo: current, status: 'Planejada',
           dataInicio: '', descricao: t.descricao, observacoes: '',
-          templateRef: t.id, ultimoEnvio: '', origem: '',
+          templateRef: t.id, ultimoEnvio: '', origem: '', periodicidade: t.periodicidade,
         });
         count++;
         generated++;
@@ -1090,11 +1131,12 @@ export default {
         openModal({
           title: 'Nova Atividade',
           fields: buildFields(),
-          data: { status: 'Planejada', prioridade: 'Média' },
+          data: { status: 'Planejada', prioridade: 'Média', periodicidade: 'Sob demanda' },
           onSave: data => {
             if (data.status === 'Concluída' && !data.ultimoEnvio) data.ultimoEnvio = new Date().toISOString().slice(0, 10);
-            db.add('atividades', data);
-            toast('Atividade criada!');
+            const added = db.add('atividades', data);
+            const proximo = gerarProximaOcorrencia(added, undefined);
+            toast(proximo ? `Atividade criada! Próxima ocorrência em ${fmtDate(proximo)}.` : 'Atividade criada!');
             refresh(container);
           },
         });
@@ -1114,14 +1156,16 @@ export default {
           data: {
             titulo:    t.titulo,
             tipo:      t.tipo,
+            periodicidade: t.periodicidade,
             prioridade: t.prioridade,
             status:    'Planejada',
             descricao: t.descricao,
           },
           onSave: data => {
             if (data.status === 'Concluída' && !data.ultimoEnvio) data.ultimoEnvio = new Date().toISOString().slice(0, 10);
-            db.add('atividades', { ...data, templateRef: t.id });
-            toast('Atividade planejada!');
+            const added = db.add('atividades', { ...data, templateRef: t.id });
+            const proximo = gerarProximaOcorrencia(added, undefined);
+            toast(proximo ? `Atividade planejada! Próxima ocorrência em ${fmtDate(proximo)}.` : 'Atividade planejada!');
             _view = 'lista';
             refresh(container);
           },
@@ -1141,8 +1185,10 @@ export default {
           onSave: data => {
             if (!auth) return;
             if (data.status === 'Concluída' && !data.ultimoEnvio) data.ultimoEnvio = new Date().toISOString().slice(0, 10);
+            const prevStatus = record.status;
             db.update('atividades', numId, data);
-            toast('Atividade atualizada!');
+            const proximo = gerarProximaOcorrencia({ ...record, ...data }, prevStatus);
+            toast(proximo ? `Concluída! Próxima ocorrência criada em ${fmtDate(proximo)}.` : 'Atividade atualizada!');
             refresh(container);
           },
         });
