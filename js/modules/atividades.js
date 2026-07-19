@@ -278,7 +278,7 @@ const CATALOGO = [
   {
     id: 'FAB-04', categoria: 'Fábrica',
     titulo: 'Monitoramento Microbiológico',
-    tipo: 'Monitoramento', periodicidade: 'Mensal', prioridade: 'Alta',
+    tipo: 'Monitoramento', periodicidade: 'Semestral', prioridade: 'Alta',
     referencia: 'POP-FAB-004',
     descricao: 'Monitoramento microbiológico de ambientes controlados, água purificada e superfícies. Coleta de amostras e análise de resultados.',
     route: 'microbiologico',
