@@ -670,11 +670,11 @@ function openPlanAnualModal(container) {
   const defaultMonth = new Date().toISOString().slice(0, 7);
 
   function qtdForPeriod(periodicidade, horizonte) {
-    // Ocorrências por ano de cada periodicidade (Trimestral = 3, conforme prática da GQ).
-    const porAno = { 'Mensal': 12, 'Bimestral': 6, 'Trimestral': 3, 'Semestral': 2, 'Anual': 1 };
-    const taxa = porAno[periodicidade];
-    if (taxa === undefined) return 1; // Sob demanda e outras: uma entrada
-    return Math.max(1, Math.round(taxa * horizonte / 12));
+    // Intervalo em meses ("a cada N meses") → nº de ocorrências dentro do horizonte.
+    const intervalo = { 'Mensal': 1, 'Bimestral': 2, 'Trimestral': 3, 'Semestral': 6, 'Anual': 12 };
+    const meses = intervalo[periodicidade];
+    if (!meses) return 1; // Sob demanda e outras: uma entrada
+    return Math.max(1, Math.ceil(horizonte / meses));
   }
 
   const tableRows = CATALOGO.map(t => {
