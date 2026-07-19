@@ -5,7 +5,7 @@
 export const STORE_KEY = 'sgq_data_v1';
 
 export const STATUS = Object.freeze({
-  CAPA: ['Aberta', 'Em Investigação', 'Em Plano de Ação', 'Em Verificação de Eficácia', 'Encerrada', 'Não Procedente'],
+  CAPA: ['Aberta', 'Em Avaliação', 'Em Investigação', 'Em Plano de Ação', 'Verificação de Eficácia', 'Encerrada', 'Não Procedente', 'Cancelada'],
   RNC: ['Aberta', 'Em Avaliação', 'Em Investigação', 'Em Plano de Ação', 'Verificação de Eficácia', 'Encerrada', 'Não Procedente', 'Cancelada'],
   FORN: ['Qualificado', 'Em Qualificação', 'Suspenso', 'Desqualificado'],
   TECNO: ['Aberto', 'Em Investigação', 'Notificado ANVISA', 'Concluído', 'Cancelado'],
@@ -44,8 +44,10 @@ export const AREAS_MSB = Object.freeze([
   'Outros',
 ]);
 
+// Origens do CAPA conforme POP-GQ-009 §7.1.5 (Quadro 1)
 export const ORIGENS_CAPA = Object.freeze([
-  'Produto', 'Auditorias', 'Reclamação', 'Processo', 'RNC/CAPA', 'Outros',
+  'Auditorias', 'Indicadores de Desempenho', 'Reclamação de Cliente',
+  'Não Conformidade / RNC', 'Processo', 'Qualificação de Fornecedores', 'Outros',
 ]);
 
 export const ORIGENS_RNC = Object.freeze([

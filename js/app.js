@@ -14,7 +14,7 @@ import { hashPassword, looksHashed } from './crypto.js';
 import dashboard      from './modules/dashboard.js';
 import agenda         from './modules/agenda.js';
 import capaGerencial  from './modules/capaGerencial.js';
-import capaAbertura   from './modules/capaAbertura.js';
+import capaAbertura, { migrateLegacyCapaStatus } from './modules/capaAbertura.js';
 import fornecedores from './modules/fornecedores.js';
 import tecnovig     from './modules/tecnovig.js';
 import validacoes   from './modules/validacoes.js';
@@ -438,6 +438,7 @@ router.setGuard(routeName => {
 db.ready.then(() => {
   migrateLegacyPerfil();
   migrateLegacyRncStatus();
+  migrateLegacyCapaStatus();
 
   // Exibe o modo de armazenamento ativo no topbar
   const modeEl = document.getElementById('topbar-mode');
