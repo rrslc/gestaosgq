@@ -124,6 +124,14 @@ function canAdvance(record, user = getSession()) {
   return canAct(record, user) && canApproveStage(record, user);
 }
 
+/**
+ * CAPA é aberta a partir de uma RNC apenas quando a Verificação de Eficácia
+ * resulta "Não eficaz" (fluxograma POP-GQ-008 §7.4.4 → abre CAPA POP-GQ-009).
+ */
+function canOpenCapa(record, user = getSession()) {
+  return canAct(record, user) && !record.capaAberta && record.foiEficaz === 'Não';
+}
+
 function ownerLabel(record) {
   const o = STAGE_OWNER[record.status];
   if (!o) return record.status;
@@ -229,7 +237,7 @@ function renderMinhaFila() {
         const showNaoProcedente  = act && r.status === 'Em Avaliação';
         const showAjustes        = act && r.status === 'Em Avaliação';
         const showReprovarPlano  = r.status === 'Em Plano de Ação' && user?.perfil === 'GQ Administrador';
-        const showAbrirCapa      = act && !r.capaAberta && !CLOSED.includes(r.status);
+        const showAbrirCapa      = canOpenCapa(r, user);
         return `<div style="border:1px solid var(--border);border-top:3px solid ${cor};border-radius:8px;padding:14px;background:var(--surface);display:flex;flex-direction:column;gap:10px">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
             <div>
@@ -298,6 +306,66 @@ function renderPipelineBar(items) {
     ${np ? `<div style="margin-bottom:12px"><span style="font-size:0.78rem;padding:3px 12px;border-radius:12px;background:var(--border);color:var(--muted)">+ ${np} Não Procedente${np > 1 ? 's' : ''}</span></div>` : ''}`;
 }
 
+// ── UI: quadro (kanban por etapa) ───────────────────────────────────────────────
+
+/** Cartão compacto do quadro: clique abre; botão avança para a próxima etapa. */
+function kanbanCard(r, user, hoje) {
+  const own      = STAGE_OWNER[r.status];
+  const nxt      = nextStatusFor(r);
+  const canAdv   = canAdvance(r, user);
+  const nxtLabel = PIPELINE.find(p => p.key === nxt)?.label ?? nxt;
+  const emAtraso = !CLOSED.includes(r.status) && r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje;
+  const dias     = r.dataAbertura ? Math.round((hoje - new Date(r.dataAbertura + 'T00:00:00')) / 86400000) + 'd' : '';
+  const risco    = r.classificacaoRisco ? `<span class="pill ${RISK_PILL[r.classificacaoRisco] ?? 'pill-gray'}" style="font-size:0.58rem">${r.classificacaoRisco}</span>` : '';
+  const descSafe = String(r.descricao || '').replace(/"/g, '&quot;');
+  return `<div class="kanban-card" data-action="edit" data-id="${r.id}" title="Abrir ${r.numero}"
+       style="border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--bg);display:flex;flex-direction:column;gap:6px;cursor:pointer">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+      <span style="font-weight:700;font-size:0.78rem">${r.numero}</span>
+      ${risco}
+    </div>
+    <div style="font-size:0.7rem;color:var(--muted)">${r.area || '—'}${r.tipo ? ' · ' + r.tipo : ''}</div>
+    <div style="font-size:0.74rem;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden" title="${descSafe}">${r.descricao || '—'}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:0.64rem;color:var(--muted)">${own?.label ?? ''}</span>
+      ${emAtraso ? `<span style="font-size:0.63rem;color:var(--red);font-weight:700">⚠ atraso</span>` : (dias ? `<span style="font-size:0.65rem;color:var(--muted)">${dias}</span>` : '')}
+    </div>
+    ${canAdv && nxt ? `<button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nxt}" style="font-size:0.68rem;padding:4px 6px">→ ${nxtLabel}</button>` : ''}
+  </div>`;
+}
+
+/** Quadro estilo Kanban: uma coluna por etapa do fluxo, cartões operáveis. */
+function renderKanban(items) {
+  const user = getSession();
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+
+  const byStage = {};
+  PIPELINE.forEach(p => { byStage[p.key] = []; });
+  const naoProc = [];
+  items.forEach(r => {
+    if (byStage[r.status]) byStage[r.status].push(r);
+    else if (r.status === 'Não Procedente' || r.status === 'Cancelada') naoProc.push(r);
+  });
+
+  const cols = [...PIPELINE];
+  if (naoProc.length) cols.push({ key: '__np', label: 'Não Procedente', color: '#94a3b8', _items: naoProc });
+
+  return `<div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;align-items:flex-start">
+    ${cols.map(p => {
+      const list = p._items ?? byStage[p.key];
+      return `<div style="flex:0 0 258px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;background:var(--surface);border:1px solid var(--border);border-top:3px solid ${p.color}">
+          <span style="font-size:0.76rem;font-weight:700;color:${p.color}">${p.label}</span>
+          <span style="font-size:0.7rem;font-weight:600;color:var(--muted);background:var(--bg);border-radius:10px;padding:1px 9px">${list.length}</span>
+        </div>
+        ${list.length
+          ? list.map(r => kanbanCard(r, user, hoje)).join('')
+          : `<div style="font-size:0.7rem;color:var(--muted);text-align:center;padding:16px 6px;border:1px dashed var(--border);border-radius:8px">—</div>`}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
 // ── UI: full table ────────────────────────────────────────────────────────────
 
 function renderTable(items) {
@@ -338,8 +406,8 @@ function renderTable(items) {
         if (isGQU && r.status === 'Em Plano de Ação' && user?.perfil === 'GQ Administrador') {
           extras.push(`<button class="btn btn-secondary btn-sm" data-action="reprovar-plano" data-id="${r.id}" title="Reprovar Plano" style="border-color:var(--red,#ef4444);color:var(--red,#ef4444)">✕</button>`);
         }
-        if (isGQU && act && !r.capaAberta && !CLOSED.includes(r.status)) {
-          extras.push(`<button class="btn btn-secondary btn-sm" data-action="abrir-capa" data-id="${r.id}" title="Abrir CAPA" style="border-color:var(--purple,#9333ea);color:var(--purple,#9333ea)">📋</button>`);
+        if (isGQU && canOpenCapa(r, user)) {
+          extras.push(`<button class="btn btn-secondary btn-sm" data-action="abrir-capa" data-id="${r.id}" title="Abrir CAPA (Verificação não eficaz)" style="border-color:var(--purple,#9333ea);color:var(--purple,#9333ea)">📋</button>`);
         }
         const actBtn   = `<div class="td-actions">
           ${canAdv && nxt ? `<button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nxt}" title="Avançar para ${nxt}">→</button>` : ''}
@@ -667,8 +735,9 @@ function refresh(container) {
   const items = getFilteredItems(container);
   const el = id => container.querySelector(id);
   if (el('#rnc-pipeline'))   el('#rnc-pipeline').innerHTML   = renderPipelineBar(db.get('rnc'));
-  if (el('#rnc-queue-wrap')) el('#rnc-queue-wrap').innerHTML = renderMinhaFila();
-  if (el('#rnc-table-wrap')) el('#rnc-table-wrap').innerHTML = renderTable(items);
+  if (el('#rnc-queue-wrap'))  el('#rnc-queue-wrap').innerHTML  = renderMinhaFila();
+  if (el('#rnc-kanban-wrap')) el('#rnc-kanban-wrap').innerHTML = renderKanban(db.get('rnc'));
+  if (el('#rnc-table-wrap'))  el('#rnc-table-wrap').innerHTML  = renderTable(items);
 
   // Update tab badge
   const n   = pendingCount();
@@ -683,8 +752,9 @@ let _activeTab = 'fila';
 function buildTabBar(active) {
   const n = pendingCount();
   return [
-    { key: 'fila',  label: n > 0 ? `Minha Fila (${n})` : 'Minha Fila', urgent: n > 0 },
-    { key: 'todas', label: 'Todas as RNCs', urgent: false },
+    { key: 'fila',   label: n > 0 ? `Minha Fila (${n})` : 'Minha Fila', urgent: n > 0 },
+    { key: 'quadro', label: '▦ Quadro', urgent: false },
+    { key: 'todas',  label: 'Todas as RNCs', urgent: false },
   ].map(t => {
     const on    = t.key === active;
     const color = on ? 'var(--blue)' : t.urgent ? 'var(--amber)' : 'var(--muted)';
@@ -709,6 +779,9 @@ export default {
       </div>
       <div id="tab-fila"  ${_activeTab !== 'fila'  ? 'style="display:none"' : ''}>
         <div id="rnc-queue-wrap">${renderMinhaFila()}</div>
+      </div>
+      <div id="tab-quadro" ${_activeTab !== 'quadro' ? 'style="display:none"' : ''}>
+        <div id="rnc-kanban-wrap">${renderKanban(allRnc)}</div>
       </div>
       <div id="tab-todas" ${_activeTab !== 'todas' ? 'style="display:none"' : ''}>
         <div class="toolbar">
@@ -747,7 +820,7 @@ export default {
           b.style.color      = on ? 'var(--blue)' : 'var(--muted)';
           b.style.fontWeight = on ? '600' : '400';
         });
-        ['fila', 'todas'].forEach(t => {
+        ['fila', 'quadro', 'todas'].forEach(t => {
           const el = container.querySelector(`#tab-${t}`);
           if (el) el.style.display = t === _activeTab ? '' : 'none';
         });
