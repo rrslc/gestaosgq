@@ -382,6 +382,46 @@ function renderRequerAtencao(all, hoje) {
   </div>`;
 }
 
+/** Mini-gráfico de tendência: RNCs abertas x encerradas nos últimos 6 meses. */
+function renderTendencia(all) {
+  const now = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+      abertas: 0, encerradas: 0,
+    });
+  }
+  const idx = k => months.findIndex(m => m.key === k);
+  all.forEach(r => {
+    if (r.dataAbertura)   { const i = idx(r.dataAbertura.slice(0, 7));   if (i >= 0) months[i].abertas++; }
+    if (r.dataFechamento) { const i = idx(r.dataFechamento.slice(0, 7)); if (i >= 0) months[i].encerradas++; }
+  });
+  const max = Math.max(1, ...months.map(m => Math.max(m.abertas, m.encerradas)));
+
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:6px">
+      <span style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Tendência — abertas × encerradas (6 meses)</span>
+      <span style="display:flex;gap:12px;font-size:0.68rem;color:var(--muted)">
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--blue);margin-right:4px"></span>Abertas</span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--green);margin-right:4px"></span>Encerradas</span>
+      </span>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:14px;height:90px">
+      ${months.map(m => `
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end">
+          <div style="display:flex;align-items:flex-end;gap:3px;height:100%;width:100%;justify-content:center">
+            <div title="Abertas em ${m.label}: ${m.abertas}" style="width:40%;max-width:22px;height:${Math.round(m.abertas / max * 100)}%;min-height:${m.abertas ? '3px' : '0'};background:var(--blue);border-radius:3px 3px 0 0"></div>
+            <div title="Encerradas em ${m.label}: ${m.encerradas}" style="width:40%;max-width:22px;height:${Math.round(m.encerradas / max * 100)}%;min-height:${m.encerradas ? '3px' : '0'};background:var(--green);border-radius:3px 3px 0 0"></div>
+          </div>
+          <span style="font-size:0.64rem;color:var(--muted);text-transform:capitalize">${m.label}</span>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+
 function renderPainel() {
   const all  = db.get('rnc');
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
@@ -448,6 +488,9 @@ function renderPainel() {
         }).join('')}
       </div>
     </div>
+
+    <!-- Tendência -->
+    ${renderTendencia(all)}
 
     <!-- Requer atenção -->
     ${renderRequerAtencao(all, hoje)}
@@ -595,6 +638,14 @@ function applyFiltros(acoes) {
 
 function renderAcoesTableBody(allAcoes, session = getSession()) {
   const filtered  = applyFiltros(allAcoes);
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const acaoAtrasada = a => a.status !== 'Concluída' && a.prazo && new Date(a.prazo + 'T00:00:00') < hoje;
+  // Ordena: atrasadas primeiro, depois agrupadas por RNC, depois por prazo.
+  const rank = a => acaoAtrasada(a) ? 0 : a.status === 'Concluída' ? 2 : 1;
+  const sorted = [...filtered].sort((a, b) =>
+    rank(a) - rank(b) ||
+    (a.rncNumero || '').localeCompare(b.rncNumero || '') ||
+    (a.prazo || '').localeCompare(b.prazo || ''));
   const hasFilter = acaoFiltros.busca || acaoFiltros.status || acaoFiltros.responsavel || acaoFiltros.rnc || acaoFiltros.etapa;
   const countLabel = hasFilter
     ? `<span style="font-size:0.74rem;color:var(--muted);margin-left:8px">${filtered.length} de ${allAcoes.length} exibidas</span>`
@@ -607,18 +658,20 @@ function renderAcoesTableBody(allAcoes, session = getSession()) {
           <th>Nº RNC</th><th>Etapa</th><th>Ação</th><th>Responsável</th><th>Prazo</th><th>Status</th><th>Conclusão</th><th>Ações</th>
         </tr></thead>
         <tbody>
-          ${filtered.map(a => {
+          ${sorted.map(a => {
             const etapaColor = { 'Ação Imediata': '#ef4444', 'Verificação de Eficácia': '#f59e0b', 'Planejamento': '#94a3b8', 'Ação': '#3b82f6' };
             const ec = etapaColor[a.etapa] || '#94a3b8';
             const etapaBadge = a.etapa
               ? `<span style="font-size:0.65rem;padding:1px 6px;border-radius:3px;background:${ec}18;color:${ec};font-weight:700;white-space:nowrap">${a.etapa}</span>`
               : '—';
+            const atrasada = acaoAtrasada(a);
             const canEdit = canEditAcao(a, session);
             const canDel  = canManageAcoes(session);
+            const okBtn   = (canEdit && a.status !== 'Concluída') ? `<button class="btn btn-secondary btn-sm" data-action="concluir-acao" data-id="${a.id}" title="Dar baixa (concluir)" style="border-color:var(--green,#22c55e);color:var(--green,#22c55e)">✓</button>` : '';
             const editBtn = canEdit ? `<button class="btn btn-secondary btn-sm" data-action="edit-acao" data-id="${a.id}" title="Editar">✏</button>` : '';
             const delBtn  = canDel  ? `<button class="btn btn-danger btn-sm" data-action="delete-acao" data-id="${a.id}" title="Excluir">🗑</button>` : '';
-            const acoesCel = (canEdit || canDel) ? `<div class="td-actions">${editBtn}${delBtn}</div>` : '—';
-            return `<tr>
+            const acoesCel = (okBtn || canEdit || canDel) ? `<div class="td-actions">${okBtn}${editBtn}${delBtn}</div>` : '—';
+            return `<tr style="${atrasada ? 'background:color-mix(in srgb, var(--red) 5%, transparent)' : ''}">
               <td><strong>${a.rncNumero}</strong></td>
               <td>${etapaBadge}</td>
               <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.acao}">${a.acao}</td>
@@ -805,6 +858,15 @@ export default {
             container.querySelector('#tab-acoesPrazos').innerHTML = renderAcoesPrazos();
           },
         });
+      }
+
+      if (action === 'concluir-acao') {
+        const rec = db.getById('rncAcoes', numId);
+        if (!rec || !canEditAcao(rec)) return;
+        db.update('rncAcoes', numId, { status: 'Concluída', dataConclusao: rec.dataConclusao || new Date().toISOString().slice(0, 10) });
+        toast('Ação concluída!');
+        container.querySelector('#tab-acoesPrazos').innerHTML = renderAcoesPrazos();
+        return;
       }
 
       if (action === 'edit-acao') {
