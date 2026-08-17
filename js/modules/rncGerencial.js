@@ -323,14 +323,15 @@ function renderFluxoProcesso() {
   `;
 }
 
-function kpiCard(value, label, color, highlight = false, sub = '') {
+function kpiCard(value, label, color, highlight = false, sub = '', nav = '') {
   const empty = value === 0;
   const border = highlight && value > 0
     ? `border:1px solid ${color}50;box-shadow:0 0 0 2px ${color}14`
     : 'border:1px solid var(--border)';
-  return `<div style="padding:16px 10px 13px;background:var(--surface);${border};border-radius:10px;text-align:center">
+  const click = nav ? `data-nav="${nav}" role="button" tabindex="0" title="Abrir no Registro" ` : '';
+  return `<div ${click}style="padding:16px 10px 13px;background:var(--surface);${border};border-radius:10px;text-align:center;${nav ? 'cursor:pointer' : ''}">
     <div style="font-size:1.75rem;font-weight:800;color:${empty ? 'var(--muted)' : color};line-height:1;font-variant-numeric:tabular-nums">${value}</div>
-    <div style="font-size:0.7rem;color:var(--muted);margin-top:5px;line-height:1.3">${label}</div>
+    <div style="font-size:0.7rem;color:var(--muted);margin-top:5px;line-height:1.3">${label}${nav ? ' <span style="opacity:.5">›</span>' : ''}</div>
     ${sub ? `<div style="font-size:0.65rem;margin-top:3px;color:${color};font-weight:600;opacity:${empty?0.35:0.8}">${sub}</div>` : ''}
   </div>`;
 }
@@ -388,7 +389,7 @@ function renderPainel() {
   const kpis = {
     total:      all.length,
     abertas:    all.filter(r => r.status === 'Aberta').length,
-    andamento:  all.filter(r => ['Em Avaliação', 'Em Investigação', 'Em Plano de Ação', 'Verificação de Eficácia'].includes(r.status)).length,
+    andamento:  all.filter(r => !['Aberta', ...CLOSED].includes(r.status)).length,
     encerradas: all.filter(r => r.status === 'Encerrada').length,
     emAtraso:   all.filter(r => !CLOSED.includes(r.status) && r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje).length,
     comCapa:    all.filter(r => r.necessitaCapa === 'Sim').length,
@@ -418,12 +419,12 @@ function renderPainel() {
   return `
     <!-- KPIs -->
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px">
-      ${kpiCard(kpis.total,     'Total de RNCs',  'var(--blue)')}
-      ${kpiCard(kpis.abertas,   'Aguardando GQ',  'var(--red)')}
-      ${kpiCard(kpis.andamento, 'Em Andamento',   'var(--amber)')}
-      ${kpiCard(kpis.emAtraso,  'Em Atraso',      'var(--red)',   true,  kpis.emAtraso > 0 ? '⚠ requer atenção' : '')}
-      ${kpiCard(kpis.encerradas,'Encerradas',     'var(--green)', false, tmr !== null ? `TMR: ${tmr}d` : '')}
-      ${kpiCard(kpis.comCapa,   'Geram CAPA',     'var(--amber)', true,  kpis.comCapa > 0 ? 'verificar CAPAs' : '')}
+      ${kpiCard(kpis.total,     'Total de RNCs',  'var(--blue)',  false, '', 'all')}
+      ${kpiCard(kpis.abertas,   'Aguardando GQ',  'var(--red)',   false, '', 'status:Aberta')}
+      ${kpiCard(kpis.andamento, 'Em Andamento',   'var(--amber)', false, '', 'andamento')}
+      ${kpiCard(kpis.emAtraso,  'Em Atraso',      'var(--red)',   true,  kpis.emAtraso > 0 ? '⚠ requer atenção' : '', 'atraso')}
+      ${kpiCard(kpis.encerradas,'Encerradas',     'var(--green)', false, tmr !== null ? `TMR: ${tmr}d` : '', 'status:Encerrada')}
+      ${kpiCard(kpis.comCapa,   'Geram CAPA',     'var(--amber)', true,  kpis.comCapa > 0 ? 'verificar CAPAs' : '', 'capa')}
     </div>
 
     <!-- Pipeline -->
@@ -746,6 +747,13 @@ export default {
 
   init(container) {
     container.addEventListener('click', e => {
+      const navEl = e.target.closest('[data-nav]');
+      if (navEl) {
+        window._rncPreset = navEl.dataset.nav;
+        window.location.hash = '#rncAbertura';
+        return;
+      }
+
       const tabBtn = e.target.closest('[data-tab]');
       if (tabBtn) {
         activeTab = tabBtn.dataset.tab;

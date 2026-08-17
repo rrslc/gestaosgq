@@ -747,6 +747,15 @@ function getFilteredItems(container) {
   if (status) items = items.filter(r => r.status === status);
   if (tipo)   items = items.filter(r => r.tipo === tipo);
   if (area)   items = items.filter(r => r.area === area);
+
+  if (_extraFilter === 'atraso') {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    items = items.filter(r => isOverdue(r, hoje));
+  } else if (_extraFilter === 'andamento') {
+    items = items.filter(r => r.status !== 'Aberta' && !CLOSED.includes(r.status));
+  } else if (_extraFilter === 'capa') {
+    items = items.filter(r => r.necessitaCapa === 'Sim');
+  }
   return items;
 }
 
@@ -758,6 +767,14 @@ function refresh(container) {
   if (el('#rnc-kanban-wrap')) el('#rnc-kanban-wrap').innerHTML = renderKanban(items);
   if (el('#rnc-table-wrap'))  el('#rnc-table-wrap').innerHTML  = renderTable(items);
 
+  const chip = el('#rnc-extra-chip');
+  if (chip) chip.innerHTML = _extraFilter
+    ? `<span style="display:inline-flex;align-items:center;gap:6px;font-size:0.74rem;padding:4px 10px;border-radius:14px;background:var(--blue)18;color:var(--blue);font-weight:600">
+         ${EXTRA_FILTER_LABEL[_extraFilter] || _extraFilter}
+         <button data-action="clear-extra" title="Limpar filtro" style="border:none;background:none;color:inherit;cursor:pointer;font-size:0.85rem;line-height:1;padding:0">✕</button>
+       </span>`
+    : '';
+
   // Update tab badge
   const n   = pendingCount();
   const tab = el('[data-tab="fila"]');
@@ -767,6 +784,9 @@ function refresh(container) {
 // ── Tab bar ───────────────────────────────────────────────────────────────────
 
 let _activeTab = 'quadro';
+// Recorte extra vindo dos KPIs da Gerencial (atraso / andamento / capa).
+let _extraFilter = '';
+const EXTRA_FILTER_LABEL = { atraso: 'Em atraso', andamento: 'Em andamento', capa: 'Geram CAPA' };
 
 function buildTabBar(active) {
   const n = pendingCount();
@@ -812,6 +832,7 @@ export default {
         </select>
         <button class="btn btn-secondary btn-sm" data-action="print-list" style="white-space:nowrap">🖨 Exportar Lista (PDF)</button>
         ${canImportForm() ? `<button class="btn btn-secondary btn-sm" data-action="import-rnc" style="white-space:nowrap">⬆ Importar Formulário</button>` : ''}
+        <span id="rnc-extra-chip"></span>
       </div>
       <div id="tab-quadro" ${_activeTab !== 'quadro' ? 'style="display:none"' : ''}>
         <div id="rnc-kanban-wrap">${renderKanban(allRnc)}</div>
@@ -828,7 +849,34 @@ export default {
   },
 
   init(container) {
+    // Recorte vindo de um KPI clicado na Gerencial (window._rncPreset).
+    const preset = window._rncPreset;
+    if (preset) {
+      delete window._rncPreset;
+      _extraFilter = (preset.startsWith('status:') || preset === 'all') ? '' : preset;
+      const statusVal = preset.startsWith('status:') ? preset.slice(7) : '';
+      _activeTab = 'todas';
+      const set = (sel, val) => { const el = container.querySelector(sel); if (el) el.value = val; };
+      set('[data-filter="status"]', statusVal);
+      set('[data-filter="search"]', '');
+      container.querySelectorAll('[data-tab]').forEach(b => {
+        const on = b.dataset.tab === 'todas';
+        b.style.borderBottomColor = on ? 'var(--blue)' : 'transparent';
+        b.style.color = on ? 'var(--blue)' : 'var(--muted)';
+        b.style.fontWeight = on ? '600' : '400';
+      });
+      ['fila', 'quadro', 'todas'].forEach(t => { const el = container.querySelector(`#tab-${t}`); if (el) el.style.display = t === 'todas' ? '' : 'none'; });
+      const tb = container.querySelector('#rnc-toolbar'); if (tb) tb.style.display = '';
+    }
+    if (preset || _extraFilter) refresh(container);
+
     container.addEventListener('click', e => {
+      // Limpar recorte extra (chip)
+      if (e.target.closest('[data-action="clear-extra"]')) {
+        _extraFilter = '';
+        refresh(container);
+        return;
+      }
       // Tab switching
       const tabBtn = e.target.closest('[data-tab]');
       if (tabBtn) {
