@@ -139,6 +139,23 @@ function updateSidebarAccess(session) {
 
 // ── Session / Login ───────────────────────────────────────────────────────────
 
+// Portal de login/senha temporariamente DESATIVADO (a pedido). Para reativar,
+// mude para true. Com o login desativado, o app entra direto com uma sessão
+// automática (Administrador GQ). Observação: no modo Neon as gravações exigem
+// token de autenticação — reative o login antes de usar o servidor oficial.
+const LOGIN_ENABLED = false;
+
+/** Cria uma sessão automática (sem senha) quando o login está desativado. */
+function ensureAutoSession() {
+  if (getSession()) return;
+  const equipe = db.get('equipe');
+  const u = equipe.find(m => m.perfil === 'GQ Administrador')
+        || equipe.find(m => ['GQ Administrador', 'GQ Analista'].includes(m.perfil))
+        || equipe[0];
+  if (!u) return;
+  setSession({ id: u.id, nome: u.nome, iniciais: u.iniciais, area: u.area, perfil: u.perfil, licenca: u.licenca, cor: u.cor });
+}
+
 function updateTopbarSession() {
   const el = document.getElementById('topbar-session');
   if (!el) return;
@@ -153,7 +170,7 @@ function updateTopbarSession() {
         <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${cor};color:#fff;font-weight:700;font-size:0.7rem;flex-shrink:0">${iniciais}</span>
         <span style="color:var(--text);white-space:nowrap">${nome}</span>
         ${area}
-        <button id="btn-logout" class="btn btn-secondary btn-sm" style="white-space:nowrap">Sair</button>
+        ${LOGIN_ENABLED ? `<button id="btn-logout" class="btn btn-secondary btn-sm" style="white-space:nowrap">Sair</button>` : ''}
       </span>`;
   } else {
     el.innerHTML = '';
@@ -417,7 +434,7 @@ window.addEventListener('sgq:import-warning', () => {
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 
 // Decisão síncrona (evita flash do app antes do portal): sem sessão → porta de login.
-if (!getSession()) document.body.classList.add('auth-gate');
+if (LOGIN_ENABLED && !getSession()) document.body.classList.add('auth-gate');
 
 // Guard de rotas: usuários de área só podem acessar rotas permitidas
 router.setGuard(routeName => {
@@ -439,6 +456,9 @@ db.ready.then(() => {
   migrateLegacyPerfil();
   migrateLegacyRncStatus();
   migrateLegacyCapaStatus();
+
+  // Login desativado: entra direto com uma sessão automática.
+  if (!LOGIN_ENABLED) ensureAutoSession();
 
   // Exibe o modo de armazenamento ativo no topbar
   const modeEl = document.getElementById('topbar-mode');
