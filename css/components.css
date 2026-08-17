@@ -60,7 +60,7 @@
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   overflow: hidden;
 }
@@ -95,8 +95,8 @@
 .kpi-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
@@ -151,20 +151,20 @@ table {
 }
 
 thead th {
-  padding: 9px 12px;
+  padding: 10px 14px;
   text-align: left;
   font-weight: 600;
   color: var(--muted);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-strong);
   white-space: nowrap;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background: var(--bg);
+  letter-spacing: 0.05em;
+  background: transparent;
 }
 
 tbody td {
-  padding: 9px 12px;
+  padding: 11px 14px;
   border-bottom: 1px solid var(--border);
   color: var(--text);
   vertical-align: middle;
@@ -320,8 +320,8 @@ tbody tr:hover {
 
 .modal-dialog {
   background: var(--surface);
-  border-radius: var(--radius);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 64px rgba(16, 24, 40, 0.22);
   width: min(95vw, 960px);
   max-height: 94vh;
   display: flex;
@@ -460,7 +460,7 @@ tbody tr:hover {
 .team-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   padding: 16px;
 }
