@@ -197,15 +197,32 @@ function renderStepper(status) {
 // ── UI: minha fila ────────────────────────────────────────────────────────────
 
 const RISK_PILL = { 'Menor': 'pill-blue', 'Maior': 'pill-amber', 'Crítica': 'pill-red' };
+const RISK_RANK = { 'Crítica': 0, 'Maior': 1, 'Menor': 2 };
+
+/** Uma RNC não encerrada com prazo de finalização vencido. */
+function isOverdue(r, hoje) {
+  return !CLOSED.includes(r.status) && r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje;
+}
+
+/** Ordena para exibição: atrasadas primeiro, depois por risco, depois mais antigas. */
+function sortForDisplay(items, hoje) {
+  return [...items].sort((a, b) => {
+    const oa = isOverdue(a, hoje) ? 0 : 1, ob = isOverdue(b, hoje) ? 0 : 1;
+    if (oa !== ob) return oa - ob;
+    const ra = RISK_RANK[a.classificacaoRisco] ?? 3, rb = RISK_RANK[b.classificacaoRisco] ?? 3;
+    if (ra !== rb) return ra - rb;
+    return (a.dataAbertura || '').localeCompare(b.dataAbertura || '');
+  });
+}
 
 function renderMinhaFila() {
   const user = getSession();
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   const isGQ = user && GQ_PERFIS.has(user.perfil);
 
-  const items = isGQ
+  const items = sortForDisplay(isGQ
     ? db.get('rnc').filter(r => GQ_STAGES.includes(r.status))
-    : db.get('rnc').filter(r => r.status === 'Aberta');
+    : db.get('rnc').filter(r => r.status === 'Aberta'), hoje);
 
   if (!items.length) {
     const [msg, sub] = isGQ
@@ -319,7 +336,7 @@ function kanbanCard(r, user, hoje) {
   const risco    = r.classificacaoRisco ? `<span class="pill ${RISK_PILL[r.classificacaoRisco] ?? 'pill-gray'}" style="font-size:0.58rem">${r.classificacaoRisco}</span>` : '';
   const descSafe = String(r.descricao || '').replace(/"/g, '&quot;');
   return `<div class="kanban-card" data-action="edit" data-id="${r.id}" title="Abrir ${r.numero}"
-       style="border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--bg);display:flex;flex-direction:column;gap:6px;cursor:pointer">
+       style="border:1px solid ${emAtraso ? 'var(--red)' : 'var(--border)'};border-left:3px solid ${emAtraso ? 'var(--red)' : 'var(--border)'};border-radius:8px;padding:10px;background:${emAtraso ? 'color-mix(in srgb, var(--red) 6%, var(--bg))' : 'var(--bg)'};display:flex;flex-direction:column;gap:6px;cursor:pointer">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
       <span style="font-weight:700;font-size:0.78rem">${r.numero}</span>
       ${risco}
@@ -353,13 +370,14 @@ function renderKanban(items) {
   return `<div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;align-items:flex-start">
     ${cols.map(p => {
       const list = p._items ?? byStage[p.key];
+      const sorted = sortForDisplay(list, hoje);
       return `<div style="flex:0 0 258px;display:flex;flex-direction:column;gap:8px">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;background:var(--surface);border:1px solid var(--border);border-top:3px solid ${p.color}">
           <span style="font-size:0.76rem;font-weight:700;color:${p.color}">${p.label}</span>
           <span style="font-size:0.7rem;font-weight:600;color:var(--muted);background:var(--bg);border-radius:10px;padding:1px 9px">${list.length}</span>
         </div>
-        ${list.length
-          ? list.map(r => kanbanCard(r, user, hoje)).join('')
+        ${sorted.length
+          ? sorted.map(r => kanbanCard(r, user, hoje)).join('')
           : `<div style="font-size:0.7rem;color:var(--muted);text-align:center;padding:16px 6px;border:1px dashed var(--border);border-radius:8px">—</div>`}
       </div>`;
     }).join('')}
@@ -389,7 +407,8 @@ function renderTable(items) {
       <th>T. Aberto</th><th>Risco</th><th>Status</th><th>Responsável p/ Etapa</th><th>Ações</th>
     </tr></thead>
     <tbody>
-      ${items.map(r => {
+      ${sortForDisplay(items, hoje).map(r => {
+        const atrasada = isOverdue(r, hoje);
         const own      = STAGE_OWNER[r.status];
         const ownLbl   = ownerLabel(r);
         const ownColor = own?.color ?? '#94a3b8';
@@ -415,8 +434,8 @@ function renderTable(items) {
           <button class="btn btn-secondary btn-sm" data-action="print-rnc" data-id="${r.id}" title="Gerar PDF (arquivamento físico)">🖨</button>
           ${extras.join('')}
         </div>`;
-        return `<tr>
-          <td><strong>${r.numero}</strong></td>
+        return `<tr style="${atrasada ? 'background:color-mix(in srgb, var(--red) 5%, transparent)' : ''}">
+          <td><strong>${r.numero}</strong>${atrasada ? ' <span title="Em atraso" style="color:var(--red)">⚠</span>' : ''}</td>
           <td style="white-space:nowrap;font-size:0.8rem">${r.tipo || '—'}</td>
           <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.descricao}">${r.descricao}</td>
           <td>${r.area || '—'}</td>
@@ -736,7 +755,7 @@ function refresh(container) {
   const el = id => container.querySelector(id);
   if (el('#rnc-pipeline'))   el('#rnc-pipeline').innerHTML   = renderPipelineBar(db.get('rnc'));
   if (el('#rnc-queue-wrap'))  el('#rnc-queue-wrap').innerHTML  = renderMinhaFila();
-  if (el('#rnc-kanban-wrap')) el('#rnc-kanban-wrap').innerHTML = renderKanban(db.get('rnc'));
+  if (el('#rnc-kanban-wrap')) el('#rnc-kanban-wrap').innerHTML = renderKanban(items);
   if (el('#rnc-table-wrap'))  el('#rnc-table-wrap').innerHTML  = renderTable(items);
 
   // Update tab badge
@@ -747,13 +766,13 @@ function refresh(container) {
 
 // ── Tab bar ───────────────────────────────────────────────────────────────────
 
-let _activeTab = 'fila';
+let _activeTab = 'quadro';
 
 function buildTabBar(active) {
   const n = pendingCount();
   return [
-    { key: 'fila',   label: n > 0 ? `Minha Fila (${n})` : 'Minha Fila', urgent: n > 0 },
     { key: 'quadro', label: '▦ Quadro', urgent: false },
+    { key: 'fila',   label: n > 0 ? `Minha Fila (${n})` : 'Minha Fila', urgent: n > 0 },
     { key: 'todas',  label: 'Todas as RNCs', urgent: false },
   ].map(t => {
     const on    = t.key === active;
@@ -777,30 +796,30 @@ export default {
       <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px">
         ${buildTabBar(_activeTab)}
       </div>
-      <div id="tab-fila"  ${_activeTab !== 'fila'  ? 'style="display:none"' : ''}>
-        <div id="rnc-queue-wrap">${renderMinhaFila()}</div>
+      <div id="rnc-toolbar" class="toolbar" ${_activeTab === 'fila' ? 'style="display:none"' : ''}>
+        <input class="toolbar-search" type="text" placeholder="Buscar por número, produto ou descrição…" data-filter="search">
+        <select class="toolbar-select" data-filter="status">
+          <option value="">Todos os status</option>
+          ${selectOptions(STATUS.RNC)}
+        </select>
+        <select class="toolbar-select" data-filter="tipo">
+          <option value="">Todos os tipos</option>
+          ${TIPOS_NC.map(t => `<option value="${t}">${t}</option>`).join('')}
+        </select>
+        <select class="toolbar-select" data-filter="area">
+          <option value="">Todas as áreas</option>
+          ${AREAS.map(a => `<option value="${a}">${a}</option>`).join('')}
+        </select>
+        <button class="btn btn-secondary btn-sm" data-action="print-list" style="white-space:nowrap">🖨 Exportar Lista (PDF)</button>
+        ${canImportForm() ? `<button class="btn btn-secondary btn-sm" data-action="import-rnc" style="white-space:nowrap">⬆ Importar Formulário</button>` : ''}
       </div>
       <div id="tab-quadro" ${_activeTab !== 'quadro' ? 'style="display:none"' : ''}>
         <div id="rnc-kanban-wrap">${renderKanban(allRnc)}</div>
       </div>
+      <div id="tab-fila"  ${_activeTab !== 'fila'  ? 'style="display:none"' : ''}>
+        <div id="rnc-queue-wrap">${renderMinhaFila()}</div>
+      </div>
       <div id="tab-todas" ${_activeTab !== 'todas' ? 'style="display:none"' : ''}>
-        <div class="toolbar">
-          <input class="toolbar-search" type="text" placeholder="Buscar por número, produto ou descrição…" data-filter="search">
-          <select class="toolbar-select" data-filter="status">
-            <option value="">Todos os status</option>
-            ${selectOptions(STATUS.RNC)}
-          </select>
-          <select class="toolbar-select" data-filter="tipo">
-            <option value="">Todos os tipos</option>
-            ${TIPOS_NC.map(t => `<option value="${t}">${t}</option>`).join('')}
-          </select>
-          <select class="toolbar-select" data-filter="area">
-            <option value="">Todas as áreas</option>
-            ${AREAS.map(a => `<option value="${a}">${a}</option>`).join('')}
-          </select>
-          <button class="btn btn-secondary btn-sm" data-action="print-list" style="white-space:nowrap">🖨 Exportar Lista (PDF)</button>
-          ${canImportForm() ? `<button class="btn btn-secondary btn-sm" data-action="import-rnc" style="white-space:nowrap">⬆ Importar Formulário</button>` : ''}
-        </div>
         <div class="card">
           <div id="rnc-table-wrap">${renderTable(allRnc)}</div>
         </div>
@@ -824,6 +843,8 @@ export default {
           const el = container.querySelector(`#tab-${t}`);
           if (el) el.style.display = t === _activeTab ? '' : 'none';
         });
+        const toolbar = container.querySelector('#rnc-toolbar');
+        if (toolbar) toolbar.style.display = _activeTab === 'fila' ? 'none' : '';
         return;
       }
 
