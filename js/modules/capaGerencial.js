@@ -30,71 +30,122 @@ function riskPill(risco) {
     : '<span style="color:var(--muted)">—</span>';
 }
 
-function kpiCard(value, label, color, highlight) {
+function kpiCard(value, label, color, highlight, sub = '') {
   return `<div style="padding:12px;background:var(--surface);border:1px solid ${highlight ? color : 'var(--border)'};border-left:3px solid ${color};border-radius:8px;text-align:center">
     <div style="font-size:1.6rem;font-weight:700;color:${color};line-height:1.1">${value}</div>
     <div style="font-size:0.71rem;color:var(--muted);margin-top:4px">${label}</div>
+    ${sub ? `<div style="font-size:0.64rem;color:${color};margin-top:3px;font-weight:600">${sub}</div>` : ''}
   </div>`;
 }
 
 // ── Painel tab ──────────────────────────────────────────────────────────────
 
+/** Lista focada: só o que o gestor precisa agir — CAPAs em atraso ou verificação não eficaz. */
+function renderRequerAtencao(all, hoje) {
+  const CLOSED = ['Encerrada', 'Não Procedente', 'Cancelada'];
+  const diasAberta = r => r.dataAbertura ? Math.round((hoje - new Date(r.dataAbertura + 'T00:00:00')) / 86400000) : null;
+
+  const items = all
+    .filter(r => !CLOSED.includes(r.status))
+    .map(r => ({
+      r,
+      emAtraso: !!(r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje),
+      novoCapa: r.foiEficaz === 'Não' && !r.novoCapaAberto,
+    }))
+    .filter(x => x.emAtraso || x.novoCapa)
+    .sort((a, b) => (b.emAtraso - a.emAtraso));
+
+  if (!items.length) {
+    return `<div class="card" style="text-align:center;padding:26px 16px">
+      <div style="font-size:1.6rem;margin-bottom:6px">✅</div>
+      <div style="font-size:0.9rem;font-weight:600">Nada requer atenção imediata</div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:3px">Nenhuma CAPA em atraso ou com verificação não eficaz.</div>
+    </div>`;
+  }
+
+  return `<div class="card">
+    <div style="font-weight:600;margin-bottom:12px;font-size:0.9rem">⚠ Requer sua atenção
+      <span style="font-size:0.75rem;color:var(--muted);font-weight:400">(${items.length})</span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Número</th><th>Descrição</th><th>Risco</th><th>Responsável</th><th>Situação</th></tr></thead>
+      <tbody>
+        ${items.map(({ r, emAtraso, novoCapa }) => `<tr>
+          <td><strong>${r.numero}</strong></td>
+          <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${String(r.descricao || '').replace(/"/g, '&quot;')}">${r.descricao || '—'}</td>
+          <td>${riskPill(r.classificacaoRisco)}</td>
+          <td style="font-size:0.8rem">${r.responsavelAbertura || r.area || '—'}</td>
+          <td style="white-space:nowrap;display:flex;gap:5px;flex-wrap:wrap">
+            ${emAtraso ? `<span class="pill pill-red">⚠ atraso · ${diasAberta(r)}d</span>` : ''}
+            ${novoCapa ? `<span class="pill pill-amber">Não eficaz → novo CAPA</span>` : ''}
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+  </div>`;
+}
+
 function renderPainel() {
-  const all = db.get('capa');
+  const all  = db.get('capa');
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const CLOSED = ['Encerrada', 'Não Procedente', 'Cancelada'];
+
   const kpis = {
     total:      all.length,
     abertas:    all.filter(r => r.status === 'Aberta').length,
-    andamento:  all.filter(r => ['Em Investigação', 'Em Plano de Ação', 'Em Verificação de Eficácia'].includes(r.status)).length,
+    andamento:  all.filter(r => ['Em Avaliação', 'Em Investigação', 'Em Plano de Ação', 'Verificação de Eficácia'].includes(r.status)).length,
     encerradas: all.filter(r => r.status === 'Encerrada').length,
+    emAtraso:   all.filter(r => !CLOSED.includes(r.status) && r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje).length,
   };
 
-  const hoje = new Date(); hoje.setHours(0,0,0,0);
-  function diasAberto(r) {
-    if (!r.dataAbertura) return '—';
-    const ini = new Date(r.dataAbertura + 'T00:00:00');
-    const fim = r.dataFechamento ? new Date(r.dataFechamento + 'T00:00:00') : hoje;
-    const dias = Math.round((fim - ini) / 86400000);
-    const aberto = !['Encerrada','Não Procedente'].includes(r.status);
-    const cor = aberto && r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje ? 'var(--red)' : 'inherit';
-    return `<span style="color:${cor};font-weight:${cor !== 'inherit' ? '600' : 'normal'}">${dias}d</span>`;
-  }
+  const PIPELINE = [
+    { key: 'Aberta',                  color: 'var(--red)',    n: kpis.abertas },
+    { key: 'Em Avaliação',            color: 'var(--purple)', n: all.filter(r => r.status === 'Em Avaliação').length },
+    { key: 'Em Investigação',         color: 'var(--blue)',   n: all.filter(r => r.status === 'Em Investigação').length },
+    { key: 'Em Plano de Ação',        color: 'var(--amber)',  n: all.filter(r => r.status === 'Em Plano de Ação').length },
+    { key: 'Verificação de Eficácia', color: 'var(--teal)',   n: all.filter(r => r.status === 'Verificação de Eficácia').length },
+    { key: 'Encerrada',               color: 'var(--green)',  n: kpis.encerradas },
+  ];
+  const totalAll = PIPELINE.reduce((s, p) => s + p.n, 0);
 
-  const tableHtml = all.length ? `
-    <div class="table-wrap">
-      <table>
-        <thead><tr>
-          <th>Número</th><th>Descrição</th><th>Origem</th><th>Área</th>
-          <th>Responsável</th><th>Abertura</th><th>T. Aberto</th><th>Risco</th><th>Status</th><th>Eficácia</th>
-        </tr></thead>
-        <tbody>
-          ${all.map(r => `<tr>
-            <td><strong>${r.numero}</strong></td>
-            <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.descricao}">${r.descricao}</td>
-            <td>${r.origem || '—'}</td>
-            <td>${r.area || '—'}</td>
-            <td>${r.responsavelAbertura || '—'}</td>
-            <td>${formatDate(r.dataAbertura)}</td>
-            <td style="text-align:center">${diasAberto(r)}</td>
-            <td>${riskPill(r.classificacaoRisco)}</td>
-            <td>${statusPill(r.encerradoStatus || r.status)}</td>
-            <td>${r.foiEficaz ? statusPill(r.foiEficaz === 'Sim' ? 'Eficaz' : r.foiEficaz === 'Não' ? 'Ineficaz' : 'Em Avaliação') : '—'}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
-  ` : emptyState('Nenhuma CAPA registrada.');
+  const fechadas = all.filter(r => r.dataAbertura && r.dataFechamento);
+  const tmr = fechadas.length
+    ? Math.round(fechadas.reduce((s, r) => s + (new Date(r.dataFechamento + 'T00:00:00') - new Date(r.dataAbertura + 'T00:00:00')) / 86400000, 0) / fechadas.length)
+    : null;
 
   return `
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
-      ${kpiCard(kpis.total, 'Total', 'var(--blue)')}
-      ${kpiCard(kpis.abertas, 'Abertas', 'var(--red)')}
-      ${kpiCard(kpis.andamento, 'Em Andamento', 'var(--amber)')}
-      ${kpiCard(kpis.encerradas, 'Encerradas', 'var(--green)')}
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px">
+      ${kpiCard(kpis.total,      'Total de CAPAs', 'var(--blue)')}
+      ${kpiCard(kpis.abertas,    'Aguardando GQ',  'var(--red)')}
+      ${kpiCard(kpis.andamento,  'Em Andamento',   'var(--amber)')}
+      ${kpiCard(kpis.emAtraso,   'Em Atraso',      'var(--red)',   true,  kpis.emAtraso > 0 ? '⚠ requer atenção' : '')}
+      ${kpiCard(kpis.encerradas, 'Encerradas',     'var(--green)', false, tmr !== null ? `TMR: ${tmr}d` : '')}
     </div>
-    <div class="card">
-      <div style="font-weight:600;margin-bottom:12px;font-size:0.9rem">Todas as CAPAs</div>
-      ${tableHtml}
+
+    <!-- Pipeline -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:18px">
+      <div style="padding:12px 16px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Pipeline — CAPAs por etapa</span>
+        <span style="font-size:0.72rem;color:var(--muted)">${totalAll} total</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr)">
+        ${PIPELINE.map((p, i) => {
+          const pct = totalAll ? Math.round(p.n / totalAll * 100) : 0;
+          const active = p.n > 0;
+          return `<div style="padding:14px 10px 13px;text-align:center;${i > 0 ? 'border-left:1px solid var(--border)' : ''};position:relative">
+            ${i < PIPELINE.length - 1 ? `<div style="position:absolute;right:0;top:50%;transform:translateY(-50%);font-size:0.6rem;color:var(--border);line-height:1;pointer-events:none;z-index:1">▶</div>` : ''}
+            <div style="font-size:1.75rem;font-weight:800;color:${active ? p.color : 'var(--border)'};line-height:1;margin-bottom:8px;font-variant-numeric:tabular-nums">${p.n}</div>
+            <div style="height:3px;border-radius:2px;background:var(--border);margin:0 4px 8px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${p.color};border-radius:2px"></div>
+            </div>
+            <div style="font-size:0.67rem;color:${active ? 'var(--fg)' : 'var(--muted)'};line-height:1.3;font-weight:${active ? '600' : '400'}">${p.key}</div>
+          </div>`;
+        }).join('')}
+      </div>
     </div>
+
+    <!-- Requer atenção -->
+    ${renderRequerAtencao(all, hoje)}
   `;
 }
 

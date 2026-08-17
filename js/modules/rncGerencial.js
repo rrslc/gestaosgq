@@ -337,6 +337,50 @@ function kpiCard(value, label, color, highlight = false, sub = '') {
 
 // ── Painel tab ──────────────────────────────────────────────────────────────
 
+/** Lista focada: só o que o gestor precisa agir — RNCs em atraso ou com CAPA pendente. */
+function renderRequerAtencao(all, hoje) {
+  const RISK_PILL = { 'Menor': 'pill-blue', 'Maior': 'pill-amber', 'Crítica': 'pill-red' };
+  const diasAberta = r => r.dataAbertura ? Math.round((hoje - new Date(r.dataAbertura + 'T00:00:00')) / 86400000) : null;
+
+  const items = all
+    .filter(r => !CLOSED.includes(r.status))
+    .map(r => ({
+      r,
+      emAtraso: !!(r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje),
+      capaPend: r.necessitaCapa === 'Sim' && !r.capaAberta,
+    }))
+    .filter(x => x.emAtraso || x.capaPend)
+    .sort((a, b) => (b.emAtraso - a.emAtraso));
+
+  if (!items.length) {
+    return `<div class="card" style="text-align:center;padding:26px 16px">
+      <div style="font-size:1.6rem;margin-bottom:6px">✅</div>
+      <div style="font-size:0.9rem;font-weight:600">Nada requer atenção imediata</div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:3px">Nenhuma RNC em atraso ou com CAPA pendente.</div>
+    </div>`;
+  }
+
+  return `<div class="card">
+    <div style="font-weight:600;margin-bottom:12px;font-size:0.9rem">⚠ Requer sua atenção
+      <span style="font-size:0.75rem;color:var(--muted);font-weight:400">(${items.length})</span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Número</th><th>Descrição</th><th>Risco</th><th>Responsável p/ Etapa</th><th>Situação</th></tr></thead>
+      <tbody>
+        ${items.map(({ r, emAtraso, capaPend }) => `<tr>
+          <td><strong>${r.numero}</strong></td>
+          <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${String(r.descricao || '').replace(/"/g, '&quot;')}">${r.descricao || '—'}</td>
+          <td>${r.classificacaoRisco ? `<span class="pill ${RISK_PILL[r.classificacaoRisco] ?? 'pill-gray'}">${r.classificacaoRisco}</span>` : '—'}</td>
+          <td style="font-size:0.8rem">${r.responsavel || r.area || '—'}</td>
+          <td style="white-space:nowrap;display:flex;gap:5px;flex-wrap:wrap">
+            ${emAtraso ? `<span class="pill pill-red">⚠ atraso · ${diasAberta(r)}d</span>` : ''}
+            ${capaPend ? `<span class="pill pill-amber">CAPA pendente</span>` : ''}
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+  </div>`;
+}
+
 function renderPainel() {
   const all  = db.get('rnc');
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
@@ -359,52 +403,6 @@ function renderPainel() {
     { key: 'Encerrada',               color: 'var(--green)',  n: kpis.encerradas },
   ];
 
-  function diasAberto(r) {
-    if (!r.dataAbertura) return '—';
-    const ini = new Date(r.dataAbertura + 'T00:00:00');
-    const fim = r.dataFechamento ? new Date(r.dataFechamento + 'T00:00:00') : hoje;
-    const dias = Math.round((fim - ini) / 86400000);
-    const emAtraso = !CLOSED.includes(r.status) && r.prazoFinalizacao && new Date(r.prazoFinalizacao + 'T00:00:00') < hoje;
-    return `<span style="color:${emAtraso ? 'var(--red)' : 'inherit'};font-weight:${emAtraso ? '600' : 'normal'}">${dias}d</span>`;
-  }
-
-  const tableHtml = all.length ? `
-    <div class="table-wrap">
-      <table>
-        <thead><tr>
-          <th>Número</th><th>Tipo</th><th>Descrição</th><th>Área</th>
-          <th>Risco</th><th>Responsável</th><th>Abertura</th><th>T. Aberto</th><th>Status</th><th>CAPA</th>
-        </tr></thead>
-        <tbody>
-          ${all.map(r => {
-            const risco = r.classificacaoRisco;
-            const RISK_PILL = { 'Menor': 'pill-blue', 'Maior': 'pill-amber', 'Crítica': 'pill-red' };
-            const riscoHtml = risco
-              ? `<span class="pill ${RISK_PILL[risco] ?? 'pill-gray'}">${risco}</span>`
-              : '—';
-            return `<tr>
-            <td><strong>${r.numero}</strong></td>
-            <td style="font-size:0.8rem;white-space:nowrap">${r.tipo || '—'}</td>
-            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.descricao}">${r.descricao}</td>
-            <td>${r.area || '—'}</td>
-            <td>${riscoHtml}</td>
-            <td>${r.responsavel || '—'}</td>
-            <td>${formatDate(r.dataAbertura)}</td>
-            <td style="text-align:center">${diasAberto(r)}</td>
-            <td>
-              ${statusPill(r.encerradoStatus || r.status)}
-              ${!CLOSED.includes(r.status) ? miniPipeline(r.status) : ''}
-            </td>
-            <td>${r.necessitaCapa === 'Sim'
-              ? (r.capaAberta ? '<span style="color:var(--green);font-size:0.75rem">✓ Aberta</span>' : '<span style="color:var(--amber);font-size:0.75rem">Pendente</span>')
-              : '<span style="color:var(--muted);font-size:0.75rem">—</span>'}</td>
-          </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-  ` : emptyState('Nenhuma RNC registrada.');
-
   // Tempo médio de resolução
   const fechadas = all.filter(r => r.dataAbertura && r.dataFechamento);
   const tmr = fechadas.length
@@ -418,7 +416,15 @@ function renderPainel() {
   const totalAll = PIPELINE.reduce((s, p) => s + p.n, 0);
 
   return `
-    ${renderAcompanhamento()}
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px">
+      ${kpiCard(kpis.total,     'Total de RNCs',  'var(--blue)')}
+      ${kpiCard(kpis.abertas,   'Aguardando GQ',  'var(--red)')}
+      ${kpiCard(kpis.andamento, 'Em Andamento',   'var(--amber)')}
+      ${kpiCard(kpis.emAtraso,  'Em Atraso',      'var(--red)',   true,  kpis.emAtraso > 0 ? '⚠ requer atenção' : '')}
+      ${kpiCard(kpis.encerradas,'Encerradas',     'var(--green)', false, tmr !== null ? `TMR: ${tmr}d` : '')}
+      ${kpiCard(kpis.comCapa,   'Geram CAPA',     'var(--amber)', true,  kpis.comCapa > 0 ? 'verificar CAPAs' : '')}
+    </div>
 
     <!-- Pipeline -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:18px">
@@ -442,20 +448,8 @@ function renderPainel() {
       </div>
     </div>
 
-    <!-- KPIs -->
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px">
-      ${kpiCard(kpis.total,     'Total de RNCs',  'var(--blue)')}
-      ${kpiCard(kpis.abertas,   'Aguardando GQ',  'var(--red)')}
-      ${kpiCard(kpis.andamento, 'Em Andamento',   'var(--amber)')}
-      ${kpiCard(kpis.emAtraso,  'Em Atraso',      'var(--red)',   true,  kpis.emAtraso > 0 ? '⚠ requer atenção' : '')}
-      ${kpiCard(kpis.encerradas,'Encerradas',     'var(--green)', false, tmr !== null ? `TMR: ${tmr}d` : '')}
-      ${kpiCard(kpis.comCapa,   'Geram CAPA',     'var(--amber)', true,  kpis.comCapa > 0 ? 'verificar CAPAs' : '')}
-    </div>
-
-    <div class="card">
-      <div style="font-weight:600;margin-bottom:12px;font-size:0.9rem">Todas as RNCs</div>
-      ${tableHtml}
-    </div>
+    <!-- Requer atenção -->
+    ${renderRequerAtencao(all, hoje)}
   `;
 }
 
