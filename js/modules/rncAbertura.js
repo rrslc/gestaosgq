@@ -215,6 +215,30 @@ function sortForDisplay(items, hoje) {
   });
 }
 
+// Ordenação por coluna clicável na tabela "Todas".
+let _sortCol = '';
+let _sortDir = 1;
+
+/** Ordena os itens pela coluna escolhida (números por valor, texto por localeCompare). */
+function sortByColumn(items, col, dir, hoje) {
+  const val = {
+    numero:      r => r.numero || '',
+    tipo:        r => r.tipo || '',
+    descricao:   r => (r.descricao || '').toLowerCase(),
+    area:        r => r.area || '',
+    tAberto:     r => r.dataAbertura ? (hoje - new Date(r.dataAbertura + 'T00:00:00')) : -Infinity,
+    risco:       r => RISK_RANK[r.classificacaoRisco] ?? 99,
+    status:      r => stageIdx(r.status),
+    responsavel: r => ownerLabel(r) || '',
+  }[col];
+  if (!val) return items;
+  return [...items].sort((a, b) => {
+    const va = val(a), vb = val(b);
+    const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
+    return cmp * dir;
+  });
+}
+
 function renderMinhaFila() {
   const user = getSession();
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
@@ -401,13 +425,18 @@ function renderTable(items) {
     return `<span style="color:${atrasado ? 'var(--red)' : 'inherit'};font-weight:${atrasado ? '600' : 'normal'}">${d}d</span>`;
   }
 
+  const th = (label, col) => col
+    ? `<th data-sort="${col}" title="Ordenar por ${label}" style="cursor:pointer;user-select:none;white-space:nowrap">${label}${_sortCol === col ? (_sortDir > 0 ? ' ▲' : ' ▼') : '<span style="opacity:.28">↕</span>'}</th>`
+    : `<th>${label}</th>`;
+  const ordered = _sortCol ? sortByColumn(items, _sortCol, _sortDir, hoje) : sortForDisplay(items, hoje);
+
   return `<div class="table-wrap"><table>
     <thead><tr>
-      <th>Número</th><th>Tipo</th><th>Descrição</th><th>Área</th>
-      <th>T. Aberto</th><th>Risco</th><th>Status</th><th>Responsável p/ Etapa</th><th>Ações</th>
+      ${th('Número', 'numero')}${th('Tipo', 'tipo')}${th('Descrição', 'descricao')}${th('Área', 'area')}
+      ${th('T. Aberto', 'tAberto')}${th('Risco', 'risco')}${th('Status', 'status')}${th('Responsável p/ Etapa', 'responsavel')}${th('Ações', '')}
     </tr></thead>
     <tbody>
-      ${sortForDisplay(items, hoje).map(r => {
+      ${ordered.map(r => {
         const atrasada = isOverdue(r, hoje);
         const own      = STAGE_OWNER[r.status];
         const ownLbl   = ownerLabel(r);
@@ -874,6 +903,15 @@ export default {
       // Limpar recorte extra (chip)
       if (e.target.closest('[data-action="clear-extra"]')) {
         _extraFilter = '';
+        refresh(container);
+        return;
+      }
+      // Ordenação por coluna (cabeçalho da tabela "Todas")
+      const sortTh = e.target.closest('[data-sort]');
+      if (sortTh) {
+        const col = sortTh.dataset.sort;
+        if (_sortCol === col) _sortDir = -_sortDir;
+        else { _sortCol = col; _sortDir = 1; }
         refresh(container);
         return;
       }
