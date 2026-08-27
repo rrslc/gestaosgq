@@ -418,6 +418,8 @@ function renderTable(items) {
 function buildFields(record = null) {
   const resp = db.get('equipe').map(m => m.nome);
   const respOpt = resp.length ? resp : ['—'];
+  const gestores = db.get('equipe').filter(m => m.perfil === 'GQ Administrador').map(m => m.nome);
+  const gestorOpt = gestores.length ? gestores : respOpt;
   const status = record?.status ?? 'Aberta';
   const cur = stageIdx(status);
   const isTerminal = ['Não Procedente', 'Cancelada'].includes(status);
@@ -514,7 +516,7 @@ function buildFields(record = null) {
     fields.push(
       h('ETAPA 5 — ENCERRAMENTO  (GQ)', 'Encerrada'),
       f('Encerrada', { id: 'preenchidoPor',   label: '10.1  Preenchido por',   type: 'select', required: false, span: 1, options: respOpt }),
-      f('Encerrada', { id: 'aprovadoPor',     label: '10.2  Aprovado por',     type: 'select', required: false, span: 1, options: respOpt }),
+      f('Encerrada', { id: 'aprovadoPor',     label: '10.2  Aprovado por (Gestor da Qualidade)', type: 'select', required: false, span: 1, options: gestorOpt }),
       f('Encerrada', { id: 'dataFechamento',  label: '     Data de Fechamento', type: 'date',   required: false, span: 1 }),
     );
   }
