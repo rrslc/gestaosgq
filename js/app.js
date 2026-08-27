@@ -42,7 +42,7 @@ import calendario   from './modules/calendario.js';
 import configuracoes        from './modules/configuracoes.js';
 import permissoes           from './modules/permissoes.js';
 import reclamacoesGerencial from './modules/reclamacoesGerencial.js';
-import reclamacoesAbertura  from './modules/reclamacoesAbertura.js';
+import reclamacoesAbertura, { migrateLegacyReclamStatus } from './modules/reclamacoesAbertura.js';
 import auditoriasPlano      from './modules/auditoriasPlano.js';
 import auditoriasExec       from './modules/auditoriasExec.js';
 import assistenciaTecnica   from './modules/assistenciaTecnica.js';
@@ -456,6 +456,7 @@ db.ready.then(() => {
   migrateLegacyPerfil();
   migrateLegacyRncStatus();
   migrateLegacyCapaStatus();
+  migrateLegacyReclamStatus();
 
   // Login desativado: entra direto com uma sessão automática.
   if (!LOGIN_ENABLED) ensureAutoSession();
