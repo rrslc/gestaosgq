@@ -510,6 +510,9 @@ function buildFields(record = null) {
       f('Em Resposta', { id: 'numeroAcaoCampo',      label: '     Nº da Ação de Campo',              type: 'text',   required: false, span: 1 }),
       f('Em Resposta', { id: 'cartaResposta',        label: '9.3  Carta Resposta ao Cliente',        type: 'textarea', required: false, span: 2 }),
       f('Em Resposta', { id: 'dataEnvioResposta',    label: '     Data de Envio da Resposta',         type: 'date',   required: false, span: 1 }),
+      f('Em Resposta', { id: 'geraCAPA',             label: '9.4  Gera CAPA?  (procedente → Sim)',    type: 'select', required: false, span: 1, options: ['Não', 'Sim', 'Em Avaliação'] }),
+      f('Em Resposta', { id: 'capaTratadaAntes',     label: '     CAPA — nova ou referência?',        type: 'select', required: false, span: 1, options: ['Nova (não tratada antes)', 'Referência (tratada antes)'] }),
+      f('Em Resposta', { id: 'numeroCAPA',           label: '     Nº da CAPA',                        type: 'text',   required: false, span: 2 }),
       f('Em Resposta', { id: 'geraRNC',              label: '     Gera RNC?',                         type: 'select', required: false, span: 1, options: ['Não', 'Sim', 'Em Avaliação'] }),
       f('Em Resposta', { id: 'numeroRNC',            label: '     Nº da RNC gerada',                  type: 'text',   required: false, span: 1 }),
       f('Em Resposta', { id: 'geraTecnovig',         label: '     Gera Notificação Tecnovigilância?', type: 'select', required: false, span: 1, options: ['Não', 'Sim', 'Em Avaliação'] }),
@@ -767,7 +770,7 @@ export default {
         openModal({
           title: `${auth ? 'Editar' : '👁 Visualizar'} Reclamação ${record.numero} — ${record.status}`,
           fields: auth ? buildFields(record) : buildFields(record).map(f => f.type !== 'heading' ? { ...f, readonly: true } : f),
-          data: { ...record, produtos: legacyToProdutos(record) },
+          data: { ...record, produtos: legacyToProdutos(record), geraCAPA: record.geraCAPA || (record.resultado === 'Procedente' ? 'Sim' : '') },
           setup(form) {
             // Data-limite de notificação recalcula ao escolher a criticidade.
             const critEl = form.querySelector('#field-criticidadeTipo');
