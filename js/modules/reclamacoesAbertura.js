@@ -493,11 +493,12 @@ function buildFields(record = null) {
       f('Em Investigação', { id: 'dataEntregaCompilado', label: '     Data de Entrega do Compilado',    type: 'date',   required: false, span: 1 }),
       f('Em Investigação', { id: 'resumoInvestigacao',label: '     Resumo da Investigação',             type: 'textarea', required: false, span: 2 }),
       f('Em Investigação', { id: 'resultado',         label: '7.3  Resultado da Investigação',         type: 'select', required: false, span: 1, options: RESULTADOS }),
-      f('Em Investigação', { id: 'responsavelInvestigacao', label: '7.4  Responsável(eis) pela Investigação', type: 'text', required: false, span: 1 }),
-      f('Em Investigação', { id: 'codProblema',       label: '8.1  IMDRF · Cód. Problema do Dispositivo', type: 'text', required: false, span: 1 }),
-      f('Em Investigação', { id: 'codCausa',          label: '     IMDRF · Cód. Causa Provável',       type: 'text',   required: false, span: 1 }),
-      f('Em Investigação', { id: 'codEfeito',         label: '     IMDRF · Cód. Efeito à Saúde',       type: 'text',   required: false, span: 1 }),
-      f('Em Investigação', { id: 'codComponente',     label: '     IMDRF · Cód. Componente/Parte',     type: 'text',   required: false, span: 1 }),
+      f('Em Investigação', { id: 'responsavelInvestigacao', label: '7.4  Responsável(eis) pela Investigação', type: 'text', required: false, span: 2 }),
+      h('8.  CODIFICAÇÃO IMDRF / ISO 19218   (obrigatória p/ Evento Adverso ou Queixa Técnica)', 'Em Investigação'),
+      f('Em Investigação', { id: 'codProblema',   label: '8.1  Cód. Problema do Dispositivo', type: 'text', required: false, span: 1 }),
+      f('Em Investigação', { id: 'codCausa',      label: '8.2  Cód. Causa Provável',          type: 'text', required: false, span: 1 }),
+      f('Em Investigação', { id: 'codEfeito',     label: '8.3  Cód. Efeito à Saúde',          type: 'text', required: false, span: 1 }),
+      f('Em Investigação', { id: 'codComponente', label: '8.4  Cód. Componente / Parte',      type: 'text', required: false, span: 1 }),
     );
   }
 
