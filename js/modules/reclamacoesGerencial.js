@@ -11,7 +11,6 @@ const CLOSED = ['Encerrada', 'Cancelada', 'Não Procedente'];
 
 const PIPELINE = [
   { key: 'Aberta',             color: 'var(--red)',    label: 'Registro' },
-  { key: 'Em Avaliação',       color: 'var(--purple)', label: 'Criticidade' },
   { key: 'Aguardando Retorno', color: 'var(--orange,#ea580c)', label: 'Ag. Retorno' },
   { key: 'Em Investigação',    color: 'var(--blue)',   label: 'Investigação' },
   { key: 'Em Resposta',        color: 'var(--teal)',   label: 'Resposta' },
@@ -50,7 +49,7 @@ function renderPipeline(all) {
       <span style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Pipeline — reclamações por etapa</span>
       <span style="font-size:0.72rem;color:var(--muted)">${totalAll} total</span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(6,1fr)">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr)">
       ${PIPELINE.map((p, i) => {
         const pct = totalAll ? Math.round(cnt[p.key] / totalAll * 100) : 0;
         const active = cnt[p.key] > 0;

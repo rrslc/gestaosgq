@@ -25,7 +25,7 @@ const MOTIVOS        = ['Reclamação', 'Queixa Técnica', 'Evento Adverso', 'So
 const COMUNICACOES   = ['Solicitação de Informação Técnica', 'Solicitação de Informação Não Técnica'];
 const RESULTADOS     = ['Procedente', 'Não Procede', 'Inconclusiva'];
 const CLASSIF_NOTIVISA = ['Confirmada', 'Provável', 'Inconclusiva', 'Descartada'];
-const SETORES_INVEST = ['Engenharia', 'Controle de Qualidade', 'Garantia da Qualidade', 'Outro'];
+const SETORES_INVEST = ['Engenharia', 'Controle de Qualidade', 'Logística', 'Garantia da Qualidade', 'Outro'];
 
 // Tipos de criticidade / prazo de notificação ao SNVS (POP-GQ-010 §7.8)
 const CRIT_TIPOS = [
@@ -39,13 +39,12 @@ const critPrazo = tipo => (CRIT_TIPOS.find(t => t.key === tipo)?.prazoDias ?? nu
 
 // ── Etapas do fluxo (POP-GQ-010) ────────────────────────────────────────────────
 const STAGE_ORDER = [
-  'Aberta', 'Em Avaliação', 'Aguardando Retorno',
+  'Aberta', 'Aguardando Retorno',
   'Em Investigação', 'Em Resposta', 'Encerrada',
 ];
 
 const PIPELINE = [
   { key: 'Aberta',              label: 'Registro',      color: 'var(--red)'    },
-  { key: 'Em Avaliação',        label: 'Criticidade',   color: 'var(--purple)' },
   { key: 'Aguardando Retorno',  label: 'Ag. Retorno',   color: 'var(--orange,#ea580c)' },
   { key: 'Em Investigação',     label: 'Investigação',  color: 'var(--blue)'   },
   { key: 'Em Resposta',         label: 'Resposta',      color: 'var(--teal)'   },
@@ -53,8 +52,7 @@ const PIPELINE = [
 ];
 
 const NEXT_STATUS = {
-  'Aberta':             'Em Avaliação',
-  'Em Avaliação':       'Aguardando Retorno',
+  'Aberta':             'Aguardando Retorno',
   'Aguardando Retorno': 'Em Investigação',
   'Em Investigação':    'Em Resposta',
   'Em Resposta':        'Encerrada',
@@ -62,23 +60,21 @@ const NEXT_STATUS = {
 
 /** Comunicações (solicitação de informação) podem pular direto para Resposta. */
 function nextStatusFor(record) {
-  if (record.status === 'Em Avaliação' && COMUNICACOES.includes(record.motivo)) {
+  if (record.status === 'Aberta' && COMUNICACOES.includes(record.motivo)) {
     return 'Em Resposta';
   }
   return NEXT_STATUS[record.status];
 }
 
 const STAGE_OWNER = {
-  'Aberta':             { label: 'Área de Origem',        color: '#3b82f6' },
-  'Em Avaliação':       { label: 'Garantia da Qualidade', color: '#9333ea' },
+  'Aberta':             { label: 'Garantia da Qualidade', color: '#9333ea' },
   'Aguardando Retorno': { label: 'GQ · Cliente',          color: '#ea580c' },
-  'Em Investigação':    { label: 'Eng · CQ · GQ',         color: '#3b82f6' },
+  'Em Investigação':    { label: 'Eng · CQ · Log · GQ',   color: '#3b82f6' },
   'Em Resposta':        { label: 'Garantia da Qualidade', color: '#14b8a6' },
   'Encerrada':          { label: 'Garantia da Qualidade', color: '#22c55e' },
 };
 
 const STAGE_PILL = {
-  'Em Avaliação':       'purple',
   'Aguardando Retorno': 'orange',
   'Em Investigação':    'blue',
   'Em Resposta':        'teal',
@@ -86,18 +82,19 @@ const STAGE_PILL = {
 
 // ── Perfis e etapas GQ ───────────────────────────────────────────────────────
 const GQ_PERFIS = new Set(['GQ Administrador', 'GQ Analista']);
-const GQ_STAGES = ['Aberta', 'Em Avaliação', 'Aguardando Retorno', 'Em Investigação', 'Em Resposta'];
+const GQ_STAGES = ['Aberta', 'Aguardando Retorno', 'Em Investigação', 'Em Resposta'];
 
 /** Importar Formulário é exclusivo da Garantia da Qualidade. */
 function canImportForm(user = getSession()) {
   return !!user && GQ_PERFIS.has(user.perfil) && can(user, 'reclamacoesAbertura', A.CREATE);
 }
 
-/** Migra status legado (fluxo antigo de 4 etapas) para o novo. */
+/** Migra status legado para o fluxo atual (5 etapas). */
 export function migrateLegacyReclamStatus() {
-  db.get('reclamacoes')
-    .filter(r => r.status === 'Concluída')
-    .forEach(r => db.update('reclamacoes', r.id, { status: 'Encerrada' }));
+  db.get('reclamacoes').forEach(r => {
+    if (r.status === 'Concluída') db.update('reclamacoes', r.id, { status: 'Encerrada' });
+    else if (r.status === 'Em Avaliação') db.update('reclamacoes', r.id, { status: 'Aberta' });
+  });
 }
 
 // ── Permissões ────────────────────────────────────────────────────────────────
@@ -456,25 +453,20 @@ function buildFields(record = null) {
     f('Aberta', { id: 'rastreabilidadeD365', label: '3.4  Rastreabilidade no D365?',    type: 'select', required: false, span: 1, options: ['Sim', 'Não'] }),
     f('Aberta', { id: 'numeroPedidoNF',    label: '     Nº Pedido / NF de Venda',       type: 'text',   required: false, span: 1 }),
     f('Aberta', { id: 'descricao',         label: '4.  Descrição da Ocorrência',        type: 'textarea', required: true, span: 2 }),
+    h('5.  AVALIAÇÃO DE CRITICIDADE E NOTIFICAÇÃO AO SNVS  (§7.8)', 'Aberta'),
+    f('Aberta', { id: 'criticidadeTipo',  label: '5.1  Tipo de Ocorrência / Criticidade', type: 'select', required: false, span: 2, options: CRIT_TIPOS.map(t => t.label) }),
+    f('Aberta', { id: 'prazoNotificacao', label: '     Data-limite p/ Notificação SNVS',  type: 'date',   required: false, span: 1, readonly: true }),
+    f('Aberta', { id: 'dataNotificacao',  label: '     Data da Notificação Realizada',    type: 'date',   required: false, span: 1 }),
+    f('Aberta', { id: 'protocoloNotivisa',label: '     Protocolo / Nº NOTIVISA',          type: 'text',   required: false, span: 2 }),
   ].filter(Boolean);
 
   if (!record) return base;
 
-  const fields = [h('ETAPA 1 — REGISTRO / TRIAGEM  (Área / GQ)', 'Aberta'), ...base];
+  const fields = [h('ETAPA 1 — REGISTRO / TRIAGEM / CRITICIDADE  (GQ)', 'Aberta'), ...base];
 
   if (cur >= 1) {
     fields.push(
-      h('ETAPA 2 — AVALIAÇÃO DE CRITICIDADE E NOTIFICAÇÃO AO SNVS  (GQ)', 'Em Avaliação'),
-      f('Em Avaliação', { id: 'criticidadeTipo',  label: '5.1  Tipo de Ocorrência / Criticidade', type: 'select', required: false, span: 2, options: CRIT_TIPOS.map(t => t.label) }),
-      f('Em Avaliação', { id: 'prazoNotificacao', label: '     Data-limite p/ Notificação SNVS',  type: 'date',   required: false, span: 1, readonly: true }),
-      f('Em Avaliação', { id: 'dataNotificacao',  label: '     Data da Notificação Realizada',    type: 'date',   required: false, span: 1 }),
-      f('Em Avaliação', { id: 'protocoloNotivisa',label: '     Protocolo / Nº NOTIVISA',          type: 'text',   required: false, span: 2 }),
-    );
-  }
-
-  if (cur >= 2) {
-    fields.push(
-      h('ETAPA 3 — MONITORAMENTO DE DOCUMENTOS / PRODUTO  (GQ · Cliente)', 'Aguardando Retorno'),
+      h('ETAPA 2 — MONITORAMENTO DE DOCUMENTOS / PRODUTO  (GQ · Cliente)', 'Aguardando Retorno'),
       f('Aguardando Retorno', { id: 'docsRecebidos',   label: '6.1  Documentos / Evidências Recebidos', type: 'checkboxgroup', required: false, span: 2, options: ['Questionário respondido', 'Relatório médico detalhado', 'Relatório do cliente', 'Produto recebido para análise', 'Nota fiscal de análise'] }),
       f('Aguardando Retorno', { id: 'dataChegadaProduto', label: '     Data de Chegada do Produto',      type: 'date', required: false, span: 1 }),
       f('Aguardando Retorno', { id: 'cobranca1',       label: '6.2  1ª Cobrança',                       type: 'date', required: false, span: 1 }),
@@ -484,9 +476,9 @@ function buildFields(record = null) {
     );
   }
 
-  if (cur >= 3) {
+  if (cur >= 2) {
     fields.push(
-      h('ETAPA 4 — INVESTIGAÇÃO  (Eng · CQ · GQ)', 'Em Investigação'),
+      h('ETAPA 3 — INVESTIGAÇÃO  (Eng · CQ · Log · GQ)', 'Em Investigação'),
       f('Em Investigação', { id: 'recorrente',        label: '7.1  Ocorrência Recorrente?',            type: 'select', required: false, span: 1, options: ['Não', 'Sim'] }),
       f('Em Investigação', { id: 'reclamacoesAnteriores', label: '     Referenciar reclamações anteriores', type: 'text', required: false, span: 1 }),
       f('Em Investigação', { id: 'setorInvestigacao', label: '7.2  Setor(es) Responsável(eis) pela Investigação  (marque todos os aplicáveis)', type: 'checkboxgroup', required: false, span: 2, options: SETORES_INVEST }),
@@ -502,9 +494,9 @@ function buildFields(record = null) {
     );
   }
 
-  if (cur >= 4) {
+  if (cur >= 3) {
     fields.push(
-      h('ETAPA 5 — CONCLUSÃO / CARTA RESPOSTA  (GQ)', 'Em Resposta'),
+      h('ETAPA 4 — CONCLUSÃO / CARTA RESPOSTA  (GQ)', 'Em Resposta'),
       f('Em Resposta', { id: 'classificacaoNotivisa', label: '9.1  Classificação NOTIVISA',          type: 'select', required: false, span: 1, options: CLASSIF_NOTIVISA }),
       f('Em Resposta', { id: 'acaoCampo',            label: '9.2  Necessária Ação de Campo?',        type: 'select', required: false, span: 1, options: ['Não', 'Sim'] }),
       f('Em Resposta', { id: 'numeroAcaoCampo',      label: '     Nº da Ação de Campo',              type: 'text',   required: false, span: 1 }),
@@ -518,9 +510,9 @@ function buildFields(record = null) {
     );
   }
 
-  if (cur >= 5) {
+  if (cur >= 4) {
     fields.push(
-      h('ETAPA 6 — ENCERRAMENTO  (GQ)', 'Encerrada'),
+      h('ETAPA 5 — ENCERRAMENTO  (GQ)', 'Encerrada'),
       f('Encerrada', { id: 'preenchidoPor',   label: '10.1  Preenchido por',   type: 'select', required: false, span: 1, options: respOpt }),
       f('Encerrada', { id: 'aprovadoPor',     label: '10.2  Aprovado por',     type: 'select', required: false, span: 1, options: respOpt }),
       f('Encerrada', { id: 'dataFechamento',  label: '     Data de Fechamento', type: 'date',   required: false, span: 1 }),
