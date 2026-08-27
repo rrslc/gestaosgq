@@ -1,167 +1,173 @@
 /**
- * @fileoverview Reclamações de Clientes — Gerencial: painel panorâmico P-SQ-014.
+ * @fileoverview Reclamações — Gerencial (POP-GQ-010): painel enxuto com
+ * KPIs clicáveis (drill-down no Registro), pipeline, tendência e o que
+ * requer atenção. Espelha o padrão da Gerencial de RNC.
  */
 
 import { db } from '../db.js';
-import { formatDate, deadlineCell, statusPill, emptyState, today } from '../utils.js';
-import { showConfirm } from '../modal.js';
-import { toast } from '../toast.js';
+import { statusPill, emptyState } from '../utils.js';
 
-const CLOSED = ['Concluída', 'Cancelada'];
+const CLOSED = ['Encerrada', 'Cancelada', 'Não Procedente'];
 
-const PIPELINE_STEPS = [
-  { key: 'Aberta',             label: 'Aberta',      color: '#ef4444' },
-  { key: 'Em Investigação',    label: 'Investigação', color: '#3b82f6' },
-  { key: 'Aguardando Retorno', label: 'Ag. Retorno', color: '#f59e0b' },
-  { key: 'Concluída',          label: 'Concluída',   color: '#22c55e' },
+const PIPELINE = [
+  { key: 'Aberta',             color: 'var(--red)',    label: 'Registro' },
+  { key: 'Em Avaliação',       color: 'var(--purple)', label: 'Criticidade' },
+  { key: 'Aguardando Retorno', color: 'var(--orange,#ea580c)', label: 'Ag. Retorno' },
+  { key: 'Em Investigação',    color: 'var(--blue)',   label: 'Investigação' },
+  { key: 'Em Resposta',        color: 'var(--teal)',   label: 'Resposta' },
+  { key: 'Encerrada',          color: 'var(--green)',  label: 'Encerramento' },
 ];
 
-const NEXT_STATUS = {
-  'Aberta':             'Em Investigação',
-  'Em Investigação':    'Aguardando Retorno',
-  'Aguardando Retorno': 'Concluída',
-};
+const CRIT_PILL = { 'Tipo 1': 'pill-red', 'Tipo 2': 'pill-orange', 'Tipo 3': 'pill-amber', 'Tipo 4': 'pill-amber', 'Dispensada': 'pill-gray' };
 
-let _router = null;
-async function getRouter() {
-  if (!_router) { const m = await import('../app.js'); _router = m.router; }
-  return _router;
+function isOverdue(r, hoje) {
+  if (CLOSED.includes(r.status)) return false;
+  const fech = r.prazoFechamento && new Date(r.prazoFechamento + 'T00:00:00') < hoje;
+  const snvs = r.prazoNotificacao && !r.dataNotificacao && new Date(r.prazoNotificacao + 'T00:00:00') < hoje;
+  return !!(fech || snvs);
 }
 
-function miniPipeline(status) {
-  const idx = PIPELINE_STEPS.findIndex(p => p.key === status);
-  if (idx < 0) return `<div style="font-size:0.68rem;color:#94a3b8;margin-top:3px">${status}</div>`;
-  return `<div style="display:flex;gap:1px;height:5px;margin-top:4px;border-radius:3px;overflow:hidden">
-    ${PIPELINE_STEPS.map((p, i) => `<div style="flex:1;background:${i < idx ? '#22c55e' : i === idx ? p.color : 'var(--border)'}" title="${p.label}"></div>`).join('')}
+function kpiCard(value, label, color, highlight = false, sub = '', nav = '') {
+  const empty = value === 0;
+  const border = highlight && value > 0
+    ? `border:1px solid ${color}50;box-shadow:0 0 0 2px ${color}14`
+    : 'border:1px solid var(--border)';
+  const click = nav ? `data-nav="${nav}" role="button" tabindex="0" title="Abrir no Registro" ` : '';
+  return `<div ${click}style="padding:16px 10px 13px;background:var(--surface);${border};border-radius:10px;text-align:center;${nav ? 'cursor:pointer' : ''}">
+    <div style="font-size:1.75rem;font-weight:800;color:${empty ? 'var(--muted)' : color};line-height:1;font-variant-numeric:tabular-nums">${value}</div>
+    <div style="font-size:0.7rem;color:var(--muted);margin-top:5px;line-height:1.3">${label}${nav ? ' <span style="opacity:.5">›</span>' : ''}</div>
+    ${sub ? `<div style="font-size:0.65rem;margin-top:3px;color:${color};font-weight:600;opacity:${empty ? 0.35 : 0.8}">${sub}</div>` : ''}
   </div>`;
 }
 
-function kpiCard(value, label, color, highlight) {
-  return `<div style="padding:12px;background:var(--surface);border:1px solid ${highlight ? color : 'var(--border)'};border-left:3px solid ${color};border-radius:8px;text-align:center">
-    <div style="font-size:1.6rem;font-weight:700;color:${color};line-height:1.1">${value}</div>
-    <div style="font-size:0.71rem;color:var(--muted);margin-top:4px">${label}</div>
+function renderPipeline(all) {
+  const cnt = {};
+  PIPELINE.forEach(p => { cnt[p.key] = 0; });
+  all.forEach(r => { if (cnt[r.status] !== undefined) cnt[r.status]++; });
+  const totalAll = PIPELINE.reduce((s, p) => s + cnt[p.key], 0);
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:18px">
+    <div style="padding:12px 16px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Pipeline — reclamações por etapa</span>
+      <span style="font-size:0.72rem;color:var(--muted)">${totalAll} total</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr)">
+      ${PIPELINE.map((p, i) => {
+        const pct = totalAll ? Math.round(cnt[p.key] / totalAll * 100) : 0;
+        const active = cnt[p.key] > 0;
+        return `<div style="padding:14px 10px 13px;text-align:center;${i > 0 ? 'border-left:1px solid var(--border)' : ''};position:relative">
+          ${i < PIPELINE.length - 1 ? `<div style="position:absolute;right:0;top:50%;transform:translateY(-50%);font-size:0.6rem;color:var(--border);z-index:1">▶</div>` : ''}
+          <div style="font-size:1.75rem;font-weight:800;color:${active ? p.color : 'var(--border)'};line-height:1;margin-bottom:8px;font-variant-numeric:tabular-nums">${cnt[p.key]}</div>
+          <div style="height:3px;border-radius:2px;background:var(--border);margin:0 4px 8px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${p.color};border-radius:2px"></div></div>
+          <div style="font-size:0.67rem;color:${active ? 'var(--fg)' : 'var(--muted)'};line-height:1.3;font-weight:${active ? '600' : '400'}">${p.label}</div>
+        </div>`;
+      }).join('')}
+    </div>
   </div>`;
 }
 
-function renderPipelineBar(all) {
-  const counts = {};
-  PIPELINE_STEPS.forEach(p => { counts[p.key] = 0; });
-  all.forEach(r => { if (counts[r.status] !== undefined) counts[r.status]++; });
-  return `
-    <div style="display:flex;gap:0;margin-bottom:20px;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
-      ${PIPELINE_STEPS.map((p, i) => `
-        <div style="flex:1;padding:12px 8px;text-align:center;background:var(--surface);${i > 0 ? 'border-left:1px solid var(--border)' : ''}">
-          <div style="font-size:1.3rem;font-weight:700;color:${p.color}">${counts[p.key]}</div>
-          <div style="font-size:0.7rem;color:var(--muted);margin-top:2px;line-height:1.3">${p.label}</div>
+function renderTendencia(all) {
+  const now = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''), abertas: 0, encerradas: 0 });
+  }
+  const idx = k => months.findIndex(m => m.key === k);
+  all.forEach(r => {
+    if (r.dataAbertura)   { const i = idx(r.dataAbertura.slice(0, 7));   if (i >= 0) months[i].abertas++; }
+    if (r.dataFechamento) { const i = idx(r.dataFechamento.slice(0, 7)); if (i >= 0) months[i].encerradas++; }
+  });
+  const max = Math.max(1, ...months.map(m => Math.max(m.abertas, m.encerradas)));
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:6px">
+      <span style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)">Tendência — abertas × encerradas (6 meses)</span>
+      <span style="display:flex;gap:12px;font-size:0.68rem;color:var(--muted)">
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--blue);margin-right:4px"></span>Abertas</span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--green);margin-right:4px"></span>Encerradas</span>
+      </span>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:14px;height:90px">
+      ${months.map(m => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end">
+        <div style="display:flex;align-items:flex-end;gap:3px;height:100%;width:100%;justify-content:center">
+          <div title="Abertas ${m.label}: ${m.abertas}" style="width:40%;max-width:22px;height:${Math.round(m.abertas / max * 100)}%;min-height:${m.abertas ? '3px' : '0'};background:var(--blue);border-radius:3px 3px 0 0"></div>
+          <div title="Encerradas ${m.label}: ${m.encerradas}" style="width:40%;max-width:22px;height:${Math.round(m.encerradas / max * 100)}%;min-height:${m.encerradas ? '3px' : '0'};background:var(--green);border-radius:3px 3px 0 0"></div>
         </div>
-      `).join('')}
+        <span style="font-size:0.64rem;color:var(--muted);text-transform:capitalize">${m.label}</span>
+      </div>`).join('')}
     </div>
-  `;
+  </div>`;
 }
 
-function renderAcompanhamento() {
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  const open = db.get('reclamacoes').filter(r => !CLOSED.includes(r.status));
-  if (!open.length) return '';
+function renderRequerAtencao(all, hoje) {
+  const diasAberta = r => r.dataAbertura ? Math.round((hoje - new Date(r.dataAbertura + 'T00:00:00')) / 86400000) : null;
+  const items = all
+    .filter(r => !CLOSED.includes(r.status))
+    .map(r => ({
+      r,
+      emAtraso: r.prazoFechamento && new Date(r.prazoFechamento + 'T00:00:00') < hoje,
+      snvsVenc: r.prazoNotificacao && !r.dataNotificacao && new Date(r.prazoNotificacao + 'T00:00:00') < hoje,
+      capaPend: r.resultado === 'Procedente' && !r.capaAberta,
+    }))
+    .filter(x => x.emAtraso || x.snvsVenc || x.capaPend)
+    .sort((a, b) => (b.snvsVenc - a.snvsVenc) || (b.emAtraso - a.emAtraso));
 
-  return `
-    <div class="card" style="margin-bottom:16px">
-      <div style="font-weight:600;font-size:0.9rem;margin-bottom:14px">Acompanhamento por Etapa</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:10px">
-        ${open.map(r => {
-          const idx = PIPELINE_STEPS.findIndex(p => p.key === r.status);
-          const step = idx >= 0 ? PIPELINE_STEPS[idx] : { label: r.status, color: '#94a3b8' };
-          const emAtraso = r.prazoFechamento && new Date(r.prazoFechamento + 'T00:00:00') < hoje;
-          return `<div style="border:1px solid var(--border);border-left:3px solid ${step.color};border-radius:8px;padding:11px 12px;background:var(--surface)">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-              <strong style="font-size:0.84rem">${r.numero}</strong>
-              ${emAtraso ? `<span style="font-size:0.68rem;color:#ef4444;font-weight:700;padding:1px 6px;border-radius:3px;background:#ef444418">⚠ atraso</span>` : ''}
-            </div>
-            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:2px;font-weight:500">${r.cliente || '—'}</div>
-            <div style="font-size:0.72rem;color:var(--muted);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.produto || ''}">${r.produto || '—'}</div>
-            <div style="display:flex;gap:1px;height:6px;margin-bottom:5px;border-radius:3px;overflow:hidden">
-              ${PIPELINE_STEPS.map((p, i) => `<div style="flex:1;background:${i < idx ? '#22c55e' : i === idx ? p.color : 'var(--border)'}" title="${p.label}"></div>`).join('')}
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-size:0.72rem;font-weight:600;color:${step.color}">${step.label}</span>
-              ${r.responsavel ? `<span style="font-size:0.7rem;color:var(--muted)">${r.responsavel}</span>` : ''}
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
-  `;
+  if (!items.length) {
+    return `<div class="card" style="text-align:center;padding:26px 16px">
+      <div style="font-size:1.6rem;margin-bottom:6px">✅</div>
+      <div style="font-size:0.9rem;font-weight:600">Nada requer atenção imediata</div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:3px">Nenhuma reclamação em atraso, notificação SNVS vencida ou CAPA pendente.</div>
+    </div>`;
+  }
+  return `<div class="card">
+    <div style="font-weight:600;margin-bottom:12px;font-size:0.9rem">⚠ Requer sua atenção <span style="font-size:0.75rem;color:var(--muted);font-weight:400">(${items.length})</span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Número</th><th>Cliente</th><th>Criticidade</th><th>Status</th><th>Situação</th></tr></thead>
+      <tbody>
+        ${items.map(({ r, emAtraso, snvsVenc, capaPend }) => `<tr>
+          <td><strong>${r.numero}</strong></td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(r.clienteInstituicao || '').replace(/"/g, '&quot;')}">${r.clienteInstituicao || '—'}</td>
+          <td>${r.criticidadeTipo ? `<span class="pill ${CRIT_PILL[r.criticidadeTipo] ?? 'pill-gray'}">${r.criticidadeTipo}</span>` : '—'}</td>
+          <td>${statusPill(r.status)}</td>
+          <td style="white-space:nowrap;display:flex;gap:5px;flex-wrap:wrap">
+            ${snvsVenc ? `<span class="pill pill-red">⚠ notificação SNVS vencida</span>` : ''}
+            ${emAtraso ? `<span class="pill pill-red">⚠ atraso · ${diasAberta(r)}d</span>` : ''}
+            ${capaPend ? `<span class="pill pill-amber">procedente → CAPA</span>` : ''}
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+  </div>`;
 }
 
-function renderContent(container) {
+function renderPainel(container) {
   const all  = db.get('reclamacoes');
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
 
-  const total      = all.length;
-  const abertas    = all.filter(r => !CLOSED.includes(r.status)).length;
-  const concNoPr   = all.filter(r =>
-    r.status === 'Concluída' && r.prazoFechamento && r.dataFechamento &&
-    r.dataFechamento <= r.prazoFechamento
-  ).length;
-  const concAtr    = all.filter(r =>
-    r.status === 'Concluída' && r.prazoFechamento && r.dataFechamento &&
-    r.dataFechamento > r.prazoFechamento
-  ).length;
-  const canceladas = all.filter(r => r.status === 'Cancelada').length;
-
-  function diasAberto(r) {
-    if (!r.dataAbertura) return '—';
-    const ini = new Date(r.dataAbertura + 'T00:00:00');
-    const fim = r.dataFechamento ? new Date(r.dataFechamento + 'T00:00:00') : hoje;
-    return `${Math.round((fim - ini) / 86400000)}d`;
-  }
-
-  const tableHtml = all.length ? `
-    <div class="table-wrap">
-      <table>
-        <thead><tr>
-          <th>Número</th><th>Cliente</th><th>Status</th>
-          <th>Prazo 90d</th><th>T. Aberto</th><th>Ações</th>
-        </tr></thead>
-        <tbody>
-          ${all.map(r => {
-            const nextSt = NEXT_STATUS[r.status];
-            return `<tr>
-              <td><strong>${r.numero}</strong></td>
-              <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.cliente || ''}">${r.cliente || '—'}</td>
-              <td>
-                ${statusPill(r.status)}
-                ${!CLOSED.includes(r.status) ? miniPipeline(r.status) : ''}
-              </td>
-              <td>${deadlineCell(r.prazoFechamento)}</td>
-              <td style="text-align:center">${diasAberto(r)}</td>
-              <td>
-                <div class="td-actions">
-                  ${nextSt ? `<button class="btn btn-secondary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nextSt}" title="Avançar para ${nextSt}">▶</button>` : ''}
-                  <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${r.id}" title="Editar (abre módulo Abertura)">✏</button>
-                </div>
-              </td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-  ` : emptyState('Nenhuma reclamação registrada.');
+  const kpis = {
+    total:      all.length,
+    abertas:    all.filter(r => r.status === 'Aberta').length,
+    andamento:  all.filter(r => r.status !== 'Aberta' && !CLOSED.includes(r.status)).length,
+    encerradas: all.filter(r => r.status === 'Encerrada').length,
+    emAtraso:   all.filter(r => isOverdue(r, hoje)).length,
+    snvs:       all.filter(r => r.criticidadeTipo && r.criticidadeTipo !== 'Dispensada' && !r.dataNotificacao && !CLOSED.includes(r.status)).length,
+  };
+  const fechadas = all.filter(r => r.dataAbertura && r.dataFechamento);
+  const tmr = fechadas.length
+    ? Math.round(fechadas.reduce((s, r) => s + (new Date(r.dataFechamento + 'T00:00:00') - new Date(r.dataAbertura + 'T00:00:00')) / 86400000, 0) / fechadas.length)
+    : null;
 
   container.querySelector('#rec-ger-content').innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px">
-      ${kpiCard(total,      'Total',            'var(--blue)')}
-      ${kpiCard(abertas,    'Em Aberto',        'var(--red)',    abertas > 0)}
-      ${kpiCard(concNoPr,   'Conc. no Prazo',   'var(--green)')}
-      ${kpiCard(concAtr,    'Conc. em Atraso',  'var(--amber)', concAtr > 0)}
-      ${kpiCard(canceladas, 'Canceladas',       '#94a3b8')}
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px">
+      ${kpiCard(kpis.total,      'Total',          'var(--blue)',  false, '', 'all')}
+      ${kpiCard(kpis.abertas,    'Aguardando GQ',  'var(--red)',   false, '', 'status:Aberta')}
+      ${kpiCard(kpis.andamento,  'Em Andamento',   'var(--amber)', false, '', 'andamento')}
+      ${kpiCard(kpis.emAtraso,   'Em Atraso',      'var(--red)',   true,  kpis.emAtraso > 0 ? '⚠ requer atenção' : '', 'atraso')}
+      ${kpiCard(kpis.snvs,       'Notif. SNVS',    'var(--orange,#ea580c)', true, kpis.snvs > 0 ? 'pendente' : '', 'snvs')}
+      ${kpiCard(kpis.encerradas, 'Encerradas',     'var(--green)', false, tmr !== null ? `TMR: ${tmr}d` : '', 'status:Encerrada')}
     </div>
-    ${renderPipelineBar(all)}
-    ${renderAcompanhamento()}
-    <div class="card">
-      <div style="font-weight:600;margin-bottom:12px;font-size:0.9rem">Todas as Reclamações</div>
-      ${tableHtml}
-    </div>
+    ${renderPipeline(all)}
+    ${renderTendencia(all)}
+    ${renderRequerAtencao(all, hoje)}
   `;
 }
 
@@ -174,32 +180,14 @@ export default {
       </div>
       <div id="rec-ger-content"></div>
     `;
-    renderContent(container);
+    renderPainel(container);
   },
 
   init(container) {
-    container.addEventListener('click', async e => {
-      const btn = e.target.closest('[data-action]');
-      if (!btn) return;
-      const { action, id, next } = btn.dataset;
-      const numId = id !== undefined ? Number(id) : null;
-
-      if (action === 'nova' || action === 'edit') {
-        const r = await getRouter();
-        r.navigate('reclamacoesAbertura');
-        return;
-      }
-
-      if (action === 'advance') {
-        showConfirm(`Avançar para "${next}"?`).then(ok => {
-          if (!ok) return;
-          const updates = { status: next };
-          if (next === 'Concluída') updates.dataFechamento = today();
-          db.update('reclamacoes', numId, updates);
-          toast(`Reclamação avançada para "${next}".`);
-          renderContent(container);
-        });
-      }
+    container.addEventListener('click', e => {
+      const navEl = e.target.closest('[data-nav]');
+      if (navEl) { window._recPreset = navEl.dataset.nav; window.location.hash = '#reclamacoesAbertura'; return; }
+      if (e.target.closest('[data-action="nova"]')) { window.location.hash = '#reclamacoesAbertura'; return; }
     });
   },
 };
