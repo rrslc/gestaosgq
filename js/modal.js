@@ -35,9 +35,12 @@ function collectFormData(fields) {
   const errors = [];
   for (const f of fields) {
     if (f.type === 'heading') continue;
-    if (f.type === 'acoes-table' || f.type === 'plano-acao-table') {
+    if (f.type === 'acoes-table' || f.type === 'plano-acao-table' || f.type === 'produtos-table') {
       const el = document.getElementById('field-' + f.id);
-      try { data[f.id] = JSON.parse(el?.value || '[]'); } catch { data[f.id] = []; }
+      let arr = [];
+      try { arr = JSON.parse(el?.value || '[]'); } catch { arr = []; }
+      // descarta linhas totalmente vazias
+      data[f.id] = arr.filter(row => Object.values(row).some(v => String(v || '').trim() !== ''));
       continue;
     }
     if (f.type === 'checkboxgroup') {
@@ -162,6 +165,46 @@ function buildField(field, data) {
               </tbody>
             </table>
             ${!ro ? `<button type="button" data-add-plano-row style="margin-top:6px;font-size:0.72rem;color:var(--blue,#3b82f6);background:none;border:1px solid currentColor;border-radius:4px;padding:2px 9px;cursor:pointer">＋ linha</button>` : ''}
+          </div>
+        </div>`;
+    }
+    case 'produtos-table': {
+      let rows;
+      try { rows = val ? (Array.isArray(val) ? val : JSON.parse(val)) : []; } catch { rows = []; }
+      while (rows.length < 1) rows.push({});
+      const ro = !!field.readonly;
+      const b  = 'border:1px solid var(--border);padding:2px';
+      const si = `width:100%;border:none;background:transparent;padding:3px 5px;font-size:0.82rem${ro ? ';color:var(--muted)' : ''}`;
+      const inp = (r, i, col, type, ph) => `<input type="${type}" data-row="${i}" data-col="${col}" value="${String(r[col] || '').replace(/"/g, '&quot;')}" style="${si}" placeholder="${ph || ''}" ${ro ? 'readonly' : ''}>`;
+      const mkRow = (r, i) => `<tr>
+        <td style="${b};text-align:center;font-size:0.78rem;color:var(--muted)">${i + 1}</td>
+        <td style="${b}">${inp(r, i, 'codigo', 'text', 'Código')}</td>
+        <td style="${b}">${inp(r, i, 'produto', 'text', 'Produto')}</td>
+        <td style="${b}">${inp(r, i, 'lote', 'text', 'Lote')}</td>
+        <td style="${b}">${inp(r, i, 'quantidade', 'text', 'Qtd')}</td>
+        <td style="${b}">${inp(r, i, 'fabricacao', 'date', '')}</td>
+        <td style="${b}">${inp(r, i, 'validade', 'date', '')}</td>
+      </tr>`;
+      return `
+        <div class="form-group span-2">
+          <label>${field.label}${field.required ? ' <span style="color:var(--red)">*</span>' : ''}</label>
+          <input type="hidden" id="field-${field.id}">
+          <div data-produtos-table="field-${field.id}" style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;min-width:640px">
+              <thead><tr style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.04em;background:var(--surface,var(--bg))">
+                <th style="width:24px;${b};text-align:center;color:var(--muted);font-weight:600">Nº</th>
+                <th style="${b};padding:5px 8px;font-weight:600">Código</th>
+                <th style="${b};padding:5px 8px;font-weight:600">Produto</th>
+                <th style="width:110px;${b};padding:5px 8px;font-weight:600">Lote</th>
+                <th style="width:64px;${b};padding:5px 8px;font-weight:600">Qtd</th>
+                <th style="width:120px;${b};padding:5px 8px;font-weight:600">Fabricação</th>
+                <th style="width:120px;${b};padding:5px 8px;font-weight:600">Validade</th>
+              </tr></thead>
+              <tbody id="field-${field.id}-tbody">
+                ${rows.map((r, i) => mkRow(r, i)).join('')}
+              </tbody>
+            </table>
+            ${!ro ? `<button type="button" data-add-produtos-row style="margin-top:6px;font-size:0.72rem;color:var(--blue,#3b82f6);background:none;border:1px solid currentColor;border-radius:4px;padding:2px 9px;cursor:pointer">＋ produto</button>` : ''}
           </div>
         </div>`;
     }
@@ -317,6 +360,40 @@ export function openModal({ title, fields, data = {}, onSave, setup }) {
         <td style="${bdr}"><input type="text" data-row="${i}" data-col="evidencia" style="${s}" placeholder="Evidência..."></td>
         <td style="${bdr}"><select data-row="${i}" data-col="verificadoPor" style="${ss}">${opts}</select></td>
         <td style="${bdr}"><input type="date" data-row="${i}" data-col="dataVerificacao" style="${s}"></td>`;
+      tbody.appendChild(tr);
+      sync();
+    });
+  });
+
+  o.querySelectorAll('[data-produtos-table]').forEach(wrap => {
+    const hidId  = wrap.dataset.produtosTable;
+    const hidden = document.getElementById(hidId);
+    const sync = () => {
+      const map = {};
+      wrap.querySelectorAll('[data-row][data-col]').forEach(el => {
+        const i = el.dataset.row;
+        if (!map[i]) map[i] = {};
+        map[i][el.dataset.col] = el.value;
+      });
+      hidden.value = JSON.stringify(Object.values(map));
+    };
+    sync();
+    wrap.addEventListener('input',  sync);
+    wrap.addEventListener('change', sync);
+    wrap.querySelector('[data-add-produtos-row]')?.addEventListener('click', () => {
+      const tbody = wrap.querySelector('tbody');
+      const i     = tbody.rows.length;
+      const bdr   = 'border:1px solid var(--border);padding:2px';
+      const s     = 'width:100%;border:none;background:transparent;padding:3px 5px;font-size:0.82rem';
+      const tr    = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="${bdr};text-align:center;font-size:0.78rem;color:var(--muted)">${i + 1}</td>
+        <td style="${bdr}"><input type="text" data-row="${i}" data-col="codigo" style="${s}" placeholder="Código"></td>
+        <td style="${bdr}"><input type="text" data-row="${i}" data-col="produto" style="${s}" placeholder="Produto"></td>
+        <td style="${bdr}"><input type="text" data-row="${i}" data-col="lote" style="${s}" placeholder="Lote"></td>
+        <td style="${bdr}"><input type="text" data-row="${i}" data-col="quantidade" style="${s}" placeholder="Qtd"></td>
+        <td style="${bdr}"><input type="date" data-row="${i}" data-col="fabricacao" style="${s}"></td>
+        <td style="${bdr}"><input type="date" data-row="${i}" data-col="validade" style="${s}"></td>`;
       tbody.appendChild(tr);
       sync();
     });

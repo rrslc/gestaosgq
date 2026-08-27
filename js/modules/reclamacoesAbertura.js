@@ -143,6 +143,22 @@ function generateNumero() {
   return `REC.${String(seq).padStart(3, '0')}/${yy}`;
 }
 
+/** Resumo do 1º produto (para exibir na lista/quadro) a partir da tabela de produtos. */
+function resumoProduto(data) {
+  const p = Array.isArray(data.produtos) && data.produtos[0];
+  return { produto: p ? (p.produto || '') : (data.produto || ''), lote: p ? (p.lote || '') : (data.lote || '') };
+}
+
+/** Converte campos de produto legado (registro antigo, produto único) em linha da tabela. */
+function legacyToProdutos(record) {
+  if (Array.isArray(record.produtos)) return record.produtos;
+  if (record.produto || record.produtoCodigo || record.lote) {
+    return [{ codigo: record.produtoCodigo || '', produto: record.produto || '', lote: record.lote || '',
+      quantidade: record.quantidade || '', fabricacao: record.dataFabricacao || '', validade: record.dataValidade || '' }];
+  }
+  return [];
+}
+
 // Prazo geral de fechamento (90 dias) vencido, ou prazo de notificação SNVS vencido sem notificar.
 function isOverdue(r, hoje) {
   if (CLOSED.includes(r.status)) return false;
@@ -436,12 +452,7 @@ function buildFields(record = null) {
     f('Aberta', { id: 'cidade',            label: '     Cidade',                        type: 'text',   required: false, span: 1 }),
     f('Aberta', { id: 'uf',                label: '     UF',                            type: 'text',   required: false, span: 1 }),
     // Produto
-    f('Aberta', { id: 'produtoCodigo',     label: '3.1  Código do Produto',             type: 'text',   required: false, span: 1 }),
-    f('Aberta', { id: 'produto',           label: '3.2  Produto',                       type: 'text',   required: false, span: 1 }),
-    f('Aberta', { id: 'lote',              label: '3.3  Lote',                          type: 'text',   required: false, span: 1 }),
-    f('Aberta', { id: 'quantidade',        label: '     Quantidade',                    type: 'text',   required: false, span: 1 }),
-    f('Aberta', { id: 'dataFabricacao',    label: '     Fabricação',                    type: 'date',   required: false, span: 1 }),
-    f('Aberta', { id: 'dataValidade',      label: '     Validade',                      type: 'date',   required: false, span: 1 }),
+    f('Aberta', { id: 'produtos',          label: '3.  Identificação do(s) Produto(s)', type: 'produtos-table', required: false, span: 2 }),
     f('Aberta', { id: 'rastreabilidadeD365', label: '3.4  Rastreabilidade no D365?',    type: 'select', required: false, span: 1, options: ['Sim', 'Não'] }),
     f('Aberta', { id: 'numeroPedidoNF',    label: '     Nº Pedido / NF de Venda',       type: 'text',   required: false, span: 1 }),
     f('Aberta', { id: 'descricao',         label: '4.  Descrição da Ocorrência',        type: 'textarea', required: true, span: 2 }),
@@ -740,7 +751,8 @@ export default {
           data: { numero: generateNumero(), dataAbertura: dataHoje, dataRecebimento: dataHoje, status: 'Aberta' },
           onSave: data => {
             const prazoFechamento = addDays(data.dataAbertura, 90);
-            db.add('reclamacoes', { ...data, status: 'Aberta', prazoFechamento });
+            const { produto, lote } = resumoProduto(data);
+            db.add('reclamacoes', { ...data, produto, lote, status: 'Aberta', prazoFechamento });
             toast('Reclamação registrada!');
             refresh(container);
           },
@@ -754,7 +766,7 @@ export default {
         openModal({
           title: `${auth ? 'Editar' : '👁 Visualizar'} Reclamação ${record.numero} — ${record.status}`,
           fields: auth ? buildFields(record) : buildFields(record).map(f => f.type !== 'heading' ? { ...f, readonly: true } : f),
-          data: record,
+          data: { ...record, produtos: legacyToProdutos(record) },
           setup(form) {
             // Data-limite de notificação recalcula ao escolher a criticidade.
             const critEl = form.querySelector('#field-criticidadeTipo');
@@ -774,7 +786,8 @@ export default {
               const hit = CRIT_TIPOS.find(t => t.label === data.criticidadeTipo || t.key === data.criticidadeTipo);
               if (hit) { data.criticidadeTipo = hit.key; if (critPrazo(hit.key) != null && !data.prazoNotificacao) data.prazoNotificacao = addDays(data.dataAbertura, critPrazo(hit.key)); }
             }
-            db.update('reclamacoes', numId, data);
+            const { produto, lote } = resumoProduto(data);
+            db.update('reclamacoes', numId, { ...data, produto, lote });
             toast('Reclamação atualizada!');
             refresh(container);
           },
