@@ -489,7 +489,7 @@ function buildFields(record = null) {
       h('ETAPA 4 — INVESTIGAÇÃO  (Eng · CQ · GQ)', 'Em Investigação'),
       f('Em Investigação', { id: 'recorrente',        label: '7.1  Ocorrência Recorrente?',            type: 'select', required: false, span: 1, options: ['Não', 'Sim'] }),
       f('Em Investigação', { id: 'reclamacoesAnteriores', label: '     Referenciar reclamações anteriores', type: 'text', required: false, span: 1 }),
-      f('Em Investigação', { id: 'setorInvestigacao', label: '7.2  Setor Responsável pela Investigação', type: 'select', required: false, span: 1, options: SETORES_INVEST }),
+      f('Em Investigação', { id: 'setorInvestigacao', label: '7.2  Setor(es) Responsável(eis) pela Investigação  (marque todos os aplicáveis)', type: 'checkboxgroup', required: false, span: 2, options: SETORES_INVEST }),
       f('Em Investigação', { id: 'dataEntregaCompilado', label: '     Data de Entrega do Compilado',    type: 'date',   required: false, span: 1 }),
       f('Em Investigação', { id: 'resumoInvestigacao',label: '     Resumo da Investigação',             type: 'textarea', required: false, span: 2 }),
       f('Em Investigação', { id: 'resultado',         label: '7.3  Resultado da Investigação',         type: 'select', required: false, span: 1, options: RESULTADOS }),
