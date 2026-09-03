@@ -115,21 +115,10 @@ const PERM = {
   orcamentosAnuais:  { [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE },
 
   // ── Dashboards (gerenciais) ─────────────────────────────────────────────────
-  capaGerencial: {
-    [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.ENG]: L.VIEW, [P.PROD]: L.VIEW, [P.INDU]: L.VIEW,
-    [P.MANU]: L.VIEW, [P.PLAN]: L.VIEW,
-  },
-  rncGerencial: {
-    [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.ENG]: L.VIEW, [P.PROD]: L.VIEW, [P.INDU]: L.VIEW,
-    [P.MANU]: L.VIEW, [P.PLAN]: L.VIEW,
-  },
-  gcmGerencial: {
-    [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
-    [P.CQ]: L.VIEW, [P.ENG]: L.VIEW, [P.PROD]: L.VIEW, [P.INDU]: L.VIEW,
-    [P.MANU]: L.VIEW, [P.PLAN]: L.VIEW,
-  },
+  // Painéis gerenciais: exclusivos da Garantia da Qualidade.
+  capaGerencial: { [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE },
+  rncGerencial:  { [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE },
+  gcmGerencial:  { [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE },
 
   // ── Processos SGQ — todas as áreas podem abrir ──────────────────────────────
   rncAbertura: {
