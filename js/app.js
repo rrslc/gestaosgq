@@ -116,15 +116,26 @@ function isGQAdmin(session) {
   return !session || session.perfil === 'GQ Administrador';
 }
 
+// Rotas liberadas por perfil não-GQ específico (além das rotas de área).
+// TI: apoio técnico/validação (inclui rotas de Sistema, exceto Permissões).
+// Compras: qualificação de fornecedores.
+const PROFILE_ROUTES = {
+  'TI':      new Set(['dashboard', 'validacoes', 'configuracoes', 'trilha', 'equipe', 'documentos', 'gcmAbertura', 'elaboracao']),
+  'Compras': new Set(['dashboard', 'capaAbertura', 'rncAbertura', 'gcmAbertura', 'elaboracao', 'fornecedores', 'documentos']),
+};
+
+/** Regra única de acesso a rota (usada pelo menu e pelo guard). */
+function canAccessRoute(session, route) {
+  if (isGQAdmin(session)) return true;
+  if (PROFILE_ROUTES[session?.perfil]?.has(route)) return true;
+  if (ADMIN_ONLY_ROUTES.has(route)) return false;
+  if (isGQUser(session)) return true;
+  return AREA_ALLOWED_ROUTES.has(route);
+}
+
 function updateSidebarAccess(session) {
-  const gq    = isGQUser(session);
-  const admin = isGQAdmin(session);
   document.querySelectorAll('#sidebar .nav-item[data-route]').forEach(item => {
-    const route = item.dataset.route;
-    const visible = admin
-      || (gq && !ADMIN_ONLY_ROUTES.has(route))
-      || AREA_ALLOWED_ROUTES.has(route);
-    item.style.display = visible ? '' : 'none';
+    item.style.display = canAccessRoute(session, item.dataset.route) ? '' : 'none';
   });
   document.querySelectorAll('#sidebar .nav-section').forEach(section => {
     let next = section.nextElementSibling;
@@ -436,20 +447,16 @@ window.addEventListener('sgq:import-warning', () => {
 // Decisão síncrona (evita flash do app antes do portal): sem sessão → porta de login.
 if (LOGIN_ENABLED && !getSession()) document.body.classList.add('auth-gate');
 
-// Guard de rotas: usuários de área só podem acessar rotas permitidas
+// Guard de rotas: cada perfil só acessa as rotas permitidas (regra única).
 router.setGuard(routeName => {
   const session = getSession();
-  if (ADMIN_ONLY_ROUTES.has(routeName) && !isGQAdmin(session)) {
-    toast('Acesso restrito ao GQ Administrador.', 'warning');
-    router.navigate(ROUTES.DASHBOARD);
-    return false;
-  }
-  if (!isGQUser(session) && !AREA_ALLOWED_ROUTES.has(routeName)) {
-    toast('Acesso restrito à equipe de Garantia da Qualidade.', 'warning');
-    router.navigate(ROUTES.DASHBOARD);
-    return false;
-  }
-  return true;
+  if (canAccessRoute(session, routeName)) return true;
+  const msg = ADMIN_ONLY_ROUTES.has(routeName)
+    ? 'Acesso restrito ao Coordenador da Qualidade (Administrador).'
+    : 'Você não tem acesso a esta tela.';
+  toast(msg, 'warning');
+  router.navigate(ROUTES.DASHBOARD);
+  return false;
 });
 
 db.ready.then(() => {
