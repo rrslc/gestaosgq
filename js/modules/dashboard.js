@@ -5,6 +5,11 @@
 
 import { db } from '../db.js';
 import { deadlineCell, progressBar, emptyState, statusPill } from '../utils.js';
+import { getSession } from '../session.js';
+
+const GQ_PERFIS = new Set(['GQ Administrador', 'GQ Analista']);
+/** GQ vê o panorama geral; demais setores veem um dashboard pessoal. */
+function isGQ(session) { return !session || GQ_PERFIS.has(session.perfil); }
 
 // Router é importado depois de ser criado em app.js.
 // A importação dinâmica evita problemas de ordem de execução.
@@ -241,8 +246,99 @@ function renderWorkload() {
   }).join('');
 }
 
+/** Dashboard pessoal para usuários de área (fora da GQ): só o que é do próprio usuário. */
+function renderPersonalDashboard(session) {
+  const nome = session?.nome || '';
+  const primeiro = nome.split(' ')[0] || 'colaborador(a)';
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+
+  const ATIV_DONE = ['Concluída', 'Cancelada'];
+  const minhasAtiv = db.get('atividades')
+    .filter(r => r.responsavel === nome && !ATIV_DONE.includes(r.status))
+    .sort((a, b) => (a.prazo || '9999').localeCompare(b.prazo || '9999'));
+  const ativAtrasadas = minhasAtiv.filter(r => r.prazo && new Date(r.prazo + 'T00:00:00') < hoje).length;
+
+  const mine = r => (r.responsavelAbertura || r.responsavel) === nome;
+  const meusRegistros = [
+    ...db.get('capa').filter(r => mine(r) && !['Encerrada', 'Não Procedente', 'Cancelada'].includes(r.status)).map(r => ({ ...r, _tipo: 'CAPA', _rota: 'capaAbertura' })),
+    ...db.get('rnc').filter(r => mine(r) && !['Encerrada', 'Cancelada', 'Não Procedente'].includes(r.status)).map(r => ({ ...r, _tipo: 'RNC', _rota: 'rncAbertura' })),
+    ...db.get('gcm').filter(r => mine(r) && !['Concluída', 'Rejeitada', 'Cancelada'].includes(r.status)).map(r => ({ ...r, _tipo: 'GCM', _rota: 'gcmAbertura' })),
+  ];
+
+  const limite = new Date(hoje); limite.setDate(limite.getDate() + 30);
+  const prazos = [];
+  minhasAtiv.forEach(r => { if (r.prazo) { const d = new Date(r.prazo + 'T00:00:00'); if (d >= hoje && d <= limite) prazos.push({ label: r.titulo, date: r.prazo, tag: 'ATIV' }); } });
+  meusRegistros.forEach(r => { const p = r.prazoFinalizacao || r.prazoImplementacao; if (p) { const d = new Date(p + 'T00:00:00'); if (d >= hoje && d <= limite) prazos.push({ label: `${r.numero} — ${r.descricao || ''}`, date: p, tag: r._tipo }); } });
+  prazos.sort((a, b) => a.date.localeCompare(b.date));
+
+  const ativList = minhasAtiv.length ? minhasAtiv.slice(0, 8).map(r => `
+    <div class="upcoming-item" data-goto="atividades" style="cursor:pointer">
+      <span class="upcoming-type-tag">${r.tipo || 'Atividade'}</span>
+      <span class="upcoming-desc" title="${(r.titulo || '').replace(/"/g, '&quot;')}">${r.titulo || '—'}</span>
+      ${r.prazo ? deadlineCell(r.prazo) : statusPill(r.status)}
+    </div>`).join('') : emptyState('Você não tem atividades pendentes.');
+
+  const regList = meusRegistros.length ? meusRegistros.slice(0, 8).map(r => `
+    <div class="upcoming-item" data-goto="${r._rota}" style="cursor:pointer">
+      <span class="upcoming-num">${r.numero}</span>
+      <span class="upcoming-type-tag">${r._tipo}</span>
+      <span class="upcoming-desc" title="${(r.descricao || '').replace(/"/g, '&quot;')}">${r.descricao || '—'}</span>
+      ${statusPill(r.status)}
+    </div>`).join('') : emptyState('Você não abriu registros em aberto.');
+
+  const prazoList = prazos.length ? prazos.slice(0, 8).map(r => `
+    <div class="upcoming-item">
+      <span class="upcoming-type-tag">${r.tag}</span>
+      <span class="upcoming-desc" title="${(r.label || '').replace(/"/g, '&quot;')}">${r.label}</span>
+      ${deadlineCell(r.date)}
+    </div>`).join('') : emptyState('Nenhum prazo seu nos próximos 30 dias.');
+
+  return `
+    <div style="margin-bottom:18px">
+      <div style="font-size:1.2rem;font-weight:700;color:var(--navy)">Olá, ${primeiro} 👋</div>
+      <div style="font-size:0.85rem;color:var(--muted);margin-top:2px">Suas atividades e registros — ${session?.area || 'sua área'}.</div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Minhas Atividades</div>
+        <div class="kpi-value ${minhasAtiv.length > 0 ? 'kpi-amber' : 'kpi-green'}">${minhasAtiv.length}</div>
+        <div class="kpi-sub">pendentes</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Atrasadas</div>
+        <div class="kpi-value ${ativAtrasadas > 0 ? 'kpi-red' : 'kpi-green'}">${ativAtrasadas}</div>
+        <div class="kpi-sub">requerem atenção</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Meus Registros</div>
+        <div class="kpi-value kpi-blue">${meusRegistros.length}</div>
+        <div class="kpi-sub">CAPA / RNC / GCM em aberto</div>
+      </div>
+    </div>
+    <div class="dash-grid">
+      <div class="card">
+        <div class="card-header"><h3>Minhas Atividades</h3></div>
+        <div class="card-body">${ativList}</div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>Meus Registros em Aberto</h3></div>
+        <div class="card-body">${regList}</div>
+      </div>
+      <div class="card" style="grid-column:1/-1">
+        <div class="card-header"><h3>Meus Próximos Prazos — 30 dias</h3></div>
+        <div class="card-body">${prazoList}</div>
+      </div>
+    </div>
+  `;
+}
+
 export default {
   render(container) {
+    const session = getSession();
+    if (!isGQ(session)) {
+      container.innerHTML = renderPersonalDashboard(session);
+      return;
+    }
     const k = buildKpis();
 
     container.innerHTML = `
@@ -303,7 +399,12 @@ export default {
     `;
   },
 
-  async init(_container) {
+  async init(container) {
+    // Navegação a partir dos itens do dashboard pessoal.
+    container?.addEventListener('click', e => {
+      const el = e.target.closest('[data-goto]');
+      if (el) window.location.hash = '#' + el.dataset.goto;
+    });
     // Update sidebar badges via router
     const r = await getRouter();
     const capaOpen = db.get('capa').filter(r => !['Encerrada', 'Não Procedente'].includes(r.status)).length;
