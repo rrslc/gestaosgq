@@ -14,7 +14,7 @@
  *   Planejamento       — Analista e Assistente de Planejamento
  *   Logística          — Assistente Logístico
  *   Comercial          — KAM, Assistente Comercial, Operações de Vendas, Vendas
- *   Compras            — Coordenador de Compras; Qualificação de Fornecedores
+ *   Compras            — Coordenador de Compras; registra processos (área padrão)
  *   Diretoria          — CEO, Diretor Industrial, Gerente Geral
  *   Administrativo     — Administrativo, Contábil, Financeiro, RH
  *
@@ -219,9 +219,9 @@ const PERM = {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
     [P.MANU]: L.EXEC,
   },
+  // Qualificação de Fornecedores: exclusiva da Garantia da Qualidade.
   fornecedores: {
-    [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE, [P.COMP]: L.EXEC,
-    [P.CQ]: L.VIEW, [P.LOG]: L.VIEW, [P.ENG]: L.VIEW,
+    [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
   },
 
   // ── Sistema ─────────────────────────────────────────────────────────────────

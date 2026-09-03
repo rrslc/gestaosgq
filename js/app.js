@@ -121,7 +121,7 @@ function isGQAdmin(session) {
 // Compras: qualificação de fornecedores.
 const PROFILE_ROUTES = {
   'TI':      new Set(['dashboard', 'validacoes', 'configuracoes', 'trilha', 'equipe', 'documentos', 'gcmAbertura', 'elaboracao']),
-  'Compras': new Set(['dashboard', 'capaAbertura', 'rncAbertura', 'gcmAbertura', 'elaboracao', 'fornecedores', 'documentos']),
+  'Compras': new Set(['dashboard', 'capaAbertura', 'rncAbertura', 'gcmAbertura', 'elaboracao', 'documentos']),
 };
 
 /** Regra única de acesso a rota (usada pelo menu e pelo guard). */
