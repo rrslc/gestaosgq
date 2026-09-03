@@ -338,16 +338,20 @@ body.auth-gate #login-screen {
 .page-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end; /* o título vem da topbar; aqui ficam só as ações */
   margin-bottom: 18px;
   gap: 12px;
   flex-wrap: wrap;
 }
 
+/* Evita repetir o nome da tela: o título já aparece na barra do topo. */
 .page-header h2 {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--navy);
+  display: none;
+}
+
+/* Cabeçalho sem ações (apenas o título oculto) colapsa para não deixar vão. */
+.page-header:not(:has(> :not(h2))) {
+  display: none;
 }
 
 /* ── Toolbar (filters + actions) ── */
