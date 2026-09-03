@@ -11,12 +11,13 @@
  *   Produção           — Auxiliar, Supervisora de Produção
  *   Industrial         — Gerente Industrial
  *   Manutenção         — Técnico, Líder de Manutenção
- *   Planejamento       — Analista e Assistente de Planejamento
+ *   Planejamento e Controle de Produção — Analista e Assistente de PCP
  *   Logística          — Assistente Logístico
  *   Comercial          — KAM, Assistente Comercial, Operações de Vendas, Vendas
  *   Compras            — Coordenador de Compras; registra processos (área padrão)
+ *   Gente e Gestão     — Recursos Humanos (RH)
  *   Diretoria          — CEO, Diretor Industrial, Gerente Geral
- *   Administrativo     — Administrativo, Contábil, Financeiro, RH
+ *   Administrativo     — Administrativo, Contábil, Financeiro
  *
  * Níveis de acesso:
  *   Gestão (3) — criar, editar, excluir, avançar fluxo
@@ -45,10 +46,11 @@ export const PERFIS = [
   'Produção',
   'Industrial',
   'Manutenção',
-  'Planejamento',
+  'Planejamento e Controle de Produção',
   'Logística',
   'Comercial',
   'Compras',
+  'Gente e Gestão',
   'Diretoria',
   'Administrativo',
 ];
@@ -67,10 +69,11 @@ const P = {
   PROD: 'Produção',
   INDU: 'Industrial',
   MANU: 'Manutenção',
-  PLAN: 'Planejamento',
+  PLAN: 'Planejamento e Controle de Produção',
   LOG:  'Logística',
   COM:  'Comercial',
   COMP: 'Compras',
+  GG:   'Gente e Gestão',
   DIR:  'Diretoria',
   ADMI: 'Administrativo',
 };
@@ -97,7 +100,7 @@ const PERM = {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE, [P.TI]: L.VIEW,
     [P.CQ]: L.VIEW, [P.ENG]: L.VIEW, [P.PROD]: L.VIEW, [P.INDU]: L.VIEW,
     [P.MANU]: L.VIEW, [P.PLAN]: L.VIEW, [P.LOG]: L.VIEW,
-    [P.COM]: L.VIEW, [P.COMP]: L.VIEW, [P.DIR]: L.VIEW, [P.ADMI]: L.VIEW,
+    [P.COM]: L.VIEW, [P.COMP]: L.VIEW, [P.GG]: L.VIEW, [P.DIR]: L.VIEW, [P.ADMI]: L.VIEW,
   },
 
   // ── Gestão interna GQ ───────────────────────────────────────────────────────
@@ -133,25 +136,25 @@ const PERM = {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
     [P.CQ]: L.EXEC, [P.ENG]: L.EXEC, [P.PROD]: L.EXEC, [P.INDU]: L.EXEC,
     [P.MANU]: L.EXEC, [P.PLAN]: L.EXEC, [P.LOG]: L.EXEC,
-    [P.COM]: L.EXEC, [P.COMP]: L.EXEC, [P.DIR]: L.EXEC, [P.ADMI]: L.EXEC,
+    [P.COM]: L.EXEC, [P.COMP]: L.EXEC, [P.GG]: L.EXEC, [P.DIR]: L.EXEC, [P.ADMI]: L.EXEC,
   },
   capaAbertura: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE,
     [P.CQ]: L.EXEC, [P.ENG]: L.EXEC, [P.PROD]: L.EXEC, [P.INDU]: L.EXEC,
     [P.MANU]: L.EXEC, [P.PLAN]: L.EXEC, [P.LOG]: L.EXEC,
-    [P.COM]: L.EXEC, [P.COMP]: L.EXEC, [P.DIR]: L.EXEC, [P.ADMI]: L.EXEC,
+    [P.COM]: L.EXEC, [P.COMP]: L.EXEC, [P.GG]: L.EXEC, [P.DIR]: L.EXEC, [P.ADMI]: L.EXEC,
   },
   gcmAbertura: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE, [P.TI]: L.EXEC,
     [P.CQ]: L.EXEC, [P.ENG]: L.EXEC, [P.PROD]: L.EXEC, [P.INDU]: L.EXEC,
     [P.MANU]: L.EXEC, [P.PLAN]: L.EXEC, [P.LOG]: L.EXEC,
-    [P.COM]: L.EXEC, [P.COMP]: L.EXEC, [P.DIR]: L.EXEC, [P.ADMI]: L.EXEC,
+    [P.COM]: L.EXEC, [P.COMP]: L.EXEC, [P.GG]: L.EXEC, [P.DIR]: L.EXEC, [P.ADMI]: L.EXEC,
   },
   elaboracao: {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE, [P.TI]: L.EXEC,
     [P.CQ]: L.EXEC, [P.ENG]: L.EXEC, [P.PROD]: L.EXEC, [P.INDU]: L.EXEC,
     [P.MANU]: L.EXEC, [P.PLAN]: L.EXEC, [P.LOG]: L.EXEC,
-    [P.COM]: L.EXEC, [P.COMP]: L.EXEC, [P.DIR]: L.EXEC, [P.ADMI]: L.EXEC,
+    [P.COM]: L.EXEC, [P.COMP]: L.EXEC, [P.GG]: L.EXEC, [P.DIR]: L.EXEC, [P.ADMI]: L.EXEC,
   },
 
   // ── Auditorias ──────────────────────────────────────────────────────────────
@@ -175,7 +178,7 @@ const PERM = {
     [P.ADM]: L.MANAGE, [P.GQA]: L.MANAGE, [P.TI]: L.VIEW,
     [P.CQ]: L.VIEW, [P.ENG]: L.VIEW, [P.PROD]: L.VIEW, [P.INDU]: L.VIEW,
     [P.MANU]: L.VIEW, [P.PLAN]: L.VIEW, [P.LOG]: L.VIEW,
-    [P.COM]: L.VIEW, [P.COMP]: L.VIEW, [P.DIR]: L.VIEW, [P.ADMI]: L.VIEW,
+    [P.COM]: L.VIEW, [P.COMP]: L.VIEW, [P.GG]: L.VIEW, [P.DIR]: L.VIEW, [P.ADMI]: L.VIEW,
   },
 
   // ── Assuntos Regulatórios ───────────────────────────────────────────────────

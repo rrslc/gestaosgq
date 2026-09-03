@@ -74,8 +74,10 @@ const PERFIL_LEGADO = {
   // v3 → v4 (renomeações de perfis de área)
   'Controle de Qualidade': { perfil: 'Controle da Qualidade', licenca: 'Manager' },
   'Melhoria Contínua':     { perfil: 'Engenharia',            licenca: 'Manager' },
-  'PCP':                   { perfil: 'Planejamento',          licenca: 'Manager' },
-  'Gente e Gestão':        { perfil: 'Administrativo',        licenca: 'Manager' },
+  'PCP':                   { perfil: 'Planejamento e Controle de Produção', licenca: 'Manager' },
+  'Planejamento':          { perfil: 'Planejamento e Controle de Produção', licenca: 'Manager' },
+  'Gente e Gestão':        { perfil: 'Gente e Gestão',        licenca: 'Manager' },
+  'RH':                    { perfil: 'Gente e Gestão',        licenca: 'Manager' },
 };
 
 const FIELDS = [
