@@ -156,14 +156,28 @@ function updateSidebarAccess(session) {
 // token de autenticação — reative o login antes de usar o servidor oficial.
 const LOGIN_ENABLED = false;
 
+// Perfil de teste por porta (só vale com login desativado) — permite abrir
+// várias abas, uma por perfil: 8081 = GQ Analista, 8082 = área.
+const TEST_PERFIL_POR_PORTA = { '8081': 'GQ Analista', '8082': 'Controle da Qualidade' };
+
 /** Cria uma sessão automática (sem senha) quando o login está desativado. */
 function ensureAutoSession() {
   if (getSession()) return;
   const equipe = db.get('equipe');
+  if (!equipe.length) return;
+
+  // Perfil forçado para teste: ?perfil=... na URL ou pela porta.
+  const forced = new URLSearchParams(location.search).get('perfil')
+              || TEST_PERFIL_POR_PORTA[location.port] || '';
+  if (forced) {
+    const m = equipe.find(x => x.perfil === forced) || equipe[0];
+    setSession({ id: m.id, nome: m.nome, iniciais: m.iniciais, area: m.area, perfil: forced, licenca: 'Manager', cor: m.cor });
+    return;
+  }
+
   const u = equipe.find(m => m.perfil === 'GQ Administrador')
         || equipe.find(m => ['GQ Administrador', 'GQ Analista'].includes(m.perfil))
         || equipe[0];
-  if (!u) return;
   setSession({ id: u.id, nome: u.nome, iniciais: u.iniciais, area: u.area, perfil: u.perfil, licenca: u.licenca, cor: u.cor });
 }
 
