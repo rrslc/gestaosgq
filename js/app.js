@@ -9,6 +9,7 @@ import { today, formatDate } from './utils.js';
 import { ROUTES } from './constants.js';
 import { getSession, setSession, clearSession } from './session.js';
 import { hashPassword, looksHashed } from './crypto.js';
+import { activeMenu, renderSidebarNav } from './menu.js';
 
 // Modules
 import dashboard      from './modules/dashboard.js';
@@ -102,6 +103,19 @@ export const router = new Router({
   [ROUTES.TRILHA]:             { module: trilha,               title: 'Trilha de Auditoria',        icon: '📋' },
   conformidade:                { module: conformidade,         title: 'Conformidade com Procedimentos', icon: '🛡' },
 });
+
+// ── Sidebar por aplicativo (QMS ⇄ Atividades do GQ) ───────────────────────────
+// A mesma base de código serve dois front-ends; a entrada HTML define window.__APP__.
+const MENU = activeMenu();
+(function mountSidebar() {
+  const nav = document.querySelector('#sidebar nav');
+  if (nav) nav.innerHTML = renderSidebarNav(MENU);
+  const logoTitle = document.querySelector('.sidebar-logo .logo-title');
+  const logoSub   = document.querySelector('.sidebar-logo .logo-sub');
+  if (logoTitle) logoTitle.textContent = MENU.title;
+  if (logoSub)   logoSub.textContent   = MENU.sub;
+  document.title = `${MENU.title} — ${MENU.sub}`;
+})();
 
 // ── Controle de acesso por perfil ─────────────────────────────────────────────
 
@@ -356,7 +370,7 @@ document.getElementById('login-form')?.addEventListener('submit', async e => {
     db.addAudit('Login', 'sistema', user.id, `${user.nome} [${user.perfil || '—'}]`);
     hideLoginScreen();
     updateTopbarSession();
-    router.navigate(router.current || ROUTES.DASHBOARD);
+    router.navigate(router.current || MENU.home);
     toast(_primeiroAcesso ? `Senha criada! Bem-vinda, ${user.nome.split(' ')[0]}.` : `Bem-vinda, ${user.nome.split(' ')[0]}!`);
   } catch (err) {
     showErr(err.message);
@@ -471,7 +485,7 @@ router.setGuard(routeName => {
     ? 'Acesso restrito ao Coordenador da Qualidade (Administrador).'
     : 'Você não tem acesso a esta tela.';
   toast(msg, 'warning');
-  router.navigate(ROUTES.DASHBOARD);
+  router.navigate(MENU.home);
   return false;
 });
 
@@ -498,7 +512,7 @@ db.ready.then(() => {
   updateTopbarSession();
 
   if (getSession()) {
-    const initialRoute = window.location.hash.replace('#', '') || ROUTES.DASHBOARD;
+    const initialRoute = window.location.hash.replace('#', '') || MENU.home;
     router.navigate(initialRoute);
   } else {
     // Sem sessão: portal de login obrigatório antes de acessar o app.
