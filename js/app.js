@@ -51,6 +51,7 @@ import projetosGerencial    from './modules/projetosGerencial.js';
 import projetosAbertura     from './modules/projetosAbertura.js';
 import atividades           from './modules/atividades.js';
 import trilha               from './modules/trilha.js';
+import conformidade         from './modules/conformidade.js';
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ export const router = new Router({
   [ROUTES.PROJ_ABERTURA]:      { module: projetosAbertura,     title: 'Projetos — Atividades GQ',   icon: '📐' },
   projetos: { module: { render() {}, init() { router.navigate(ROUTES.PROJ_GERENCIAL); } }, title: 'Projetos', icon: '📐' },
   [ROUTES.TRILHA]:             { module: trilha,               title: 'Trilha de Auditoria',        icon: '📋' },
+  conformidade:                { module: conformidade,         title: 'Conformidade com Procedimentos', icon: '🛡' },
 });
 
 // ── Controle de acesso por perfil ─────────────────────────────────────────────

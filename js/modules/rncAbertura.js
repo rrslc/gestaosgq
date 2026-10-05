@@ -57,10 +57,16 @@ const NEXT_STATUS = {
   'Verificação de Eficácia':  'Encerrada',
 };
 
-/** Próxima etapa considerando o bypass de NC Menor (pula Investigação). */
+/**
+ * Próxima etapa considerando o fluxo de NC Menor (POP-GQ-008 §7.3.1): a NC
+ * Menor exige apenas correção/disposição imediata, sem investigação, plano de
+ * ação ou verificação de eficácia. Então pula a Investigação (Avaliação →
+ * Disposição) e encerra direto após a Disposição (Disposição → Encerramento).
+ */
 function nextStatusFor(record) {
-  if (record.status === 'Em Avaliação' && record.classificacao === 'Menor') {
-    return 'Em Disposição';
+  if (record.classificacao === 'Menor') {
+    if (record.status === 'Em Avaliação')  return 'Em Disposição';
+    if (record.status === 'Em Disposição') return 'Encerrada';
   }
   return NEXT_STATUS[record.status];
 }
@@ -125,11 +131,22 @@ function canAdvance(record, user = getSession()) {
 }
 
 /**
- * CAPA é aberta a partir de uma RNC apenas quando a Verificação de Eficácia
- * resulta "Não eficaz" (fluxograma POP-GQ-008 §7.4.4 → abre CAPA POP-GQ-009).
+ * Uma NC Crítica procedente exige abertura obrigatória de CAPA já na
+ * classificação (POP-GQ-008 §7.3.1), independentemente da Verificação de
+ * Eficácia.
+ */
+function capaObrigatoria(record) {
+  return record.classificacao === 'Crítica' && record.procedente === 'Sim';
+}
+
+/**
+ * CAPA pode ser aberta a partir de uma RNC em dois momentos previstos no POP:
+ *  - NC Crítica procedente → CAPA obrigatório (POP-GQ-008 §7.3.1); ou
+ *  - Verificação de Eficácia "Não eficaz" → refaz o ciclo via CAPA (§7.4.5).
  */
 function canOpenCapa(record, user = getSession()) {
-  return canAct(record, user) && !record.capaAberta && record.foiEficaz === 'Não';
+  if (!canAct(record, user) || record.capaAberta) return false;
+  return capaObrigatoria(record) || record.foiEficaz === 'Não';
 }
 
 function ownerLabel(record) {
@@ -198,6 +215,13 @@ function renderStepper(status) {
 
 const RISK_PILL = { 'Menor': 'pill-blue', 'Maior': 'pill-amber', 'Crítica': 'pill-red' };
 const RISK_RANK = { 'Crítica': 0, 'Maior': 1, 'Menor': 2 };
+
+/** Selo de CAPA obrigatório pendente (NC Crítica procedente sem CAPA aberta). */
+function capaBadge(r) {
+  return (r.necessitaCapa === 'Sim' && !r.capaAberta)
+    ? `<span class="pill pill-purple" style="font-size:0.56rem" title="CAPA obrigatório — POP-GQ-008 §7.3.1">⚠ CAPA obrigatório</span>`
+    : '';
+}
 
 /** Uma RNC não encerrada com prazo de finalização vencido. */
 function isOverdue(r, hoje) {
@@ -285,7 +309,7 @@ function renderMinhaFila() {
               <div style="font-weight:700;font-size:0.9rem">${r.numero}</div>
               <div style="font-size:0.71rem;color:var(--muted);margin-top:2px">${r.area || '—'}${r.tipo ? ' · ' + r.tipo : ''}</div>
             </div>
-            <span class="pill pill-${pillColor}" style="white-space:nowrap;font-size:0.65rem">${stage?.label ?? r.status}</span>
+            <span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${capaBadge(r)}<span class="pill pill-${pillColor}" style="white-space:nowrap;font-size:0.65rem">${stage?.label ?? r.status}</span></span>
           </div>
           <div style="font-size:0.8rem;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden" title="${r.descricao}">${r.descricao}</div>
           <div style="display:flex;align-items:center;justify-content:space-between">
@@ -361,9 +385,9 @@ function kanbanCard(r, user, hoje) {
   const descSafe = String(r.descricao || '').replace(/"/g, '&quot;');
   return `<div class="kanban-card" data-action="edit" data-id="${r.id}" title="Abrir ${r.numero}"
        style="border:1px solid ${emAtraso ? 'var(--red)' : 'var(--border)'};border-left:3px solid ${emAtraso ? 'var(--red)' : 'var(--border)'};border-radius:8px;padding:10px;background:${emAtraso ? 'color-mix(in srgb, var(--red) 6%, var(--bg))' : 'var(--bg)'};display:flex;flex-direction:column;gap:6px;cursor:pointer">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap">
       <span style="font-weight:700;font-size:0.78rem">${r.numero}</span>
-      ${risco}
+      <span style="display:flex;gap:4px;flex-wrap:wrap">${capaBadge(r)}${risco}</span>
     </div>
     <div style="font-size:0.7rem;color:var(--muted)">${r.area || '—'}${r.tipo ? ' · ' + r.tipo : ''}</div>
     <div style="font-size:0.74rem;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden" title="${descSafe}">${r.descricao || '—'}</div>
@@ -455,7 +479,7 @@ function renderTable(items) {
           extras.push(`<button class="btn btn-secondary btn-sm" data-action="reprovar-plano" data-id="${r.id}" title="Reprovar Plano" style="border-color:var(--red,#ef4444);color:var(--red,#ef4444)">✕</button>`);
         }
         if (isGQU && canOpenCapa(r, user)) {
-          extras.push(`<button class="btn btn-secondary btn-sm" data-action="abrir-capa" data-id="${r.id}" title="Abrir CAPA (Verificação não eficaz)" style="border-color:var(--purple,#9333ea);color:var(--purple,#9333ea)">📋</button>`);
+          extras.push(`<button class="btn btn-secondary btn-sm" data-action="abrir-capa" data-id="${r.id}" title="${capaObrigatoria(r) ? 'Abrir CAPA (obrigatório — NC Crítica)' : 'Abrir CAPA (Verificação não eficaz)'}" style="border-color:var(--purple,#9333ea);color:var(--purple,#9333ea)">📋</button>`);
         }
         const actBtn   = `<div class="td-actions">
           ${canAdv && nxt ? `<button class="btn btn-primary btn-sm" data-action="advance" data-id="${r.id}" data-next="${nxt}" title="Avançar para ${nxt}">→</button>` : ''}
@@ -469,7 +493,7 @@ function renderTable(items) {
           <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.descricao}">${r.descricao}</td>
           <td>${r.area || '—'}</td>
           <td style="text-align:center">${diasAberto(r)}</td>
-          <td>${risco}</td>
+          <td>${risco}${capaBadge(r) ? '<br>' + capaBadge(r) : ''}</td>
           <td>${statusPill(r.encerradoStatus || r.status)}</td>
           <td style="white-space:nowrap">
             <span style="font-size:0.71rem;padding:2px 7px;border-radius:4px;background:${ownColor}18;color:${ownColor};font-weight:600">${ownLbl}</span>
@@ -1117,8 +1141,15 @@ export default {
               return;
             }
             const risco = calcRisco(data.probabilidade, data.severidade);
-            db.update('rnc', numId, { ...data, classificacaoRisco: risco || data.classificacaoRisco });
-            toast('RNC atualizada!');
+            const updates = { ...data, classificacaoRisco: risco || data.classificacaoRisco };
+            // Gate POP-GQ-008 §7.3.1: NC Crítica procedente exige CAPA obrigatório.
+            if (data.classificacao === 'Crítica' && data.procedente === 'Sim' && !record.capaAberta) {
+              updates.necessitaCapa = 'Sim';
+            }
+            db.update('rnc', numId, updates);
+            toast(updates.necessitaCapa === 'Sim' && record.necessitaCapa !== 'Sim'
+              ? 'RNC Crítica — CAPA obrigatório (POP-GQ-008 §7.3.1). Use "Abrir CAPA".'
+              : 'RNC atualizada!');
             refresh(container);
           },
         });
@@ -1133,6 +1164,14 @@ export default {
             ? 'Apenas o GQ Administrador pode aprovar o Plano de Ação (POP-GQ-008 §7.4.3.2).'
             : 'Sem permissão para avançar esta etapa.';
           toast(msg, 'error');
+          return;
+        }
+        // Gate POP-GQ-008 §7.4.4/§7.4.5: só encerra a partir da Verificação de
+        // Eficácia se a eficácia foi comprovada. Ações ineficazes → abrir CAPA.
+        if (next === 'Encerrada' && record.status === 'Verificação de Eficácia' && record.foiEficaz !== 'Sim') {
+          toast(record.foiEficaz === 'Não'
+            ? 'Ações ineficazes não encerram a RNC — abra um CAPA (POP-GQ-008 §7.4.5).'
+            : 'Registre o resultado da Verificação de Eficácia ("Foi Eficaz? = Sim") antes de encerrar (§7.4.4).', 'error');
           return;
         }
         const nextOwner = STAGE_OWNER[next];

@@ -54,10 +54,16 @@ const NEXT_STATUS = {
   'Verificação de Eficácia':  'Encerrada',
 };
 
-/** CAPA Menor pula a investigação aprofundada e vai direto ao Plano de Ação (§7.3.1). */
+/**
+ * CAPA Menor (POP-GQ-009 §7.3.1): registro e encerramento com ações de
+ * correção imediata / melhoria direta e justificativa simplificada — sem
+ * investigação aprofundada nem ciclo de verificação de eficácia. Então pula a
+ * Investigação (Avaliação → Plano de Ação) e encerra após o Plano de Ação.
+ */
 function nextStatusFor(record) {
-  if (record.status === 'Em Avaliação' && record.classificacao === 'Menor') {
-    return 'Em Plano de Ação';
+  if (record.classificacao === 'Menor') {
+    if (record.status === 'Em Avaliação')     return 'Em Plano de Ação';
+    if (record.status === 'Em Plano de Ação') return 'Encerrada';
   }
   return NEXT_STATUS[record.status];
 }
@@ -923,6 +929,14 @@ export default {
             ? 'Apenas o GQ Administrador pode aprovar o Plano de Ação (POP-GQ-009 §7.4.2.2).'
             : 'Sem permissão para avançar esta etapa.';
           toast(msg, 'error');
+          return;
+        }
+        // Gate POP-GQ-009 §7.4.3/§7.4.4: só encerra a partir da Verificação de
+        // Eficácia se a eficácia foi comprovada. Ações ineficazes → novo CAPA.
+        if (next === 'Encerrada' && record.status === 'Verificação de Eficácia' && record.foiEficaz !== 'Sim') {
+          toast(record.foiEficaz === 'Não'
+            ? 'Ações ineficazes não encerram o CAPA — abra um novo CAPA (POP-GQ-009 §7.4.3).'
+            : 'Registre o resultado da Verificação de Eficácia ("Foi Eficaz? = Sim") antes de encerrar (§7.4.4).', 'error');
           return;
         }
         const nextOwner = STAGE_OWNER[next];

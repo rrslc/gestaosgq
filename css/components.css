@@ -731,3 +731,77 @@ tbody tr:hover {
   border-radius: 4px;
   flex-shrink: 0;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   UI dinâmica — movimento e microinterações (inspirado no cockpit do QMS Core)
+   Tudo suave e discreto; desligado sob prefers-reduced-motion.
+   ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes sgq-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes sgq-pop {
+  0%   { opacity: 0; transform: scale(0.96); }
+  60%  { opacity: 1; transform: scale(1.015); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Entrada escalonada do conteúdo a cada troca de tela */
+#content > * {
+  animation: sgq-rise 0.34s cubic-bezier(.22,.61,.36,1) both;
+}
+#content > *:nth-child(2) { animation-delay: 0.04s; }
+#content > *:nth-child(3) { animation-delay: 0.08s; }
+#content > *:nth-child(4) { animation-delay: 0.12s; }
+#content > *:nth-child(n+5) { animation-delay: 0.16s; }
+
+/* Cartões: elevação e realce de borda no hover */
+.card,
+.kpi-card {
+  transition: transform 0.18s cubic-bezier(.22,.61,.36,1),
+              box-shadow 0.18s ease,
+              border-color 0.18s ease;
+  will-change: transform;
+}
+.card:hover,
+.kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.10);
+  border-color: color-mix(in srgb, var(--blue) 35%, var(--border));
+}
+
+/* KPIs entram com um leve "pop" e destacam o número no hover */
+.kpi-card { animation: sgq-pop 0.4s cubic-bezier(.22,.61,.36,1) both; }
+.kpi-value { transition: transform 0.18s ease, color 0.18s ease; }
+.kpi-card:hover .kpi-value { transform: scale(1.06); }
+
+/* Navegação: deslize + barra de destaque na ativa */
+.nav-item {
+  transition: background 0.15s, color 0.15s, transform 0.14s ease, padding-left 0.14s ease;
+}
+.nav-item:hover { transform: translateX(2px); }
+.nav-item.active {
+  box-shadow: inset 3px 0 0 0 var(--blue-light, #60a5fa);
+  padding-left: 16px;
+}
+
+/* Botões: resposta tátil ao clique */
+.btn { transition: background 0.15s, box-shadow 0.15s, opacity 0.15s, transform 0.1s ease; }
+.btn:active { transform: translateY(1px) scale(0.985); }
+
+/* Linhas de tabela: realce suave ao passar o mouse */
+.table-wrap table tbody tr { transition: background 0.14s ease; }
+
+/* Pills: leve destaque interativo quando clicáveis */
+.pill { transition: transform 0.14s ease, box-shadow 0.14s ease; }
+
+/* Respeita quem prefere menos movimento */
+@media (prefers-reduced-motion: reduce) {
+  #content > *,
+  .kpi-card { animation: none !important; }
+  .card, .kpi-card, .nav-item, .btn, .kpi-value {
+    transition: none !important;
+    transform: none !important;
+  }
+}
