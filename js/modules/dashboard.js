@@ -246,6 +246,109 @@ function renderWorkload() {
   }).join('');
 }
 
+// ── Cockpit (QMS) ───────────────────────────────────────────────────────────
+
+function saudacao() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Bom dia';
+  if (h < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
+const RNC_OPEN  = s => !['Encerrada', 'Cancelada', 'Não Procedente'].includes(s);
+const CAPA_OPEN = s => !['Encerrada', 'Não Procedente', 'Cancelada'].includes(s);
+const GCM_OPEN  = s => !['Concluída', 'Rejeitada', 'Cancelada'].includes(s);
+
+/**
+ * Calcula o que exige ação agora, do mais crítico ao menos. Reúne atrasos e as
+ * situações cobertas pelos gates de conformidade (CAPA obrigatório, plano
+ * aguardando aprovação, verificação de eficácia pendente).
+ */
+function computePendencias() {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const atrasado = iso => iso && new Date(iso + 'T00:00:00') < hoje;
+  const out = [];
+
+  db.get('capa').filter(r => CAPA_OPEN(r.status) && atrasado(r.prazoFinalizacao))
+    .forEach(r => out.push({ sev: 0, tipo: 'CAPA', num: r.numero, desc: r.descricao, motivo: 'Em atraso', rota: 'capaAbertura' }));
+  db.get('rnc').filter(r => RNC_OPEN(r.status) && atrasado(r.prazoFinalizacao))
+    .forEach(r => out.push({ sev: 0, tipo: 'RNC', num: r.numero, desc: r.descricao, motivo: 'Em atraso', rota: 'rncAbertura' }));
+  db.get('gcm').filter(r => GCM_OPEN(r.status) && atrasado(r.prazoImplementacao))
+    .forEach(r => out.push({ sev: 0, tipo: 'GCM', num: r.numero, desc: r.titulo || r.descricao, motivo: 'Em atraso', rota: 'gcmAbertura' }));
+
+  // Gate §7.3.1 — CAPA obrigatório pendente (NC Crítica procedente sem CAPA)
+  db.get('rnc').filter(r => r.necessitaCapa === 'Sim' && !r.capaAberta && RNC_OPEN(r.status))
+    .forEach(r => out.push({ sev: 1, tipo: 'RNC', num: r.numero, desc: r.descricao, motivo: 'CAPA obrigatório', rota: 'rncAbertura' }));
+
+  // Plano aguardando aprovação do Coordenador (§7.4.3.2 / §7.4.2.2)
+  db.get('rnc').filter(r => r.status === 'Em Plano de Ação')
+    .forEach(r => out.push({ sev: 2, tipo: 'RNC', num: r.numero, desc: r.descricao, motivo: 'Plano aguarda aprovação', rota: 'rncAbertura' }));
+  db.get('capa').filter(r => r.status === 'Em Plano de Ação')
+    .forEach(r => out.push({ sev: 2, tipo: 'CAPA', num: r.numero, desc: r.descricao, motivo: 'Plano aguarda aprovação', rota: 'capaAbertura' }));
+
+  // Verificação de eficácia pendente de decisão
+  const verifPend = r => r.status === 'Verificação de Eficácia' && r.foiEficaz !== 'Sim' && r.foiEficaz !== 'Não';
+  db.get('rnc').filter(verifPend).forEach(r => out.push({ sev: 2, tipo: 'RNC', num: r.numero, desc: r.descricao, motivo: 'Verificação pendente', rota: 'rncAbertura' }));
+  db.get('capa').filter(verifPend).forEach(r => out.push({ sev: 2, tipo: 'CAPA', num: r.numero, desc: r.descricao, motivo: 'Verificação pendente', rota: 'capaAbertura' }));
+
+  return out.sort((a, b) => a.sev - b.sev);
+}
+
+const SEV_COR = ['var(--red)', 'var(--purple,#9333ea)', 'var(--amber)'];
+
+function renderPendencias(pend) {
+  if (!pend.length) {
+    return `<div style="text-align:center;padding:30px 16px">
+      <div style="font-size:2rem;margin-bottom:8px">✅</div>
+      <div style="font-weight:600;font-size:0.9rem">Nada em atraso ou aguardando decisão.</div>
+      <div style="font-size:0.8rem;color:var(--muted);margin-top:3px">O sistema não encontrou pendências que exijam sua ação agora.</div>
+    </div>`;
+  }
+  return pend.slice(0, 10).map(p => `
+    <div class="attn-item" data-goto="${p.rota}" title="Abrir ${p.num}">
+      <span class="attn-dot" style="background:${SEV_COR[p.sev]}"></span>
+      <span class="attn-type">${p.tipo}</span>
+      <span class="attn-num">${p.num}</span>
+      <span class="attn-desc">${p.desc || '—'}</span>
+      <span class="attn-motivo" style="color:${SEV_COR[p.sev]}">${p.motivo}</span>
+      <span class="attn-arrow">→</span>
+    </div>`).join('') +
+    (pend.length > 10 ? `<div style="font-size:0.74rem;color:var(--muted);padding-top:8px">+ ${pend.length - 10} outra(s) pendência(s)…</div>` : '');
+}
+
+const ACTION_TILES = [
+  { rota: 'rncAbertura',          ic: '⚑', t: 'Registrar RNC',        s: 'Não conformidade' },
+  { rota: 'capaAbertura',         ic: '📋', t: 'Abrir CAPA',           s: 'Ação corretiva/preventiva' },
+  { rota: 'reclamacoesAbertura',  ic: '📩', t: 'Nova Reclamação',      s: 'Pós-mercado' },
+  { rota: 'conformidade',         ic: '🛡', t: 'Conformidade',         s: 'POP × sistema' },
+];
+
+function renderActionTiles() {
+  return `<div class="action-tiles">
+    ${ACTION_TILES.map(a => `
+      <button class="action-tile" data-goto="${a.rota}">
+        <span class="ic">${a.ic}</span>
+        <span class="tx"><span class="t">${a.t}</span><span class="s">${a.s}</span></span>
+      </button>`).join('')}
+  </div>`;
+}
+
+function renderCockpitHero(session, pend) {
+  const primeiro = (session?.nome || '').split(' ')[0] || 'colaboradora';
+  const atrasos = pend.filter(p => p.sev === 0).length;
+  const data = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+  return `<div class="cockpit-hero">
+    <div>
+      <div class="cockpit-hello">${saudacao()}, ${primeiro} 👋</div>
+      <div class="cockpit-sub">${data.charAt(0).toUpperCase() + data.slice(1)} · Garantia da Qualidade</div>
+    </div>
+    <div class="cockpit-chips">
+      <div class="cockpit-chip"><div class="n">${pend.length}</div><div class="l">Exigem ação</div></div>
+      <div class="cockpit-chip"><div class="n" style="color:${atrasos ? '#fecaca' : '#fff'}">${atrasos}</div><div class="l">Em atraso</div></div>
+    </div>
+  </div>`;
+}
+
 /** Dashboard pessoal para usuários de área (fora da GQ): só o que é do próprio usuário. */
 function renderPersonalDashboard(session) {
   const nome = session?.nome || '';
@@ -340,30 +443,41 @@ export default {
       return;
     }
     const k = buildKpis();
+    const pend = computePendencias();
 
     container.innerHTML = `
+      ${renderCockpitHero(session, pend)}
+      ${renderActionTiles()}
+
+      <div class="card" style="margin-bottom:18px;border-left:4px solid ${pend.length ? 'var(--red)' : 'var(--green)'}">
+        <div class="card-header"><h3>🎯 Precisa de atenção agora</h3>
+          ${pend.length ? `<span class="pill pill-red" style="font-size:0.66rem">${pend.length}</span>` : ''}
+        </div>
+        <div class="card-body">${renderPendencias(pend)}</div>
+      </div>
+
       <div class="kpi-grid">
-        <div class="kpi-card">
+        <div class="kpi-card" data-goto="capaGerencial" style="cursor:pointer">
           <div class="kpi-label">CAPAs em Aberto</div>
           <div class="kpi-value ${k.capaAberta > 0 ? 'kpi-amber' : 'kpi-green'}">${k.capaAberta}</div>
           <div class="kpi-sub">${k.capaUrgente} urgente(s) ≤7 dias</div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card" data-goto="rncGerencial" style="cursor:pointer">
           <div class="kpi-label">RNCs Ativas</div>
           <div class="kpi-value ${k.rncAberta > 0 ? 'kpi-red' : 'kpi-green'}">${k.rncAberta}</div>
           <div class="kpi-sub">em andamento</div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card" data-goto="fornecedores" style="cursor:pointer">
           <div class="kpi-label">Forn. Qualificados</div>
           <div class="kpi-value ${k.fornPct < 80 ? 'kpi-amber' : 'kpi-green'}">${k.fornPct}%</div>
           <div class="kpi-sub">do total de fornecedores</div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card" data-goto="validacoes" style="cursor:pointer">
           <div class="kpi-label">Validações em Curso</div>
           <div class="kpi-value kpi-blue">${k.valAtivas}</div>
           <div class="kpi-sub">planejadas ou em execução</div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card" data-goto="tecnovig" style="cursor:pointer">
           <div class="kpi-label">RECs/Tecnovigilância</div>
           <div class="kpi-value ${k.recAbertos > 0 ? 'kpi-red' : 'kpi-green'}">${k.recAbertos}</div>
           <div class="kpi-sub">abertos ou em investigação</div>

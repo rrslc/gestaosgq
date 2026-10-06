@@ -805,3 +805,82 @@ tbody tr:hover {
     transform: none !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Cockpit do Dashboard (QMS) — hero, tiles de ação e lista de pendências
+   ───────────────────────────────────────────────────────────────────────── */
+
+.cockpit-hero {
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  margin-bottom: 18px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--navy) 0%, #1e3a5f 60%, var(--blue, #2563eb) 130%);
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.cockpit-hello { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.01em; }
+.cockpit-sub   { font-size: 0.82rem; opacity: 0.82; margin-top: 3px; }
+.cockpit-chips { display: flex; gap: 10px; flex-wrap: wrap; }
+.cockpit-chip {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 12px;
+  padding: 8px 14px;
+  text-align: center;
+  min-width: 78px;
+  backdrop-filter: blur(2px);
+}
+.cockpit-chip .n { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+.cockpit-chip .l { font-size: 0.66rem; opacity: 0.85; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.action-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.action-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.16s cubic-bezier(.22,.61,.36,1), box-shadow 0.16s ease, border-color 0.16s ease;
+}
+.action-tile:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(15,23,42,0.10);
+  border-color: color-mix(in srgb, var(--blue) 45%, var(--border));
+}
+.action-tile .ic {
+  width: 38px; height: 38px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; font-size: 1.1rem;
+  background: color-mix(in srgb, var(--blue) 12%, var(--surface));
+}
+.action-tile .tx { display: flex; flex-direction: column; min-width: 0; }
+.action-tile .tx .t { font-weight: 700; font-size: 0.86rem; color: var(--text); }
+.action-tile .tx .s { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+
+.attn-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 4px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.14s ease;
+}
+.attn-item:last-child { border-bottom: none; }
+.attn-item:hover { background: color-mix(in srgb, var(--blue) 5%, transparent); }
+.attn-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.attn-type { font-size: 0.64rem; font-weight: 700; padding: 1px 7px; border-radius: 4px; background: var(--bg); color: var(--muted); flex-shrink: 0; }
+.attn-num { font-weight: 700; font-size: 0.8rem; flex-shrink: 0; }
+.attn-desc { flex: 1; font-size: 0.8rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attn-motivo { font-size: 0.72rem; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+.attn-arrow { color: var(--muted); flex-shrink: 0; }
