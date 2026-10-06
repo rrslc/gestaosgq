@@ -9,7 +9,7 @@ import { today, formatDate } from './utils.js';
 import { ROUTES } from './constants.js';
 import { getSession, setSession, clearSession } from './session.js';
 import { hashPassword, looksHashed } from './crypto.js';
-import { activeMenu, renderSidebarNav } from './menu.js';
+import { activeMenu, renderSidebarNav, appAllowsRoute } from './menu.js';
 
 // Modules
 import dashboard      from './modules/dashboard.js';
@@ -480,12 +480,21 @@ if (LOGIN_ENABLED && !getSession()) document.body.classList.add('auth-gate');
 // Guard de rotas: cada perfil só acessa as rotas permitidas (regra única).
 router.setGuard(routeName => {
   const session = getSession();
+  // Escopo por aplicativo: cada app (QMS / Atividades do GQ) só acessa as rotas
+  // do seu próprio menu. Impede abrir, por link ou hash, telas do outro app.
+  if (!appAllowsRoute(routeName)) {
+    if (routeName !== MENU.home) {
+      toast('Esta tela não faz parte deste aplicativo.', 'warning');
+      router.navigate(MENU.home);
+    }
+    return false;
+  }
   if (canAccessRoute(session, routeName)) return true;
   const msg = ADMIN_ONLY_ROUTES.has(routeName)
     ? 'Acesso restrito ao Coordenador da Qualidade (Administrador).'
     : 'Você não tem acesso a esta tela.';
   toast(msg, 'warning');
-  router.navigate(MENU.home);
+  if (routeName !== MENU.home) router.navigate(MENU.home);
   return false;
 });
 

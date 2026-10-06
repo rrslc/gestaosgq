@@ -6,6 +6,7 @@
 import { db } from '../db.js';
 import { deadlineCell, progressBar, emptyState, statusPill } from '../utils.js';
 import { getSession } from '../session.js';
+import { APP } from '../menu.js';
 
 const GQ_PERFIS = new Set(['GQ Administrador', 'GQ Analista']);
 /** GQ vê o panorama geral; demais setores veem um dashboard pessoal. */
@@ -305,10 +306,10 @@ function renderPendencias(pend) {
     </div>`;
   }
   return pend.slice(0, 10).map(p => `
-    <div class="attn-item" data-goto="${p.rota}" title="Abrir ${p.num}">
+    <div class="attn-item" data-goto="${p.rota}" title="Abrir ${p.num || p.desc || ''}">
       <span class="attn-dot" style="background:${SEV_COR[p.sev]}"></span>
       <span class="attn-type">${p.tipo}</span>
-      <span class="attn-num">${p.num}</span>
+      ${p.num ? `<span class="attn-num">${p.num}</span>` : ''}
       <span class="attn-desc">${p.desc || '—'}</span>
       <span class="attn-motivo" style="color:${SEV_COR[p.sev]}">${p.motivo}</span>
       <span class="attn-arrow">→</span>
@@ -347,6 +348,145 @@ function renderCockpitHero(session, pend) {
       <div class="cockpit-chip"><div class="n" style="color:${atrasos ? '#fecaca' : '#fff'}">${atrasos}</div><div class="l">Em atraso</div></div>
     </div>
   </div>`;
+}
+
+// ── Cockpit do app de Atividades do GQ (sem RNC/CAPA/GCM/REC) ────────────────
+
+const ATIV_DONE = ['Concluída', 'Cancelada'];
+const PROJ_ATIVO = ['Planejamento', 'Desenvolvimento', 'Verificação', 'Validação'];
+
+function computeAtivPendencias() {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const lim = new Date(hoje); lim.setDate(lim.getDate() + 30);
+  const atrasado = iso => iso && new Date(iso + 'T00:00:00') < hoje;
+  const em30     = iso => { if (!iso) return false; const d = new Date(iso + 'T00:00:00'); return d >= hoje && d <= lim; };
+  const out = [];
+
+  db.get('atividades').filter(r => !ATIV_DONE.includes(r.status) && atrasado(r.prazo))
+    .forEach(r => out.push({ sev: 0, tipo: 'Atividade', desc: r.titulo, motivo: 'Em atraso', rota: 'atividades' }));
+  db.get('obrigacoes').filter(r => r.status !== 'Suspenso' && atrasado(r.proximoVencimento))
+    .forEach(r => out.push({ sev: 0, tipo: 'Obrigação', desc: r.nome, motivo: 'Vencida', rota: 'obrigacoes' }));
+  db.get('projetos').filter(r => PROJ_ATIVO.includes(r.status) && atrasado(r.prazo))
+    .forEach(r => out.push({ sev: 1, tipo: 'Projeto', desc: r.nome || r.titulo, motivo: 'Atrasado', rota: 'projetosGerencial' }));
+  db.get('obrigacoes').filter(r => r.status !== 'Suspenso' && em30(r.proximoVencimento))
+    .forEach(r => out.push({ sev: 2, tipo: 'Obrigação', desc: r.nome, motivo: 'A vencer (30d)', rota: 'obrigacoes' }));
+  db.get('atividades').filter(r => !ATIV_DONE.includes(r.status) && em30(r.prazo))
+    .forEach(r => out.push({ sev: 2, tipo: 'Atividade', desc: r.titulo, motivo: 'A vencer (30d)', rota: 'atividades' }));
+
+  return out.sort((a, b) => a.sev - b.sev);
+}
+
+const ATIV_TILES = [
+  { rota: 'atividades',        ic: '✅', t: 'Nova Atividade',     s: 'Registrar tarefa do GQ' },
+  { rota: 'agenda',            ic: '📅', t: 'Agenda GQ',          s: 'Compromissos' },
+  { rota: 'projetosGerencial', ic: '🗂', t: 'Projetos',           s: 'Atividades de projeto' },
+  { rota: 'obrigacoes',        ic: '📋', t: 'Obrigações',         s: 'Regulatórias' },
+];
+
+function renderAtivTiles() {
+  return `<div class="action-tiles">
+    ${ATIV_TILES.map(a => `
+      <button class="action-tile" data-goto="${a.rota}">
+        <span class="ic">${a.ic}</span>
+        <span class="tx"><span class="t">${a.t}</span><span class="s">${a.s}</span></span>
+      </button>`).join('')}
+  </div>`;
+}
+
+function renderProximasAtividades() {
+  const items = db.get('atividades')
+    .filter(r => !ATIV_DONE.includes(r.status))
+    .sort((a, b) => (a.prazo || '9999').localeCompare(b.prazo || '9999'))
+    .slice(0, 8);
+  if (!items.length) return emptyState('Nenhuma atividade pendente.');
+  return items.map(r => `
+    <div class="upcoming-item" data-goto="atividades" style="cursor:pointer">
+      <span class="upcoming-type-tag">${r.tipo || 'Atividade'}</span>
+      <span class="upcoming-desc" title="${(r.titulo || '').replace(/"/g, '&quot;')}">${r.titulo || '—'}</span>
+      ${r.prazo ? deadlineCell(r.prazo) : statusPill(r.status)}
+    </div>`).join('');
+}
+
+function renderAtivNext30() {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const lim = new Date(hoje); lim.setDate(lim.getDate() + 30);
+  const items = [];
+  const add = (iso, label, tag) => { if (!iso) return; const d = new Date(iso + 'T00:00:00'); if (d >= hoje && d <= lim) items.push({ date: iso, label, tag }); };
+  db.get('atividades').filter(r => !ATIV_DONE.includes(r.status)).forEach(r => add(r.prazo, r.titulo, 'ATIV'));
+  db.get('obrigacoes').filter(r => r.status !== 'Suspenso').forEach(r => add(r.proximoVencimento, r.nome, 'OBR'));
+  items.sort((a, b) => a.date.localeCompare(b.date));
+  if (!items.length) return emptyState('Nenhum prazo nos próximos 30 dias.');
+  return items.slice(0, 10).map(r => `
+    <div class="upcoming-item">
+      <span class="upcoming-type-tag">${r.tag}</span>
+      <span class="upcoming-desc" title="${(r.label || '').replace(/"/g, '&quot;')}">${r.label || '—'}</span>
+      ${deadlineCell(r.date)}
+    </div>`).join('');
+}
+
+function renderProjetosAndamento() {
+  const items = db.get('projetos').filter(r => PROJ_ATIVO.includes(r.status)).slice(0, 8);
+  if (!items.length) return emptyState('Nenhum projeto em andamento.');
+  return items.map(r => `
+    <div class="upcoming-item" data-goto="projetosGerencial" style="cursor:pointer">
+      <span class="upcoming-desc" title="${(r.nome || r.titulo || '').replace(/"/g, '&quot;')}">${r.nome || r.titulo || '—'}</span>
+      ${statusPill(r.status)}
+    </div>`).join('');
+}
+
+function renderAtivWorkload() {
+  const equipe = db.get('equipe');
+  if (!equipe.length) return emptyState('Nenhuma colaboradora cadastrada.');
+  const counts = {};
+  equipe.forEach(m => { counts[m.nome] = 0; });
+  db.get('atividades').filter(r => !ATIV_DONE.includes(r.status)).forEach(r => { if (counts[r.responsavel] !== undefined) counts[r.responsavel]++; });
+  db.get('projetos').filter(r => PROJ_ATIVO.includes(r.status)).forEach(r => { const resp = r.responsavelGQ; if (counts[resp] !== undefined) counts[resp]++; });
+  const max = Math.max(...Object.values(counts), 1);
+  return equipe.map(m => {
+    const c = counts[m.nome] || 0;
+    const pct = Math.round(100 * c / max);
+    return `<div class="workload-item">
+      <div class="workload-avatar" style="background:${m.cor}">${m.iniciais}</div>
+      <span class="workload-name">${m.nome}</span>
+      <div style="flex:1">${progressBar(pct, pct > 75 ? 'red' : pct > 50 ? 'amber' : 'blue')}</div>
+      <span class="workload-count">${c}</span>
+    </div>`;
+  }).join('');
+}
+
+/** Dashboard do app de Atividades — gerencial de atividades da GQ/AR. */
+function renderAtividadesDashboard(session) {
+  const pend = computeAtivPendencias();
+  return `
+    ${renderCockpitHero(session, pend)}
+    ${renderAtivTiles()}
+
+    <div class="card" style="margin-bottom:18px;border-left:4px solid ${pend.length ? 'var(--red)' : 'var(--green)'}">
+      <div class="card-header"><h3>🎯 Precisa de atenção agora</h3>
+        ${pend.length ? `<span class="pill pill-red" style="font-size:0.66rem">${pend.length}</span>` : ''}
+      </div>
+      <div class="card-body">${renderPendencias(pend)}</div>
+    </div>
+
+    <div class="dash-grid">
+      <div class="card">
+        <div class="card-header"><h3>Próximas Atividades</h3></div>
+        <div class="card-body">${renderProximasAtividades()}</div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>Próximos Prazos — 30 dias</h3></div>
+        <div class="card-body">${renderAtivNext30()}</div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>Projetos em Andamento</h3></div>
+        <div class="card-body">${renderProjetosAndamento()}</div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>Carga por Colaboradora</h3></div>
+        <div class="card-body">${renderAtivWorkload()}</div>
+      </div>
+    </div>
+  `;
 }
 
 /** Dashboard pessoal para usuários de área (fora da GQ): só o que é do próprio usuário. */
@@ -438,6 +578,11 @@ function renderPersonalDashboard(session) {
 export default {
   render(container) {
     const session = getSession();
+    // App de Atividades do GQ: dashboard focado em atividades (sem RNC/CAPA/GCM/REC).
+    if (APP === 'gq') {
+      container.innerHTML = renderAtividadesDashboard(session);
+      return;
+    }
     if (!isGQ(session)) {
       container.innerHTML = renderPersonalDashboard(session);
       return;

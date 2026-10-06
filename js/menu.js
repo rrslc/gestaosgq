@@ -77,7 +77,7 @@ export const MENUS = {
   gq: {
     title: 'SGQ · Atividades',
     sub: 'Garantia da Qualidade',
-    home: 'atividades',
+    home: 'dashboard',
     sections: [
       { title: 'Visão Geral', items: [
         { route: 'dashboard',   icon: '◉', label: 'Dashboard' },
@@ -116,6 +116,29 @@ export const MENUS = {
 /** Configuração do app ativo (fallback para 'qms'). */
 export function activeMenu() {
   return MENUS[APP] || MENUS.qms;
+}
+
+// Aliases que redirecionam para a tela gerencial correspondente (espelha o
+// ALIAS de permissions.js) — usados para liberar o atalho quando o destino
+// pertence ao app ativo.
+const MENU_ALIAS = {
+  capa: 'capaGerencial', rnc: 'rncGerencial', gcm: 'gcmGerencial',
+  reclamacoes: 'reclamacoesGerencial', auditorias: 'auditoriasPlano', projetos: 'projetosGerencial',
+};
+
+/** Conjunto de rotas que pertencem ao app ativo (a partir do seu menu). */
+export function appRouteSet(menu = activeMenu()) {
+  const set = new Set();
+  menu.sections.forEach(s => s.items.forEach(i => set.add(i.route)));
+  return set;
+}
+
+/** Esta rota faz parte do app ativo? (resolve aliases de redirecionamento) */
+export function appAllowsRoute(route, menu = activeMenu()) {
+  const set = appRouteSet(menu);
+  if (set.has(route)) return true;
+  const target = MENU_ALIAS[route];
+  return !!target && set.has(target);
 }
 
 /** Gera o HTML interno da <nav> da sidebar para o app ativo. */
