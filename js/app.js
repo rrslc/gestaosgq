@@ -358,11 +358,24 @@ document.getElementById('login-form')?.addEventListener('submit', async e => {
   try {
     let user, token;
     if (_primeiroAcesso) {
-      // Bootstrap: grava a senha (hash) e cria a sessão a partir do registro local.
-      const membro = db.get('equipe').find(m => m.nome === nome);
-      if (!membro) throw new Error('Colaborador não encontrado.');
-      db.update('equipe', membro.id, { senha: await hashPassword(senha) });
-      user = membro;
+      const senhaHash = await hashPassword(senha);
+      if (db.mode === 'neon') {
+        // Neon: as escritas exigem token, então o primeiro acesso usa um endpoint
+        // dedicado que define a 1ª senha (só para quem não tem) e emite o token.
+        const res = await fetch('/api/bootstrap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, senhaHash }),
+        });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || 'Falha ao criar a senha.');
+        ({ user, token } = await res.json());
+      } else {
+        // Local: grava a senha (hash) direto e cria a sessão a partir do registro.
+        const membro = db.get('equipe').find(m => m.nome === nome);
+        if (!membro) throw new Error('Colaborador não encontrado.');
+        db.update('equipe', membro.id, { senha: senhaHash });
+        user = membro;
+      }
     } else {
       ({ user, token } = await authenticate(nome, senha));
     }
