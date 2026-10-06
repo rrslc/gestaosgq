@@ -166,13 +166,13 @@ function updateSidebarAccess(session) {
 
 // ── Session / Login ───────────────────────────────────────────────────────────
 
-// Portal de login/senha temporariamente DESATIVADO (a pedido). Para reativar,
-// mude para true. Com o login desativado, o app entra direto com uma sessão
-// automática (Administrador GQ). Observação: no modo Neon as gravações exigem
-// token de autenticação — reative o login antes de usar o servidor oficial.
-const LOGIN_ENABLED = false;
+// Portal de login/senha ATIVADO. Cada colaborador entra com seu nome e senha,
+// e o perfil da sessão passa a valer para as permissões. Com o login ativo, a
+// sessão automática e os atalhos de teste por porta/URL ficam desativados.
+// Para um modo de demonstração sem senha, mude para false (apenas em local).
+const LOGIN_ENABLED = true;
 
-// Perfil de teste por porta (só vale com login desativado) — permite abrir
+// Perfil de teste por porta (só vale com login DESATIVADO) — permite abrir
 // várias abas, uma por perfil: 8081 = GQ Analista, 8082 = área.
 const TEST_PERFIL_POR_PORTA = { '8081': 'GQ Analista', '8082': 'Controle da Qualidade' };
 
