@@ -9,10 +9,17 @@
 
 const crypto = require('crypto');
 
+// Segredo padrão de TESTE — usado só quando SESSION_SECRET não está definida,
+// para destravar o login na fase de teste sem depender da variável de ambiente.
+// MENOS SEGURO (fica no código): defina SESSION_SECRET na Vercel antes do uso
+// oficial — ela tem prioridade e sobrepõe este valor.
+const FALLBACK_SECRET = 'msb-sgq-TESTE-fallback-7Yq2wZ_troque-por-SESSION_SECRET';
+
 function getSecret() {
   const secret = process.env.SESSION_SECRET;
-  if (!secret) throw new Error('SESSION_SECRET não definida. Configure a variável de ambiente no Vercel.');
-  return secret;
+  if (secret) return secret;
+  console.warn('[auth] SESSION_SECRET não definida — usando segredo padrão de teste (defina a variável para produção).');
+  return FALLBACK_SECRET;
 }
 
 /** Assina um payload e retorna um token opaco "payload.assinatura". */
