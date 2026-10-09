@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "has": [{ "type": "host", "value": "gq.msbbrasil.com" }], "destination": "/atividades.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/).*)", "has": [{ "type": "host", "value": "gq.msbbrasil.com" }], "destination": "/atividades.html" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
