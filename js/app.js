@@ -269,7 +269,17 @@ async function authenticate(nome, senha) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nome, senhaHash }),
     });
-    if (!res.ok) registrarFalha();
+    if (!res.ok) {
+      // Erro de servidor (ex.: SESSION_SECRET ausente) não é senha incorreta —
+      // mostra a causa real e não conta como tentativa de senha.
+      if (res.status >= 500) {
+        const info = await res.json().catch(() => ({}));
+        throw new Error(info.error && info.error !== 'Erro interno do servidor.'
+          ? info.error
+          : 'Erro no servidor ao autenticar. Verifique a variável SESSION_SECRET na Vercel e refaça o deploy.');
+      }
+      registrarFalha(); // 401 etc. → senha realmente incorreta
+    }
     ({ user, token } = await res.json());
   } else {
     // Modo local (sem backend) — comparação no navegador, com migração de senha legada.
