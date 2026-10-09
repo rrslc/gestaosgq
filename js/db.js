@@ -36,6 +36,15 @@ class Database {
   // ── Inicialização ────────────────────────────────────────────────────────
 
   async #init() {
+    // Modo demonstração (?demo=1): força armazenamento LOCAL (localStorage),
+    // isolado por navegador. Nunca toca no Neon — produção fica protegida.
+    try {
+      if (new URLSearchParams(location.search).get('demo') === '1') {
+        this.#mode = 'local';
+        this.#loadFromStorage();
+        return;
+      }
+    } catch { /* sem window/URL — segue o fluxo normal */ }
     try {
       const res = await fetch('/api/health', { signal: AbortSignal.timeout(3000) });
       const { ok } = await res.json();

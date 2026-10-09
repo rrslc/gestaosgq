@@ -173,19 +173,26 @@ function updateSidebarAccess(session) {
 // demonstração em local), mude para false.
 const LOGIN_ENABLED = true;
 
+// Modo demonstração (?demo=1): entra direto (sem login) e usa armazenamento
+// local isolado (ver db.js). Permite ?perfil=... para testar perfis.
+const DEMO = (() => { try { return new URLSearchParams(location.search).get('demo') === '1'; } catch { return false; } })();
+
 // Perfil de teste por porta (só vale com login DESATIVADO) — permite abrir
 // várias abas, uma por perfil: 8081 = GQ Analista, 8082 = área.
 const TEST_PERFIL_POR_PORTA = { '8081': 'GQ Analista', '8082': 'Controle da Qualidade' };
 
 /** Cria uma sessão automática (sem senha) quando o login está desativado. */
 function ensureAutoSession() {
-  if (getSession()) return;
-  const equipe = db.get('equipe');
-  if (!equipe.length) return;
-
   // Perfil forçado para teste: ?perfil=... na URL ou pela porta.
   const forced = new URLSearchParams(location.search).get('perfil')
               || TEST_PERFIL_POR_PORTA[location.port] || '';
+  const atual = getSession();
+  // Já logado e sem troca de perfil pedida → nada a fazer. Mas se um ?perfil
+  // diferente foi passado (ex.: demo trocando de perfil), reaplica.
+  if (atual && (!forced || atual.perfil === forced)) return;
+  const equipe = db.get('equipe');
+  if (!equipe.length) return;
+
   if (forced) {
     const m = equipe.find(x => x.perfil === forced) || equipe[0];
     setSession({ id: m.id, nome: m.nome, iniciais: m.iniciais, area: m.area, perfil: forced, licenca: 'Manager', cor: m.cor });
@@ -499,7 +506,7 @@ window.addEventListener('sgq:import-warning', () => {
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 
 // Decisão síncrona (evita flash do app antes do portal): sem sessão → porta de login.
-if (LOGIN_ENABLED && !getSession()) document.body.classList.add('auth-gate');
+if (LOGIN_ENABLED && !DEMO && !getSession()) document.body.classList.add('auth-gate');
 
 // Guard de rotas: cada perfil só acessa as rotas permitidas (regra única).
 router.setGuard(routeName => {
@@ -529,7 +536,7 @@ db.ready.then(() => {
   migrateLegacyReclamStatus();
 
   // Login desativado: entra direto com uma sessão automática.
-  if (!LOGIN_ENABLED) ensureAutoSession();
+  if (!LOGIN_ENABLED || DEMO) ensureAutoSession();
 
   // Exibe o modo de armazenamento ativo no topbar
   const modeEl = document.getElementById('topbar-mode');
