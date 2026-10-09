@@ -166,14 +166,12 @@ function updateSidebarAccess(session) {
 
 // ── Session / Login ───────────────────────────────────────────────────────────
 
-// Portal de login/senha DESATIVADO neste primeiro momento (a pedido). O app
-// entra direto com uma sessão automática (GQ Administrador), sem senha e sem o
-// bloqueio por tentativas. Para reativar o login (cada um com sua senha e as
-// permissões valendo por perfil), basta mudar para true — o fluxo de primeiro
-// acesso (local e Neon via /api/bootstrap) já está pronto.
-// Atenção: no modo Neon, as GRAVAÇÕES exigem token de login; portanto, para usar
-// o servidor oficial com escrita, o login precisa estar ATIVO (true).
-const LOGIN_ENABLED = false;
+// Portal de login/senha ATIVADO — necessário para o teste com várias pessoas:
+// no modo Neon as GRAVAÇÕES exigem token de login. Cada pessoa entra com seu
+// nome e senha (contas de teste em scripts/seed-testers.js), e o perfil da
+// sessão passa a valer para as permissões. Para um modo sem senha (só leitura/
+// demonstração em local), mude para false.
+const LOGIN_ENABLED = true;
 
 // Perfil de teste por porta (só vale com login DESATIVADO) — permite abrir
 // várias abas, uma por perfil: 8081 = GQ Analista, 8082 = área.
